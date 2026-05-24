@@ -29,11 +29,7 @@ async function seedUsers() {
   const hash = (pw: string) => bcrypt.hashSync(pw, 10);
   const usersData = [
     { email: 'admin@clinicpro.com', password: hash('admin123'), name: 'Admin User', role: 'ADMIN' },
-    { email: 'doctor1@clinicpro.com', password: hash('doctor123'), name: 'د. أحمد السيد', role: 'DOCTOR' },
-    { email: 'doctor2@clinicpro.com', password: hash('doctor123'), name: 'د. محمد علي', role: 'DOCTOR' },
-    { email: 'doctor3@clinicpro.com', password: hash('doctor123'), name: 'د. حسن إبراهيم', role: 'DOCTOR' },
-    { email: 'doctor4@clinicpro.com', password: hash('doctor123'), name: 'د. نورا حسن', role: 'DOCTOR' },
-    { email: 'doctor5@clinicpro.com', password: hash('doctor123'), name: 'د. ياسر محمود', role: 'DOCTOR' },
+    { email: 'doctor@clinicpro.com', password: hash('doctor123'), name: 'د. المهدي', role: 'DOCTOR' },
     { email: 'nurse1@clinicpro.com', password: hash('nurse123'), name: 'ممرضة مريم', role: 'NURSE' },
     { email: 'nurse2@clinicpro.com', password: hash('nurse123'), name: 'ممرض خالد', role: 'NURSE' },
     { email: 'reception@clinicpro.com', password: hash('reception123'), name: 'سارة عبدالله', role: 'RECEPTIONIST' },
@@ -63,11 +59,7 @@ async function seedDoctors(users: any[], departments: any[]) {
   const getDept = (name: string) => departments.find((d: any) => d.name === name)!;
 
   const profiles = [
-    { userId: getUser('doctor1@clinicpro.com').id, departmentId: getDept('Cardiology').id, specialization: 'Interventional Cardiologist', consultationFee: 800, status: 'active' },
-    { userId: getUser('doctor2@clinicpro.com').id, departmentId: getDept('Neurology').id, specialization: 'Neurologist', consultationFee: 750, status: 'active' },
-    { userId: getUser('doctor3@clinicpro.com').id, departmentId: getDept('Orthopedics').id, specialization: 'Orthopedic Surgeon', consultationFee: 900, status: 'active' },
-    { userId: getUser('doctor4@clinicpro.com').id, departmentId: getDept('Pediatrics').id, specialization: 'Pediatrician', consultationFee: 600, status: 'active' },
-    { userId: getUser('doctor5@clinicpro.com').id, departmentId: getDept('General Medicine').id, specialization: 'General Physician', consultationFee: 500, status: 'active' },
+    { userId: getUser('doctor@clinicpro.com').id, departmentId: getDept('General Medicine').id, specialization: 'General Physician', consultationFee: 500, status: 'active' },
   ];
   const doctors = [];
   for (const d of profiles) {
@@ -114,20 +106,20 @@ async function seedAppointments(patients: any[], doctors: any[]) {
 
   const data = [
     { patientId: getPatient('patient1@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: past(2), appointmentEndDate: endDate(past(2), 30), durationMinutes: 30, type: 'Checkup', reason: 'Chest pain', status: 'COMPLETED' },
-    { patientId: getPatient('patient2@clinicpro.com').id, doctorId: doctors[1].id, appointmentDate: past(1), appointmentEndDate: endDate(past(1), 45), durationMinutes: 45, type: 'Consultation', reason: 'Headache', status: 'COMPLETED' },
-    { patientId: getPatient('patient3@clinicpro.com').id, doctorId: doctors[2].id, appointmentDate: past(0), appointmentEndDate: endDate(past(0), 60), durationMinutes: 60, type: 'Surgery', reason: 'Knee pain', status: 'CONFIRMED' },
-    { patientId: getPatient('patient4@clinicpro.com').id, doctorId: doctors[3].id, appointmentDate: future(1), appointmentEndDate: endDate(future(1), 30), durationMinutes: 30, type: 'Checkup', reason: 'Child fever', status: 'CONFIRMED' },
-    { patientId: getPatient('patient5@clinicpro.com').id, doctorId: doctors[4].id, appointmentDate: future(2), appointmentEndDate: endDate(future(2), 15), durationMinutes: 15, type: 'Follow-up', reason: 'Blood test results', status: 'PENDING' },
+    { patientId: getPatient('patient2@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: past(1), appointmentEndDate: endDate(past(1), 45), durationMinutes: 45, type: 'Consultation', reason: 'Headache', status: 'COMPLETED' },
+    { patientId: getPatient('patient3@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: past(0), appointmentEndDate: endDate(past(0), 60), durationMinutes: 60, type: 'Surgery', reason: 'Knee pain', status: 'CONFIRMED' },
+    { patientId: getPatient('patient4@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: future(1), appointmentEndDate: endDate(future(1), 30), durationMinutes: 30, type: 'Checkup', reason: 'Child fever', status: 'CONFIRMED' },
+    { patientId: getPatient('patient5@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: future(2), appointmentEndDate: endDate(future(2), 15), durationMinutes: 15, type: 'Follow-up', reason: 'Blood test results', status: 'PENDING' },
     { patientId: getPatient('patient6@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: future(3), appointmentEndDate: endDate(future(3), 30), durationMinutes: 30, type: 'Emergency', reason: 'Palpitations', status: 'PENDING' },
-    { patientId: getPatient('patient7@clinicpro.com').id, doctorId: doctors[1].id, appointmentDate: past(5), appointmentEndDate: endDate(past(5), 45), durationMinutes: 45, type: 'Consultation', reason: 'Memory loss', status: 'COMPLETED' },
-    { patientId: getPatient('patient8@clinicpro.com').id, doctorId: doctors[2].id, appointmentDate: past(3), appointmentEndDate: endDate(past(3), 30), durationMinutes: 30, type: 'Checkup', reason: 'Growth monitoring', status: 'COMPLETED' },
-    { patientId: getPatient('patient1@clinicpro.com').id, doctorId: doctors[3].id, appointmentDate: future(5), appointmentEndDate: endDate(future(5), 30), durationMinutes: 30, type: 'Follow-up', reason: 'Review', status: 'PENDING' },
-    { patientId: getPatient('patient2@clinicpro.com').id, doctorId: doctors[4].id, appointmentDate: past(7), appointmentEndDate: endDate(past(7), 20), durationMinutes: 20, type: 'Follow-up', reason: 'Medication check', status: 'COMPLETED' },
+    { patientId: getPatient('patient7@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: past(5), appointmentEndDate: endDate(past(5), 45), durationMinutes: 45, type: 'Consultation', reason: 'Memory loss', status: 'COMPLETED' },
+    { patientId: getPatient('patient8@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: past(3), appointmentEndDate: endDate(past(3), 30), durationMinutes: 30, type: 'Checkup', reason: 'Growth monitoring', status: 'COMPLETED' },
+    { patientId: getPatient('patient1@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: future(5), appointmentEndDate: endDate(future(5), 30), durationMinutes: 30, type: 'Follow-up', reason: 'Review', status: 'PENDING' },
+    { patientId: getPatient('patient2@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: past(7), appointmentEndDate: endDate(past(7), 20), durationMinutes: 20, type: 'Follow-up', reason: 'Medication check', status: 'COMPLETED' },
     { patientId: getPatient('patient3@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: future(7), appointmentEndDate: endDate(future(7), 60), durationMinutes: 60, type: 'Surgery', reason: 'Heart surgery follow-up', status: 'CANCELLED' },
-    { patientId: getPatient('patient4@clinicpro.com').id, doctorId: doctors[1].id, appointmentDate: future(10), appointmentEndDate: endDate(future(10), 30), durationMinutes: 30, type: 'Checkup', reason: 'Neurological exam', status: 'PENDING' },
-    { patientId: getPatient('patient5@clinicpro.com').id, doctorId: doctors[2].id, appointmentDate: past(14), appointmentEndDate: endDate(past(14), 45), durationMinutes: 45, type: 'Consultation', reason: 'Shoulder injury', status: 'COMPLETED' },
-    { patientId: getPatient('patient6@clinicpro.com').id, doctorId: doctors[3].id, appointmentDate: past(10), appointmentEndDate: endDate(past(10), 30), durationMinutes: 30, type: 'Checkup', reason: 'Routine check', status: 'COMPLETED' },
-    { patientId: getPatient('patient7@clinicpro.com').id, doctorId: doctors[4].id, appointmentDate: future(14), appointmentEndDate: endDate(future(14), 30), durationMinutes: 30, type: 'Follow-up', reason: 'Diabetes management', status: 'CANCELLED' },
+    { patientId: getPatient('patient4@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: future(10), appointmentEndDate: endDate(future(10), 30), durationMinutes: 30, type: 'Checkup', reason: 'Neurological exam', status: 'PENDING' },
+    { patientId: getPatient('patient5@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: past(14), appointmentEndDate: endDate(past(14), 45), durationMinutes: 45, type: 'Consultation', reason: 'Shoulder injury', status: 'COMPLETED' },
+    { patientId: getPatient('patient6@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: past(10), appointmentEndDate: endDate(past(10), 30), durationMinutes: 30, type: 'Checkup', reason: 'Routine check', status: 'COMPLETED' },
+    { patientId: getPatient('patient7@clinicpro.com').id, doctorId: doctors[0].id, appointmentDate: future(14), appointmentEndDate: endDate(future(14), 30), durationMinutes: 30, type: 'Follow-up', reason: 'Diabetes management', status: 'CANCELLED' },
   ];
   const appointments = [];
   for (const a of data) {
@@ -141,12 +133,12 @@ async function seedMedicalRecords(patients: any[], doctors: any[], appointments:
   const getPatient = (email: string) => patients.find((p: any) => p.email === email)!;
   const data = [
     { patientId: getPatient('patient1@clinicpro.com').id, doctorId: doctors[0].id, appointmentId: appointments[0].id, chiefComplaint: 'Chest pain and shortness of breath', diagnosis: 'Mild angina - stable condition', treatmentPlan: 'Prescribe nitroglycerin and schedule stress test', vitalSigns: JSON.stringify({ bp: '130/85', heartRate: 88, temperature: 98.6, oxygenSat: 97 }), notes: 'Patient advised to avoid strenuous activity' },
-    { patientId: getPatient('patient2@clinicpro.com').id, doctorId: doctors[1].id, appointmentId: appointments[1].id, chiefComplaint: 'Persistent headache for 2 weeks', diagnosis: 'Migraine without aura', treatmentPlan: 'Sumatriptan as needed, avoid triggers', vitalSigns: JSON.stringify({ bp: '120/80', heartRate: 72, temperature: 98.4, oxygenSat: 99 }), notes: 'Patient to keep headache diary' },
-    { patientId: getPatient('patient7@clinicpro.com').id, doctorId: doctors[1].id, appointmentId: appointments[6].id, chiefComplaint: 'Short-term memory loss and confusion', diagnosis: 'Mild cognitive impairment - early evaluation', treatmentPlan: 'Refer to memory clinic, start donepezil 5mg', vitalSigns: JSON.stringify({ bp: '145/90', heartRate: 76, temperature: 98.2, oxygenSat: 98 }), notes: 'Family history of Alzheimer disease' },
-    { patientId: getPatient('patient8@clinicpro.com').id, doctorId: doctors[2].id, appointmentId: appointments[7].id, chiefComplaint: 'Bone growth and development check', diagnosis: 'Normal growth pattern for age', treatmentPlan: 'Continue calcium and vitamin D supplements', vitalSigns: JSON.stringify({ bp: '110/70', heartRate: 80, temperature: 98.8, oxygenSat: 99 }), notes: 'Height at 75th percentile' },
-    { patientId: getPatient('patient5@clinicpro.com').id, doctorId: doctors[2].id, appointmentId: appointments[12].id, chiefComplaint: 'Right shoulder pain after lifting', diagnosis: 'Rotator cuff strain - Grade 1', treatmentPlan: 'Rest, ice, physical therapy 2x/week for 4 weeks', vitalSigns: JSON.stringify({ bp: '125/82', heartRate: 70, temperature: 98.4, oxygenSat: 98 }), notes: 'Avoid overhead lifting for 6 weeks' },
-    { patientId: getPatient('patient6@clinicpro.com').id, doctorId: doctors[3].id, appointmentId: appointments[13].id, chiefComplaint: 'Routine pediatric checkup', diagnosis: 'Healthy - no abnormalities', treatmentPlan: 'Continue regular checkups, vaccines up to date', vitalSigns: JSON.stringify({ bp: '115/75', heartRate: 78, temperature: 98.5, oxygenSat: 100 }), notes: '' },
-    { patientId: getPatient('patient2@clinicpro.com').id, doctorId: doctors[4].id, appointmentId: appointments[9].id, chiefComplaint: 'Medication follow-up for blood pressure', diagnosis: 'Hypertension - Stage 1, well controlled', treatmentPlan: 'Continue current medication, monitor weekly', vitalSigns: JSON.stringify({ bp: '128/84', heartRate: 74, temperature: 98.3, oxygenSat: 98 }), notes: 'Lifestyle modifications discussed' },
+    { patientId: getPatient('patient2@clinicpro.com').id, doctorId: doctors[0].id, appointmentId: appointments[1].id, chiefComplaint: 'Persistent headache for 2 weeks', diagnosis: 'Migraine without aura', treatmentPlan: 'Sumatriptan as needed, avoid triggers', vitalSigns: JSON.stringify({ bp: '120/80', heartRate: 72, temperature: 98.4, oxygenSat: 99 }), notes: 'Patient to keep headache diary' },
+    { patientId: getPatient('patient7@clinicpro.com').id, doctorId: doctors[0].id, appointmentId: appointments[6].id, chiefComplaint: 'Short-term memory loss and confusion', diagnosis: 'Mild cognitive impairment - early evaluation', treatmentPlan: 'Refer to memory clinic, start donepezil 5mg', vitalSigns: JSON.stringify({ bp: '145/90', heartRate: 76, temperature: 98.2, oxygenSat: 98 }), notes: 'Family history of Alzheimer disease' },
+    { patientId: getPatient('patient8@clinicpro.com').id, doctorId: doctors[0].id, appointmentId: appointments[7].id, chiefComplaint: 'Bone growth and development check', diagnosis: 'Normal growth pattern for age', treatmentPlan: 'Continue calcium and vitamin D supplements', vitalSigns: JSON.stringify({ bp: '110/70', heartRate: 80, temperature: 98.8, oxygenSat: 99 }), notes: 'Height at 75th percentile' },
+    { patientId: getPatient('patient5@clinicpro.com').id, doctorId: doctors[0].id, appointmentId: appointments[12].id, chiefComplaint: 'Right shoulder pain after lifting', diagnosis: 'Rotator cuff strain - Grade 1', treatmentPlan: 'Rest, ice, physical therapy 2x/week for 4 weeks', vitalSigns: JSON.stringify({ bp: '125/82', heartRate: 70, temperature: 98.4, oxygenSat: 98 }), notes: 'Avoid overhead lifting for 6 weeks' },
+    { patientId: getPatient('patient6@clinicpro.com').id, doctorId: doctors[0].id, appointmentId: appointments[13].id, chiefComplaint: 'Routine pediatric checkup', diagnosis: 'Healthy - no abnormalities', treatmentPlan: 'Continue regular checkups, vaccines up to date', vitalSigns: JSON.stringify({ bp: '115/75', heartRate: 78, temperature: 98.5, oxygenSat: 100 }), notes: '' },
+    { patientId: getPatient('patient2@clinicpro.com').id, doctorId: doctors[0].id, appointmentId: appointments[9].id, chiefComplaint: 'Medication follow-up for blood pressure', diagnosis: 'Hypertension - Stage 1, well controlled', treatmentPlan: 'Continue current medication, monitor weekly', vitalSigns: JSON.stringify({ bp: '128/84', heartRate: 74, temperature: 98.3, oxygenSat: 98 }), notes: 'Lifestyle modifications discussed' },
   ];
   const records = [];
   for (const r of data) {
@@ -160,12 +152,12 @@ async function seedPrescriptions(patients: any[], doctors: any[], records: any[]
   const getPatient = (email: string) => patients.find((p: any) => p.email === email)!;
   const data = [
     { patientId: getPatient('patient1@clinicpro.com').id, doctorId: doctors[0].id, medicalRecordId: records[0].id, medications: JSON.stringify([{ name: 'Nitroglycerin', dosage: '0.4mg', frequency: 'As needed sublingual', duration: '30 days' }, { name: 'Aspirin', dosage: '81mg', frequency: 'Once daily', duration: '90 days' }]), instructions: 'Take nitroglycerin at first sign of chest pain.' },
-    { patientId: getPatient('patient2@clinicpro.com').id, doctorId: doctors[1].id, medicalRecordId: records[1].id, medications: JSON.stringify([{ name: 'Sumatriptan', dosage: '50mg', frequency: 'At onset of migraine', duration: '10 doses' }, { name: 'Ibuprofen', dosage: '400mg', frequency: 'Every 6 hours as needed', duration: '5 days' }]), instructions: 'Take at first sign of migraine.' },
-    { patientId: getPatient('patient7@clinicpro.com').id, doctorId: doctors[1].id, medicalRecordId: records[2].id, medications: JSON.stringify([{ name: 'Donepezil', dosage: '5mg', frequency: 'Once daily at bedtime', duration: '30 days' }]), instructions: 'Take at bedtime. May cause dizziness.' },
-    { patientId: getPatient('patient5@clinicpro.com').id, doctorId: doctors[2].id, medicalRecordId: records[4].id, medications: JSON.stringify([{ name: 'Naproxen', dosage: '500mg', frequency: 'Twice daily with food', duration: '7 days' }, { name: 'Cyclobenzaprine', dosage: '10mg', frequency: 'Three times daily as needed', duration: '7 days' }]), instructions: 'Rest shoulder, apply ice pack 20 min 3x/day.' },
-    { patientId: getPatient('patient6@clinicpro.com').id, doctorId: doctors[3].id, medicalRecordId: records[5].id, medications: JSON.stringify([]), instructions: 'No medications prescribed at this time.' },
-    { patientId: getPatient('patient2@clinicpro.com').id, doctorId: doctors[4].id, medicalRecordId: records[6].id, medications: JSON.stringify([{ name: 'Lisinopril', dosage: '10mg', frequency: 'Once daily', duration: '90 days' }]), instructions: 'Take in the morning. Monitor blood pressure weekly.' },
-    { patientId: getPatient('patient4@clinicpro.com').id, doctorId: doctors[3].id, medicalRecordId: null, medications: JSON.stringify([{ name: 'Amoxicillin', dosage: '250mg', frequency: 'Three times daily', duration: '7 days' }]), instructions: 'Take with food. Complete full course.' },
+    { patientId: getPatient('patient2@clinicpro.com').id, doctorId: doctors[0].id, medicalRecordId: records[1].id, medications: JSON.stringify([{ name: 'Sumatriptan', dosage: '50mg', frequency: 'At onset of migraine', duration: '10 doses' }, { name: 'Ibuprofen', dosage: '400mg', frequency: 'Every 6 hours as needed', duration: '5 days' }]), instructions: 'Take at first sign of migraine.' },
+    { patientId: getPatient('patient7@clinicpro.com').id, doctorId: doctors[0].id, medicalRecordId: records[2].id, medications: JSON.stringify([{ name: 'Donepezil', dosage: '5mg', frequency: 'Once daily at bedtime', duration: '30 days' }]), instructions: 'Take at bedtime. May cause dizziness.' },
+    { patientId: getPatient('patient5@clinicpro.com').id, doctorId: doctors[0].id, medicalRecordId: records[4].id, medications: JSON.stringify([{ name: 'Naproxen', dosage: '500mg', frequency: 'Twice daily with food', duration: '7 days' }, { name: 'Cyclobenzaprine', dosage: '10mg', frequency: 'Three times daily as needed', duration: '7 days' }]), instructions: 'Rest shoulder, apply ice pack 20 min 3x/day.' },
+    { patientId: getPatient('patient6@clinicpro.com').id, doctorId: doctors[0].id, medicalRecordId: records[5].id, medications: JSON.stringify([]), instructions: 'No medications prescribed at this time.' },
+    { patientId: getPatient('patient2@clinicpro.com').id, doctorId: doctors[0].id, medicalRecordId: records[6].id, medications: JSON.stringify([{ name: 'Lisinopril', dosage: '10mg', frequency: 'Once daily', duration: '90 days' }]), instructions: 'Take in the morning. Monitor blood pressure weekly.' },
+    { patientId: getPatient('patient4@clinicpro.com').id, doctorId: doctors[0].id, medicalRecordId: null, medications: JSON.stringify([{ name: 'Amoxicillin', dosage: '250mg', frequency: 'Three times daily', duration: '7 days' }]), instructions: 'Take with food. Complete full course.' },
   ];
   const prescriptions = [];
   for (const p of data) {
@@ -230,7 +222,7 @@ async function main() {
   console.log('───────────────────────────────────────');
   console.log('  Login creds:');
   console.log('  Admin:    admin@clinicpro.com / admin123');
-  console.log('  Doctor:   doctor1@clinicpro.com / doctor123');
+  console.log('  Doctor:   doctor@clinicpro.com / doctor123');
   console.log('  Patient:  patient1@clinicpro.com / patient123');
   console.log('═══════════════════════════════════════\n');
 }
