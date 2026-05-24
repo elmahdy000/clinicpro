@@ -57,7 +57,7 @@ export class DoctorsService {
   }
 
   async create(dto: CreateDoctorDto) {
-    return this.prisma.doctor.create({ data: dto });
+    return this.prisma.doctor.create({ data: { ...(dto as any), clinicId: 1 } });
   }
 
   async update(id: number, dto: UpdateDoctorDto) {

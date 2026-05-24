@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchBox } from '@/components/common/SearchBox';
+import { GlobalPatientSearch } from '@/components/patients/GlobalPatientSearch';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -56,6 +57,7 @@ export default function PatientsPage() {
                   onChange={setSearch}
                 />
               </div>
+              <GlobalPatientSearch />
               <Link href={`/${locale}/patients/new`} className="shrink-0">
                 <Button className="h-10 w-full sm:w-auto bg-teal-600 hover:bg-teal-700 rounded-lg gap-1.5">
                   <Plus className="w-4 h-4" />

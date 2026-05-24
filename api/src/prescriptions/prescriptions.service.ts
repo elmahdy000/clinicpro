@@ -59,7 +59,7 @@ export class PrescriptionsService {
     if (data.medications && typeof data.medications !== 'string') {
       data.medications = JSON.stringify(data.medications);
     }
-    const prescription = await this.prisma.prescription.create({ data });
+    const prescription = await this.prisma.prescription.create({ data: { ...data, clinicId: 1 } });
     const full = await this.findOne(prescription.id);
     await this.notificationHelper.sendPrescriptionCreated(full, full.doctor.user, full.patient).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));
     return full;

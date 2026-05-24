@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { tenantStorage } from '../prisma/tenant-context';
 import { RedisService } from '../redis/redis.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
@@ -17,7 +18,14 @@ export class PatientsService {
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<any>> {
     const { page = 1, limit = 10, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const store = tenantStorage.getStore();
+    const clinicId = store?.clinicId;
+
     const where: any = {};
+    if (clinicId) {
+      where.clinics = { some: { clinicId } };
+    }
+    
     if (search) {
       where.OR = [
         { firstName: { contains: search } },
@@ -39,9 +47,41 @@ export class PatientsService {
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
+  async globalSearch(query: string) {
+    if (!query || query.trim().length < 3) return [];
+    
+    return tenantStorage.run({ clinicId: null }, async () => {
+      return this.prisma.patient.findMany({
+        where: {
+          OR: [
+            { phone: { contains: query } },
+            { nationalId: { contains: query } },
+          ],
+        },
+        include: {
+          clinics: { include: { clinic: { select: { id: true, name: true } } } },
+          medicalRecords: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            include: { doctor: { select: { specialization: true, user: { select: { name: true } } } } },
+          },
+          prescriptions: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            include: { doctor: { select: { user: { select: { name: true } } } } },
+          },
+        },
+        take: 10,
+      });
+    });
+  }
+
   async findOne(id: number) {
-    const patient = await this.prisma.patient.findUnique({
-      where: { id },
+    const store = tenantStorage.getStore();
+    const clinicId = store?.clinicId;
+    
+    const patient = await this.prisma.patient.findFirst({
+      where: { id, clinics: clinicId ? { some: { clinicId } } : undefined },
       include: {
         appointments: true,
         medicalRecords: true,
@@ -49,12 +89,32 @@ export class PatientsService {
         user: { select: { id: true, email: true, name: true, role: true } },
       },
     });
-    if (!patient) throw new NotFoundException(`Patient #${id} not found`);
+    if (!patient) throw new NotFoundException(`Patient #${id} not found in your clinic`);
     return patient;
   }
 
   async create(dto: CreatePatientDto) {
-    return this.prisma.patient.create({ data: dto });
+    const store = tenantStorage.getStore();
+    const clinicId = store?.clinicId;
+
+    let patient = null;
+    if (dto.phone) patient = await this.prisma.patient.findUnique({ where: { phone: dto.phone } });
+    
+    if (!patient) {
+      patient = await this.prisma.patient.create({ data: { ...(dto as any) } });
+    } else {
+      patient = await this.prisma.patient.update({ where: { id: patient.id }, data: { ...(dto as any) } });
+    }
+
+    if (clinicId) {
+      await this.prisma.clinicPatient.upsert({
+        where: { clinicId_patientId: { clinicId, patientId: patient.id } },
+        create: { clinicId, patientId: patient.id },
+        update: {}
+      });
+    }
+
+    return patient;
   }
 
   async update(id: number, dto: UpdatePatientDto) {
@@ -63,8 +123,18 @@ export class PatientsService {
   }
 
   async remove(id: number) {
-    await this.findOne(id);
-    return this.prisma.patient.delete({ where: { id } });
+    const store = tenantStorage.getStore();
+    const clinicId = store?.clinicId;
+    await this.findOne(id); // Ensures the patient belongs to the clinic
+
+    if (clinicId) {
+      await this.prisma.clinicPatient.delete({
+        where: { clinicId_patientId: { clinicId, patientId: id } }
+      });
+      return { success: true, message: 'Patient unlinked from your clinic' };
+    } else {
+      return this.prisma.patient.delete({ where: { id } });
+    }
   }
 
   async getAppointments(patientId: number) {
@@ -84,7 +154,7 @@ export class PatientsService {
     const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
     if (!patient) throw new NotFoundException(`Patient #${patientId} not found`);
 
-    const [appointments, medicalRecords, prescriptions, labTests, invoices] = await Promise.all([
+    const [appointments, medicalRecords, prescriptions, invoices] = await Promise.all([
       this.prisma.appointment.findMany({
         where: { patientId },
         include: { doctor: { include: { user: { select: { id: true, name: true } } } } },
@@ -100,11 +170,6 @@ export class PatientsService {
         include: { doctor: { include: { user: { select: { id: true, name: true } } } } },
         orderBy: { prescribedDate: 'desc' },
       }),
-      this.prisma.labTest.findMany({
-        where: { patientId },
-        include: { doctor: { include: { user: { select: { id: true, name: true } } } } },
-        orderBy: { orderedDate: 'desc' },
-      }),
       (await this.prisma.invoice.findMany({
         where: { patientId },
         orderBy: { createdAt: 'desc' },
@@ -116,19 +181,16 @@ export class PatientsService {
 
     const timeline: any[] = [];
 
-    appointments.forEach((a) =>
+    appointments.forEach((a: any) =>
       timeline.push({ type: 'APPOINTMENT', date: a.appointmentDate, data: a }),
     );
-    medicalRecords.forEach((r) =>
+    medicalRecords.forEach((r: any) =>
       timeline.push({ type: 'MEDICAL_RECORD', date: r.createdAt, data: r }),
     );
-    prescriptions.forEach((p) =>
+    prescriptions.forEach((p: any) =>
       timeline.push({ type: 'PRESCRIPTION', date: p.prescribedDate, data: p }),
     );
-    labTests.forEach((l) =>
-      timeline.push({ type: 'LAB_TEST', date: l.orderedDate, data: l }),
-    );
-    invoices.forEach((i) =>
+    invoices.forEach((i: any) =>
       timeline.push({ type: 'INVOICE', date: i.createdAt, data: i }),
     );
 

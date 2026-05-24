@@ -57,7 +57,8 @@ export class MedicalRecordsService {
     const record = await this.prisma.medicalRecord.create({
       data: {
         ...dto,
-        vitalSigns: dto.vitalSigns ?? undefined,
+        vitalSigns: dto.vitalSigns ? JSON.stringify(dto.vitalSigns) : '{}',
+        clinicId: 1,
       },
     });
     const full = await this.findOne(record.id);
@@ -71,7 +72,7 @@ export class MedicalRecordsService {
       where: { id },
       data: {
         ...dto,
-        vitalSigns: dto.vitalSigns ?? undefined,
+        vitalSigns: dto.vitalSigns ? JSON.stringify(dto.vitalSigns) : undefined,
       },
     });
   }

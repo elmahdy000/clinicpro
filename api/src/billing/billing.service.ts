@@ -71,6 +71,7 @@ export class BillingService {
 
     const invoice = await this.prisma.invoice.create({
       data: {
+        clinicId: 1,
         invoiceNumber,
         patientId: dto.patientId,
         doctorId: dto.doctorId,

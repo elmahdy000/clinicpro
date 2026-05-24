@@ -27,6 +27,7 @@ export class UploadsService {
         fileType: file.mimetype,
         url: file.path,
         uploadedBy,
+        clinicId: 1,
       },
     });
   }

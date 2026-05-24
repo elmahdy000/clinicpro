@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { tenantStorage } from '../prisma/tenant-context';
 
 @Injectable()
 export class AuthService {
@@ -39,14 +40,56 @@ export class AuthService {
     return user;
   }
 
+  async registerClinic(dto: any) {
+    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (existing) throw new ConflictException('Email already in use');
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    return tenantStorage.run({ clinicId: null }, async () => {
+      const clinic = await this.prisma.clinic.create({
+        data: {
+          name: dto.clinicName,
+          phone: dto.clinicPhone || '',
+          address: dto.clinicAddress || '',
+          subscriptionPlan: 'PREMIUM',
+        }
+      });
+
+      const user = await this.prisma.user.create({
+        data: {
+          email: dto.email,
+          name: dto.name,
+          password: hashedPassword,
+          role: 'CLINIC_ADMIN',
+          clinicId: clinic.id,
+        }
+      });
+
+      await this.prisma.doctor.create({
+        data: {
+          userId: user.id,
+          specialization: dto.specialization || 'General',
+          consultationFee: 200,
+          status: 'ACTIVE',
+          clinicId: clinic.id,
+        }
+      });
+
+      return { message: 'Clinic registered successfully', clinicId: clinic.id };
+    });
+  }
+
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const user = await tenantStorage.run({ clinicId: null }, async () => {
+      return await this.prisma.user.findUnique({ where: { email: dto.email } });
+    });
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
     const isMatch = await bcrypt.compare(dto.password, user.password);
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
 
-    const payload = { email: user.email, sub: user.id, role: user.role };
+    const payload = { email: user.email, sub: user.id, role: user.role, clinicId: user.clinicId };
     const access_token = this.jwtService.sign(payload);
 
     return {

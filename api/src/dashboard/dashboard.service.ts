@@ -23,7 +23,7 @@ export class DashboardService {
 
     const patientsCount = await this.prisma.patient.count();
     const doctorsCount = await this.prisma.doctor.count();
-    const departmentsCount = await this.prisma.department.count();
+    const departmentsCount = 0;
 
     const appointmentsByStatus = await this.prisma.appointment.groupBy({
       by: ['status'],
@@ -36,10 +36,7 @@ export class DashboardService {
       _sum: { total: true },
     });
 
-    const labTestsByStatus = await this.prisma.labTest.groupBy({
-      by: ['status'],
-      _count: { id: true },
-    });
+    const labTestsByStatus: any[] = [];
 
     const revenueAgg = await this.prisma.invoice.aggregate({
       _sum: { total: true },
@@ -47,25 +44,25 @@ export class DashboardService {
     });
 
     const result = {
-      users: usersByRole.reduce((acc: Record<string, number>, curr) => {
+      users: usersByRole.reduce((acc: Record<string, number>, curr: any) => {
         acc[curr.role] = curr._count.id;
         return acc;
       }, {} as Record<string, number>),
       patients: patientsCount,
       doctors: doctorsCount,
-      appointments: appointmentsByStatus.reduce((acc: Record<string, number>, curr) => {
+      appointments: appointmentsByStatus.reduce((acc: Record<string, number>, curr: any) => {
         acc[curr.status] = curr._count.id;
         return acc;
       }, {} as Record<string, number>),
       departments: departmentsCount,
       revenue: {
         total: revenueAgg._sum.total ?? 0,
-        byStatus: invoicesByStatus.reduce((acc: Record<string, { count: number; total: number }>, curr) => {
+        byStatus: invoicesByStatus.reduce((acc: Record<string, { count: number; total: number }>, curr: any) => {
           acc[curr.status] = { count: curr._count.id, total: curr._sum.total ?? 0 };
           return acc;
         }, {} as Record<string, { count: number; total: number }>),
       },
-      labTests: labTestsByStatus.reduce((acc: Record<string, number>, curr) => {
+      labTests: labTestsByStatus.reduce((acc: Record<string, number>, curr: any) => {
         acc[curr.status] = curr._count.id;
         return acc;
       }, {} as Record<string, number>),

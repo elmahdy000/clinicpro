@@ -14,6 +14,11 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @Post('register-clinic')
+  registerClinic(@Body() dto: any) {
+    return this.authService.registerClinic(dto);
+  }
+
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);

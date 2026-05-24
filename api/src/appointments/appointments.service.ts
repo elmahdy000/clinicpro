@@ -91,7 +91,7 @@ export class AppointmentsService {
     const appointmentEndDate = this.calculateEndDate(dto.appointmentDate, dto.durationMinutes);
     await this.checkOverlap(dto.doctorId, new Date(dto.appointmentDate), appointmentEndDate);
     const appointment = await this.prisma.appointment.create({
-      data: { ...dto, appointmentEndDate },
+      data: { ...dto, appointmentEndDate, clinicId: 1 },
     });
     const full = await this.findOne(appointment.id);
     await this.notificationHelper.sendAppointmentCreated(full, full.doctor.user, full.patient).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));

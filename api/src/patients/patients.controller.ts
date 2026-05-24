@@ -24,6 +24,12 @@ export class PatientsController {
     return this.patientsService.create(dto);
   }
 
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
+  @Get('global-search')
+  globalSearch(@Query('query') query: string) {
+    return this.patientsService.globalSearch(query);
+  }
+
   @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PATIENT)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {

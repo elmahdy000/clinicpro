@@ -15,7 +15,7 @@ export class OtpService {
   ) {}
 
   async sendOtp(email: string) {
-    const patient = await this.prisma.patient.findUnique({ where: { email } });
+    const patient = await this.prisma.patient.findFirst({ where: { email } });
     if (!patient) throw new NotFoundException('Patient with this email not found');
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -49,14 +49,17 @@ export class OtpService {
       throw new BadRequestException('Invalid or expired OTP');
     }
 
-    await this.prisma.patient.update({
-      where: { email },
-      data: { emailVerifiedAt: new Date() },
-    });
+    const patientToUpdate = await this.prisma.patient.findFirst({ where: { email } });
+    if (patientToUpdate) {
+      await this.prisma.patient.update({
+        where: { id: patientToUpdate.id },
+        data: { emailVerifiedAt: new Date() },
+      });
+    }
 
     await this.prisma.otpVerification.delete({ where: { id: pending.id } });
 
-    const patient = await this.prisma.patient.findUnique({ where: { email } });
+    const patient = await this.prisma.patient.findFirst({ where: { email } });
     if (patient?.userId) {
       this.notificationHelper.sendOtpVerified(email, patient.userId).catch((e) => this.logger.warn(`OTP verify notification failed: ${(e as Error).message}`));
     }

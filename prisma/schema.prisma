@@ -19,7 +19,7 @@ model Clinic {
 
   users          User[]
   doctors        Doctor[]
-  patients       Patient[]
+  clinicPatients ClinicPatient[]
   appointments   Appointment[]
   medicalRecords MedicalRecord[]
   prescriptions  Prescription[]
@@ -96,12 +96,11 @@ model DoctorTimeOff {
 
 model Patient {
   id               Int       @id @default(autoincrement())
-  clinicId         Int
-  clinic           Clinic    @relation(fields: [clinicId], references: [id])
   firstName        String
   lastName         String
-  email            String?
-  phone            String?
+  email            String?   @unique
+  phone            String?   @unique
+  nationalId       String?   @unique
   dateOfBirth      DateTime?
   gender           String?
   address          String?
@@ -109,6 +108,7 @@ model Patient {
   allergies        String?
   medicalHistory   String?
   emergencyContact String?
+  emailVerifiedAt  DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -119,8 +119,18 @@ model Patient {
   user           User?           @relation("PatientProfile", fields: [userId], references: [id])
   userId         Int?            @unique
 
-  @@unique([clinicId, email])
-  @@unique([clinicId, phone])
+  clinics        ClinicPatient[]
+}
+
+model ClinicPatient {
+  id        Int      @id @default(autoincrement())
+  clinicId  Int
+  clinic    Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patientId Int
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([clinicId, patientId])
 }
 
 model Appointment {

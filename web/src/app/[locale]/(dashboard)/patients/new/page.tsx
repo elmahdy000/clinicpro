@@ -21,6 +21,7 @@ const patientSchema = z.object({
   lastName: z.string().min(1, 'Required'),
   phone: z.string().min(6, 'Invalid phone'),
   gender: z.string().min(1, 'Required'),
+  nationalId: z.string().optional(),
   dateOfBirth: z.string().optional(),
   address: z.string().optional(),
   bloodGroup: z.string().optional(),
@@ -92,6 +93,10 @@ export default function NewPatientPage() {
                   <SelectItem value="Female">{tc('female')}</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>{isRtl ? 'الرقم القومي' : 'National ID'}</Label>
+              <Input {...form.register('nationalId')} className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" />
             </div>
             <div className="space-y-2">
               <Label>{t('dateOfBirth')}</Label>

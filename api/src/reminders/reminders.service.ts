@@ -50,12 +50,14 @@ export class RemindersService {
 
         this.eventsGateway.sendNotification(patientUserId, notification);
 
-        await this.mailService.sendAppointmentReminder(
-          apt.patient.email,
-          `${apt.patient.firstName} ${apt.patient.lastName}`,
-          apt.doctor.user.name,
-          new Date(apt.appointmentDate).toLocaleString(),
-        );
+        if (apt.patient.email) {
+          await this.mailService.sendAppointmentReminder(
+            apt.patient.email,
+            `${apt.patient.firstName} ${apt.patient.lastName}`,
+            apt.doctor.user.name,
+            new Date(apt.appointmentDate).toLocaleString(),
+          );
+        }
 
         this.logger.log(`Reminder sent for appointment #${apt.id}`);
       } catch (error) {
