@@ -1,0 +1,283 @@
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../redis/redis.service';
+import { CreateDoctorDto } from './dto/create-doctor.dto';
+import { UpdateDoctorDto } from './dto/update-doctor.dto';
+import { CreateAvailabilityDto } from './dto/create-availability.dto';
+import { CreateTimeOffDto } from './dto/create-timeoff.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
+import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
+
+const CACHE_TTL_SLOTS = 60;
+const CACHE_TTL_DAYS = 120;
+
+@Injectable()
+export class DoctorsService {
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {}
+
+  async findAll(query: PaginationDto): Promise<PaginatedResult<any>> {
+    const { page = 1, limit = 10, search, sortBy = 'id', sortOrder = 'desc' } = query;
+    const where: any = {};
+    const allowedSortFields = new Set(['id', 'specialization', 'consultationFee', 'status', 'userId', 'departmentId']);
+    const safeSortBy = allowedSortFields.has(sortBy) ? sortBy : 'id';
+    if (search) {
+      where.OR = [
+        { specialization: { contains: search } },
+        { user: { name: { contains: search } } },
+        { user: { email: { contains: search } } },
+      ];
+    }
+    const [data, total] = await Promise.all([
+      this.prisma.doctor.findMany({
+        where,
+        include: { user: { select: { id: true, email: true, name: true, role: true } } },
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { [safeSortBy]: sortOrder },
+      }),
+      this.prisma.doctor.count({ where }),
+    ]);
+    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+  }
+
+  async findOne(id: number) {
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id },
+      include: { user: { select: { id: true, email: true, name: true, role: true } }, appointments: true },
+    });
+    if (!doctor) throw new NotFoundException(`Doctor #${id} not found`);
+    return doctor;
+  }
+
+  async findByUserId(userId: number) {
+    return this.prisma.doctor.findUnique({ where: { userId } });
+  }
+
+  async create(dto: CreateDoctorDto) {
+    return this.prisma.doctor.create({ data: dto });
+  }
+
+  async update(id: number, dto: UpdateDoctorDto) {
+    await this.findOne(id);
+    return this.prisma.doctor.update({ where: { id }, data: dto });
+  }
+
+  async remove(id: number) {
+    await this.findOne(id);
+    return this.prisma.doctor.delete({ where: { id } });
+  }
+
+  async getAppointments(doctorId: number) {
+    const doctor = await this.prisma.doctor.findUnique({ where: { id: doctorId } });
+    if (!doctor) throw new NotFoundException(`Doctor #${doctorId} not found`);
+    return this.prisma.appointment.findMany({ where: { doctorId } });
+  }
+
+  async getAvailability(doctorId: number) {
+    await this.findOne(doctorId);
+    return this.prisma.doctorAvailability.findMany({ where: { doctorId } });
+  }
+
+  async upsertAvailability(doctorId: number, dto: CreateAvailabilityDto) {
+    await this.findOne(doctorId);
+    return this.prisma.doctorAvailability.upsert({
+      where: { doctorId_dayOfWeek: { doctorId, dayOfWeek: dto.dayOfWeek } },
+      update: {
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        slotDuration: dto.slotDuration ?? 30,
+        isAvailable: dto.isAvailable ?? true,
+      },
+      create: {
+        doctorId,
+        dayOfWeek: dto.dayOfWeek,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        slotDuration: dto.slotDuration ?? 30,
+        isAvailable: dto.isAvailable ?? true,
+      },
+    });
+  }
+
+  async removeAvailability(doctorId: number, dayOfWeek: number) {
+    await this.findOne(doctorId);
+    try {
+      await this.prisma.doctorAvailability.delete({
+        where: { doctorId_dayOfWeek: { doctorId, dayOfWeek } },
+      });
+    } catch {
+      throw new NotFoundException(`Availability for day ${dayOfWeek} not found`);
+    }
+  }
+
+  async getTimeOff(doctorId: number) {
+    await this.findOne(doctorId);
+    return this.prisma.doctorTimeOff.findMany({ where: { doctorId }, orderBy: { date: 'asc' } });
+  }
+
+  async addTimeOff(doctorId: number, dto: CreateTimeOffDto) {
+    await this.findOne(doctorId);
+    return this.prisma.doctorTimeOff.create({
+      data: { doctorId, date: dto.date, reason: dto.reason },
+    });
+  }
+
+  async removeTimeOff(id: number) {
+    const record = await this.prisma.doctorTimeOff.findUnique({ where: { id } });
+    if (!record) throw new NotFoundException(`TimeOff #${id} not found`);
+    return this.prisma.doctorTimeOff.delete({ where: { id } });
+  }
+
+  async getAvailableDays(
+    doctorId: number,
+    fromDate: string,
+    toDate: string,
+    durationMinutes?: number,
+  ) {
+    const key = `doctors:available-days:${doctorId}:${fromDate}:${toDate}:${durationMinutes || ''}`;
+    const cached = await this.redis.get<string[]>(key);
+    if (cached) return cached;
+
+    await this.findOne(doctorId);
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+
+    const [timeOffs, availabilities, existingAppointments] = await Promise.all([
+      this.prisma.doctorTimeOff.findMany({
+        where: { doctorId, date: { gte: from, lte: to } },
+        select: { date: true },
+      }),
+      this.prisma.doctorAvailability.findMany({
+        where: { doctorId, isAvailable: true },
+      }),
+      this.prisma.appointment.findMany({
+        where: {
+          doctorId,
+          appointmentDate: { gte: from, lt: new Date(to.getTime() + 86400000) },
+          status: { notIn: ['CANCELLED'] },
+        },
+        select: { appointmentDate: true, appointmentEndDate: true },
+      }),
+    ]);
+
+    const timeOffDates = new Set(timeOffs.map((t) => t.date.toISOString().split('T')[0]));
+    const availByDay = new Map(availabilities.map((a) => [a.dayOfWeek, a]));
+    const days: { date: string; slots: string[] }[] = [];
+
+    for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      const dayOfWeek = d.getDay();
+
+      if (timeOffDates.has(dateStr)) continue;
+      const availability = availByDay.get(dayOfWeek);
+      if (!availability) continue;
+
+      const [startH, startM] = availability.startTime.split(':').map(Number);
+      const [endH, endM] = availability.endTime.split(':').map(Number);
+      const startMinutes = startH * 60 + startM;
+      const endMinutes = endH * 60 + endM;
+      const slotDur = durationMinutes ?? availability.slotDuration;
+      const slots: string[] = [];
+
+      const dayStart = new Date(d);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(d);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const dayAppointments = existingAppointments.filter((apt) => {
+        const aptDate = new Date(apt.appointmentDate);
+        return aptDate >= dayStart && aptDate <= dayEnd;
+      });
+
+      for (let m = startMinutes; m + slotDur <= endMinutes; m += slotDur) {
+        const slotStart = new Date(d);
+        slotStart.setHours(Math.floor(m / 60), m % 60, 0, 0);
+        const slotEnd = new Date(slotStart.getTime() + slotDur * 60000);
+
+        const conflict = dayAppointments.some((apt) => {
+          const aptStart = new Date(apt.appointmentDate).getTime();
+          const aptEnd = new Date(apt.appointmentEndDate).getTime();
+          return slotStart.getTime() < aptEnd && slotEnd.getTime() > aptStart;
+        });
+
+        if (!conflict) {
+          const hh = String(Math.floor(m / 60)).padStart(2, '0');
+          const mm = String(m % 60).padStart(2, '0');
+          slots.push(`${hh}:${mm}`);
+        }
+      }
+
+      if (slots.length > 0) {
+        days.push({ date: dateStr, slots });
+      }
+    }
+    const result = days;
+    await this.redis.set(key, result, CACHE_TTL_DAYS);
+    return result;
+  }
+
+  async getAvailableSlots(doctorId: number, dateStr: string, durationMinutes?: number) {
+    const key = `doctors:available-slots:${doctorId}:${dateStr}:${durationMinutes || ''}`;
+    const cached = await this.redis.get<string[]>(key);
+    if (cached) return cached;
+
+    await this.findOne(doctorId);
+    const date = new Date(dateStr);
+    if (date < new Date(new Date().toDateString())) return [];
+
+    const dayOfWeek = date.getDay();
+
+    const isOff = await this.prisma.doctorTimeOff.findUnique({
+      where: { doctorId_date: { doctorId, date: new Date(dateStr) } },
+    });
+    if (isOff) return [];
+
+    const availability = await this.prisma.doctorAvailability.findUnique({
+      where: { doctorId_dayOfWeek: { doctorId, dayOfWeek } },
+    });
+    if (!availability || !availability.isAvailable) return [];
+
+    const existingAppointments = await this.prisma.appointment.findMany({
+      where: {
+        doctorId,
+        appointmentDate: {
+          gte: new Date(`${dateStr}T00:00:00.000Z`),
+          lt: new Date(`${dateStr}T23:59:59.999Z`),
+        },
+        status: { notIn: ['CANCELLED'] },
+      },
+      select: { appointmentDate: true, appointmentEndDate: true },
+    });
+
+    const slots: string[] = [];
+    const [startH, startM] = availability.startTime.split(':').map(Number);
+    const [endH, endM] = availability.endTime.split(':').map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    const slotDur = durationMinutes ?? availability.slotDuration;
+
+    for (let m = startMinutes; m + slotDur <= endMinutes; m += slotDur) {
+      const slotStart = new Date(date);
+      slotStart.setHours(Math.floor(m / 60), m % 60, 0, 0);
+      const slotEnd = new Date(slotStart.getTime() + slotDur * 60000);
+
+      const conflict = existingAppointments.some((apt) => {
+        const aptStart = new Date(apt.appointmentDate).getTime();
+        const aptEnd = new Date(apt.appointmentEndDate).getTime();
+        return slotStart.getTime() < aptEnd && slotEnd.getTime() > aptStart;
+      });
+
+      if (!conflict) {
+        const hh = String(Math.floor(m / 60)).padStart(2, '0');
+        const mm = String(m % 60).padStart(2, '0');
+        slots.push(`${hh}:${mm}`);
+      }
+    }
+
+    await this.redis.set(key, slots, CACHE_TTL_SLOTS);
+    return slots;
+  }
+}

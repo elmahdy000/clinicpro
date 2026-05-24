@@ -1,0 +1,23 @@
+{
+  "name": "clinicpro",
+  "private": true,
+  "workspaces": [
+    "api",
+    "web"
+  ],
+  "scripts": {
+    "dev:api": "cd api && npm run dev",
+    "dev:web": "cd web && npm run dev",
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\""
+  },
+  "prisma": {
+    "seed": "ts-node-dev prisma/seed.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "prisma": "4.14.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^4.14.0"
+  }
+}
