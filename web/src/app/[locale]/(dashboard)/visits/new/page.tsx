@@ -37,7 +37,6 @@ import {
   Phone,
 } from 'lucide-react';
 
-const hasLatin = (value?: string | null) => !!value && /[A-Za-z]/.test(value);
 const isEgyptianMobile = (value?: string | null) => !!value && /^01[0125]\d{8}$/.test(value);
 
 const EGYPTIAN_FALLBACKS = [
@@ -123,6 +122,7 @@ export default function NewVisitPage() {
   const [medicines, setMedicines] = useState<MedicineRow[]>([]);
   const [vitalsOpen, setVitalsOpen] = useState(false);
   const [medSearch, setMedSearch] = useState('');
+  const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
 
   const { data: patient } = useQuery({
     queryKey: ['patient', selectedPatientId],
@@ -251,11 +251,11 @@ export default function NewVisitPage() {
   const p = patient;
 
   const fallback = EGYPTIAN_FALLBACKS[(Number(p?.id) || 0) % EGYPTIAN_FALLBACKS.length];
-  const firstName = hasLatin(p?.firstName) ? fallback.firstName : (p?.firstName || fallback.firstName);
-  const lastName = hasLatin(p?.lastName) ? fallback.lastName : (p?.lastName || fallback.lastName);
+  const firstName = p?.firstName || fallback.firstName;
+  const lastName = p?.lastName || fallback.lastName;
   const fullName = p ? `${firstName} ${lastName}` : '';
-  const phone = isEgyptianMobile(p?.phone) ? p.phone : fallback.phone;
-  const allergies = hasLatin(p?.allergies) ? 'أتربة' : (p?.allergies || null);
+  const phone = p?.phone && isEgyptianMobile(p?.phone) ? p.phone : fallback.phone;
+  const allergies = p?.allergies || null;
   const age = p?.dateOfBirth ? Math.floor((Date.now() - new Date(p.dateOfBirth).getTime()) / 31557600000) : null;
   const genderLabel = p?.gender === 'Male' ? 'ذكر' : p?.gender === 'Female' ? 'أنثى' : null;
 
@@ -264,13 +264,14 @@ export default function NewVisitPage() {
   const lastVisit = pastVisits.length > 0
     ? pastVisits.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
     : null;
-  const chronicDiseases = hasLatin(p?.medicalHistory) ? null : (p?.medicalHistory || null);
+  const chronicDiseases = p?.medicalHistory || null;
   const doctorId = useMemo(() => {
+    if (selectedDoctorId) return selectedDoctorId;
     const allDoctors = doctors?.data || [];
     const matchedDoctor = allDoctors.find((d: any) => d?.user?.id === user?.id);
     const fallbackDoctor = allDoctors[0];
     return matchedDoctor?.id || fallbackDoctor?.id || null;
-  }, [doctors, user?.id]);
+  }, [doctors, user?.id, selectedDoctorId]);
 
   return (
     <div className="mx-auto w-full max-w-[1320px] space-y-5 px-3 py-5 md:px-0 animate-fade-in" dir="rtl">
@@ -306,7 +307,7 @@ export default function NewVisitPage() {
                   value={patientSearch}
                   onChange={(e) => setPatientSearch(e.target.value)}
                   placeholder="ابحث باسم المريض أو رقم الهاتف..."
-                  className="w-full h-11 pr-4 pl-10 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-teal-500 text-sm"
+                  className="w-full h-11 min-h-0 py-0 pr-4 pl-10 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-teal-500 text-sm leading-normal"
                 />
               </div>
               <Button
@@ -416,6 +417,28 @@ export default function NewVisitPage() {
         {/* ===== MAIN COLUMN ===== */}
         <main className="space-y-5">
           <form id="visit-form">
+            {/* Doctor selector */}
+            <Card className="border-slate-200/80 dark:border-slate-800/80">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Stethoscope className="w-4 h-4 text-teal-600" />
+                  اختيار الطبيب
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <select
+                  value={selectedDoctorId ?? ''}
+                  onChange={(e) => setSelectedDoctorId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full h-10 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                >
+                  <option value="">-- اختر الطبيب --</option>
+                  {(doctors?.data || []).map((doc: any) => (
+                    <option key={doc.id} value={doc.id}>{doc.user?.name} - {doc.specialization}</option>
+                  ))}
+                </select>
+              </CardContent>
+            </Card>
+
             {/* Visit Details */}
             <Card className="border-slate-200/80 dark:border-slate-800/80">
               <CardHeader className="pb-3">

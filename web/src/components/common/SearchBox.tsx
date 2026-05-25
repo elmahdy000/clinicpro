@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -28,7 +28,7 @@ export function SearchBox({
         placeholder={placeholder}
         dir="rtl"
         className={cn(
-          'h-11 w-full rounded-xl border border-slate-200 bg-white ps-4 pe-11 text-right text-sm leading-5 text-slate-900',
+          'h-11 min-h-0 w-full rounded-xl border border-slate-200 bg-white ps-4 pe-11 py-0 text-right text-sm leading-normal text-slate-900',
           'placeholder:text-slate-400',
           'outline-none ring-0 ring-offset-0',
           'focus:outline-none focus:ring-2 focus:ring-cyan-100 focus:ring-offset-0 focus:border-cyan-500',
