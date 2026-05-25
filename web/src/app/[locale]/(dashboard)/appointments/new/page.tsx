@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useLocale } from 'next-intl';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -90,6 +90,21 @@ export default function NewAppointmentPage() {
       status: 'SCHEDULED',
     },
   });
+
+  // Appointment Date 3-scroll selects
+  const [aptDay, setAptDay] = useState('');
+  const [aptMonth, setAptMonth] = useState('');
+  const [aptYear, setAptYear] = useState('');
+
+  const currentYear = new Date().getFullYear();
+
+  const updateAptDate = (day: string, month: string, year: string) => {
+    if (day && month && year) {
+      form.setValue('appointmentDate', `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+    } else {
+      form.setValue('appointmentDate', '');
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.post('/appointments', data),
@@ -215,7 +230,57 @@ export default function NewAppointmentPage() {
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{appointmentLabels.date}</Label>
-              <Input type="date" {...form.register('appointmentDate')} required className="medical-input" />
+              <div className="grid grid-cols-3 gap-2">
+                <select
+                  value={aptDay}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAptDay(val);
+                    updateAptDate(val, aptMonth, aptYear);
+                  }}
+                  className="w-full h-10 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                >
+                  <option value="">{isRtl ? 'اليوم' : 'Day'}</option>
+                  {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={aptMonth}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAptMonth(val);
+                    updateAptDate(aptDay, val, aptYear);
+                  }}
+                  className="w-full h-10 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                >
+                  <option value="">{isRtl ? 'الشهر' : 'Month'}</option>
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => (
+                    <option key={m} value={m}>
+                      {m} {isRtl ? `(${[
+                        'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+                        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+                      ][Number(m) - 1]})` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={aptYear}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAptYear(val);
+                    updateAptDate(aptDay, aptMonth, val);
+                  }}
+                  className="w-full h-10 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                >
+                  <option value="">{isRtl ? 'السنة' : 'Year'}</option>
+                  {Array.from({ length: 6 }, (_, i) => String(currentYear + i)).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>{appointmentLabels.time}</Label>

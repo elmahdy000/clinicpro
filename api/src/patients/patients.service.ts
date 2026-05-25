@@ -97,13 +97,20 @@ export class PatientsService {
     const store = tenantStorage.getStore();
     const clinicId = store?.clinicId;
 
+    const patientData = { ...dto } as any;
+    if (patientData.dateOfBirth && String(patientData.dateOfBirth).trim() !== '') {
+      patientData.dateOfBirth = new Date(patientData.dateOfBirth);
+    } else {
+      delete patientData.dateOfBirth;
+    }
+
     let patient = null;
     if (dto.phone) patient = await this.prisma.patient.findUnique({ where: { phone: dto.phone } });
     
     if (!patient) {
-      patient = await this.prisma.patient.create({ data: { ...(dto as any) } });
+      patient = await this.prisma.patient.create({ data: patientData });
     } else {
-      patient = await this.prisma.patient.update({ where: { id: patient.id }, data: { ...(dto as any) } });
+      patient = await this.prisma.patient.update({ where: { id: patient.id }, data: patientData });
     }
 
     if (clinicId) {
@@ -119,7 +126,13 @@ export class PatientsService {
 
   async update(id: number, dto: UpdatePatientDto) {
     await this.findOne(id);
-    return this.prisma.patient.update({ where: { id }, data: dto });
+    const patientData = { ...dto } as any;
+    if (patientData.dateOfBirth && String(patientData.dateOfBirth).trim() !== '') {
+      patientData.dateOfBirth = new Date(patientData.dateOfBirth);
+    } else {
+      delete patientData.dateOfBirth;
+    }
+    return this.prisma.patient.update({ where: { id }, data: patientData });
   }
 
   async remove(id: number) {

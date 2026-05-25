@@ -76,6 +76,17 @@ export default function NewPatientPage() {
   const [selectedGovernorate, setSelectedGovernorate] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
 
+  // Date of Birth 3-scroll selects
+  const [dobDay, setDobDay] = useState('');
+  const [dobMonth, setDobMonth] = useState('');
+  const [dobYear, setDobYear] = useState('');
+
+  // Structured medical history fields
+  const [chronicDiseases, setChronicDiseases] = useState<string[]>([]);
+  const [surgeries, setSurgeries] = useState('');
+  const [familyHistory, setFamilyHistory] = useState('');
+  const [continuousMedications, setContinuousMedications] = useState('');
+
   const form = useForm<PatientForm>({
     resolver: zodResolver(patientSchema),
     defaultValues: {
@@ -105,7 +116,36 @@ export default function NewPatientPage() {
     onError: () => toast.error(tc('error')),
   });
 
-  const onSubmit = (data: PatientForm) => mutation.mutate(data);
+  // Sync date of birth value to form
+  const updateDob = (day: string, month: string, year: string) => {
+    if (day && month && year) {
+      form.setValue('dateOfBirth', `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+    } else {
+      form.setValue('dateOfBirth', '');
+    }
+  };
+
+  const onSubmit = (data: PatientForm) => {
+    const historyParts = [];
+    if (chronicDiseases.length > 0) {
+      historyParts.push(`${isRtl ? 'الأمراض المزمنة' : 'Chronic Diseases'}: ${chronicDiseases.join('، ')}`);
+    }
+    if (surgeries.trim() !== '') {
+      historyParts.push(`${isRtl ? 'العمليات السابقة' : 'Surgeries'}: ${surgeries}`);
+    }
+    if (familyHistory.trim() !== '') {
+      historyParts.push(`${isRtl ? 'التاريخ العائلي' : 'Family History'}: ${familyHistory}`);
+    }
+    if (continuousMedications.trim() !== '') {
+      historyParts.push(`${isRtl ? 'الأدوية المستمرة' : 'Continuous Medications'}: ${continuousMedications}`);
+    }
+
+    const finalData = {
+      ...data,
+      medicalHistory: historyParts.join(' | ') || data.medicalHistory || '',
+    };
+    mutation.mutate(finalData);
+  };
 
   // Dynamic Cities list based on selected Governorate
   const govObj = EGYPT_GOVERNORATES.find(g => g.id === selectedGovernorate);
@@ -153,9 +193,59 @@ export default function NewPatientPage() {
               <Label>{isRtl ? 'الرقم القومي' : 'National ID'}</Label>
               <Input {...form.register('nationalId')} className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 col-span-1 md:col-span-2">
               <Label>{t('dateOfBirth')}</Label>
-              <Input type="date" {...form.register('dateOfBirth')} className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" />
+              <div className="grid grid-cols-3 gap-2">
+                <select
+                  value={dobDay}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDobDay(val);
+                    updateDob(val, dobMonth, dobYear);
+                  }}
+                  className="w-full h-12 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                >
+                  <option value="">{isRtl ? 'اليوم' : 'Day'}</option>
+                  {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+
+                <select
+                  value={dobMonth}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDobMonth(val);
+                    updateDob(dobDay, val, dobYear);
+                  }}
+                  className="w-full h-12 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                >
+                  <option value="">{isRtl ? 'الشهر' : 'Month'}</option>
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => (
+                    <option key={m} value={m}>
+                      {m} {isRtl ? `(${[
+                        'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+                        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+                      ][Number(m) - 1]})` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={dobYear}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDobYear(val);
+                    updateDob(dobDay, dobMonth, val);
+                  }}
+                  className="w-full h-12 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                >
+                  <option value="">{isRtl ? 'السنة' : 'Year'}</option>
+                  {Array.from({ length: 110 }, (_, i) => String(new Date().getFullYear() - i)).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>{isRtl ? 'العنوان بالتفصيل' : 'Street Address'}</Label>
@@ -212,25 +302,96 @@ export default function NewPatientPage() {
           <CardHeader>
             <CardTitle className="text-base">{t('medicalInfo')}</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>{t('bloodGroup')}</Label>
-              <Select onValueChange={(v) => form.setValue('bloodGroup', String(v ?? ''))}>
-                <SelectTrigger className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"><SelectValue placeholder={tc('select')} /></SelectTrigger>
-                <SelectContent>
-                  {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bg) => (
-                    <SelectItem key={bg} value={bg}>{bg}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t('bloodGroup')}</Label>
+                <Select onValueChange={(v) => form.setValue('bloodGroup', String(v ?? ''))}>
+                  <SelectTrigger className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"><SelectValue placeholder={tc('select')} /></SelectTrigger>
+                  <SelectContent>
+                    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bg) => (
+                      <SelectItem key={bg} value={bg}>{bg}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('allergies')}</Label>
+                <Input {...form.register('allergies')} placeholder={tc('none')} className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>{t('allergies')}</Label>
-              <Input {...form.register('allergies')} placeholder={tc('none')} className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>{t('medicalHistory')}</Label>
-              <Textarea {...form.register('medicalHistory')} rows={3} className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" />
+
+            {/* Structured Medical History */}
+            <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  {isRtl ? 'الأمراض المزمنة (اختر ما ينطبق)' : 'Chronic Diseases (Select all that apply)'}
+                </Label>
+                <div className="flex flex-wrap gap-2.5">
+                  {[
+                    { id: 'diabetes', ar: 'السكري', en: 'Diabetes' },
+                    { id: 'hypertension', ar: 'ضغط الدم المرتفع', en: 'Hypertension' },
+                    { id: 'cardiac', ar: 'أمراض القلب', en: 'Cardiac Disease' },
+                    { id: 'asthma', ar: 'الربو / حساسية الصدر', en: 'Asthma / Chest Allergy' },
+                    { id: 'thyroid', ar: 'اضطرابات الغدة الدرقية', en: 'Thyroid Disorders' },
+                    { id: 'liver', ar: 'أمراض الكبد', en: 'Liver Disease' },
+                    { id: 'kidney', ar: 'الفشل الكلوي / أمراض الكلى', en: 'Kidney Disease' },
+                  ].map((disease) => {
+                    const label = isRtl ? disease.ar : disease.en;
+                    const isChecked = chronicDiseases.includes(label);
+                    return (
+                      <button
+                        key={disease.id}
+                        type="button"
+                        onClick={() => {
+                          if (isChecked) {
+                            setChronicDiseases(chronicDiseases.filter(d => d !== label));
+                          } else {
+                            setChronicDiseases([...chronicDiseases, label]);
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 ${
+                          isChecked
+                            ? 'bg-teal-500 text-white border-teal-500 shadow-sm'
+                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>{isRtl ? 'العمليات الجراحية السابقة' : 'Previous Surgeries'}</Label>
+                  <Input
+                    value={surgeries}
+                    onChange={(e) => setSurgeries(e.target.value)}
+                    placeholder={isRtl ? 'مثال: استئصال الزائدة، غضروف' : 'e.g. Appendectomy'}
+                    className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{isRtl ? 'التاريخ العائلي المرضي' : 'Family Disease History'}</Label>
+                  <Input
+                    value={familyHistory}
+                    onChange={(e) => setFamilyHistory(e.target.value)}
+                    placeholder={isRtl ? 'مثال: ضغط، سكري وراثي' : 'e.g. Genetic diabetes'}
+                    className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{isRtl ? 'الأدوية المستمرة عليها المريض' : 'Continuous Medications'}</Label>
+                  <Input
+                    value={continuousMedications}
+                    onChange={(e) => setContinuousMedications(e.target.value)}
+                    placeholder={isRtl ? 'مثال: أسبرين يومياً، كونكور' : 'e.g. Aspirin 81mg daily'}
+                    className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+                  />
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

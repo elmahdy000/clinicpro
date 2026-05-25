@@ -49,7 +49,7 @@ export class DashboardService {
     ] = await Promise.all([
       this.prisma.user.groupBy({ by: ['role'], _count: { id: true } }),
       this.prisma.patient.count({ where: patientClinicWhere }),
-      this.prisma.doctor.count({ where: (clinicId ? { clinics: { some: { id: clinicId } } } : {}) as any }),
+      this.prisma.doctor.count({ where: clinicWhere }),
       this.prisma.patient.count({ where: { ...patientClinicWhere, createdAt: { gte: startOfMonth } } }),
       this.prisma.patient.count({ where: { ...patientClinicWhere, createdAt: { gte: startOfWeek } } }),
       this.prisma.clinic.count(),
