@@ -18,8 +18,10 @@ import { MailModule } from './mail/mail.module';
 import { NotificationHelperModule } from './common/services/notification-helper.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { BillingModule } from './billing/billing.module';
+import { ClinicsModule } from './clinics/clinics.module';
 import { AppController } from './app.controller';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
+import { MedicationsModule } from './medications/medications.module';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     NotificationHelperModule,
     RemindersModule,
     BillingModule,
+    ClinicsModule,
+    MedicationsModule,
   ],
   controllers: [AppController],
 })

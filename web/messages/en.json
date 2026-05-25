@@ -287,6 +287,19 @@
     "confirmPassword": "Confirm Password",
     "passwordChanged": "Password changed successfully",
     "subtitle": "View and edit your profile"
+  },
+  "medications": {
+    "title": "Medications",
+    "subtitle": "Manage clinic dictionary",
+    "searchMedications": "Search medications...",
+    "addNew": "Add Medication",
+    "noMedicationsFound": "No medications found",
+    "medicationName": "Name",
+    "activeIngredient": "Active Ingredient",
+    "manufacturer": "Manufacturer",
+    "category": "Category",
+    "page": "Page",
+    "of": "of"
   }
 }
 

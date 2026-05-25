@@ -59,4 +59,10 @@ export class PatientsController {
   getTimeline(@Param('id', ParseIntPipe) id: number) {
     return this.patientsService.getTimeline(id);
   }
+
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DOCTOR)
+  @Post(':id/link')
+  linkPatient(@Param('id', ParseIntPipe) id: number) {
+    return this.patientsService.linkPatient(id);
+  }
 }

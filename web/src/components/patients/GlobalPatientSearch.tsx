@@ -18,14 +18,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate } from '@/lib/utils';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
+import Link from 'next/link';
+import { toast } from 'sonner';
 
 export function GlobalPatientSearch() {
   const t = useTranslations('patients');
   const tc = useTranslations('common');
   const locale = useLocale();
   const isRtl = locale === 'ar';
+  const router = useRouter();
   
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -94,12 +97,23 @@ export function GlobalPatientSearch() {
                       <h4 className="font-bold text-lg">{patient.firstName} {patient.lastName}</h4>
                       <p className="text-sm text-gray-500">{patient.phone} • {patient.gender === 'Male' ? (isRtl ? 'ذكر' : 'Male') : (isRtl ? 'أنثى' : 'Female')}</p>
                     </div>
-                    <Link href={`/${locale}/patients/${patient.id}`} onClick={() => setOpen(false)}>
-                      <Button size="sm" variant="secondary" className="gap-2">
-                        <FileText className="w-4 h-4" />
-                        {isRtl ? 'عرض السجل' : 'View Record'}
-                      </Button>
-                    </Link>
+                    <Button 
+                      size="sm" 
+                      variant="secondary" 
+                      className="gap-2"
+                      onClick={async () => {
+                        try {
+                          await api.post(`/patients/${patient.id}/link`);
+                          setOpen(false);
+                          router.push(`/${locale}/patients/${patient.id}`);
+                        } catch (err) {
+                          toast.error(isRtl ? 'حدث خطأ أثناء ربط المريض' : 'Failed to link patient');
+                        }
+                      }}
+                    >
+                      <FileText className="w-4 h-4" />
+                      {isRtl ? 'استيراد وعرض' : 'Import & View'}
+                    </Button>
                   </div>
                   
                   {patient.clinics?.length > 0 && (

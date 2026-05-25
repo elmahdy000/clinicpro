@@ -104,6 +104,8 @@ model Patient {
   dateOfBirth      DateTime?
   gender           String?
   address          String?
+  governorate      String?
+  city             String?
   bloodGroup       String?
   allergies        String?
   medicalHistory   String?
@@ -185,10 +187,12 @@ model Prescription {
   medicalRecord   MedicalRecord? @relation("PrescriptionMedicalRecord", fields: [medicalRecordId], references: [id])
   medicalRecordId Int?           @unique
   prescribedDate  DateTime       @default(now())
-  medications     String
+  medications     String?        // Legacy text field, migrating to items
   instructions    String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+
+  items           PrescriptionItem[]
 }
 
 model Invoice {
@@ -259,4 +263,33 @@ model OtpVerification {
   expiresAt DateTime
   attempts  Int      @default(0)
   createdAt DateTime @default(now())
+}
+
+model Medication {
+  id               Int      @id @default(autoincrement())
+  name             String   @unique
+  activeIngredient String?
+  manufacturer     String?
+  category         String?
+  strength         String?  // e.g. "500mg", "10mg/5ml"
+  form             String?  // e.g. "أقراص", "شراب", "حقن"
+  isGlobal         Boolean  @default(true)  // true = platform medicine, false = clinic custom
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  prescriptionItems PrescriptionItem[]
+}
+
+model PrescriptionItem {
+  id             Int          @id @default(autoincrement())
+  prescriptionId Int
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  medicationId   Int
+  medication     Medication   @relation(fields: [medicationId], references: [id])
+  dosage         String
+  frequency      String
+  duration       String
+  instructions   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }

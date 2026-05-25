@@ -284,5 +284,18 @@
     "confirmPassword": "تأكيد كلمة المرور",
     "passwordChanged": "تم تغيير كلمة المرور بنجاح",
     "subtitle": "عرض وتعديل بيانات الحساب"
+  },
+  "medications": {
+    "title": "الأدوية",
+    "subtitle": "إدارة قاموس العيادة",
+    "searchMedications": "البحث في الأدوية...",
+    "addNew": "إضافة دواء",
+    "noMedicationsFound": "لا توجد أدوية",
+    "medicationName": "الاسم",
+    "activeIngredient": "المادة الفعالة",
+    "manufacturer": "الشركة المصنعة",
+    "category": "التصنيف",
+    "page": "صفحة",
+    "of": "من"
   }
 }

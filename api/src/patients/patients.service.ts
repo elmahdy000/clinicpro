@@ -137,6 +137,27 @@ export class PatientsService {
     }
   }
 
+  async linkPatient(id: number) {
+    const store = tenantStorage.getStore();
+    const clinicId = store?.clinicId;
+    if (!clinicId) throw new NotFoundException('Clinic context missing');
+
+    const patient = await tenantStorage.run({ clinicId: null }, () =>
+      this.prisma.patient.findUnique({ where: { id } })
+    );
+
+    if (!patient) throw new NotFoundException('Patient not found globally');
+
+    // Link patient to the current clinic
+    await this.prisma.clinicPatient.upsert({
+      where: { clinicId_patientId: { clinicId, patientId: id } },
+      update: {},
+      create: { clinicId, patientId: id },
+    });
+
+    return patient;
+  }
+
   async getAppointments(patientId: number) {
     const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
     if (!patient) throw new NotFoundException(`Patient #${patientId} not found`);

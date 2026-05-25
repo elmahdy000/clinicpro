@@ -10,31 +10,31 @@ import { UserRole } from './user-role.enum';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.DOCTOR)
   @Post()
   create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.DOCTOR)
   @Get()
   findAll(@Query() query: PaginationDto) {
     return this.usersService.findAll(query);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.DOCTOR)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.findOne(id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.DOCTOR)
   @Put(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.CLINIC_ADMIN, UserRole.DOCTOR)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);

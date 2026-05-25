@@ -9,12 +9,21 @@ export class CreatePatientDto {
   @IsNotEmpty()
   lastName: string;
 
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
   @IsString()
   @IsNotEmpty()
   phone: string;
+
+  @IsOptional()
+  @IsString()
+  governorate?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
 
   @IsOptional()
   dateOfBirth?: Date;

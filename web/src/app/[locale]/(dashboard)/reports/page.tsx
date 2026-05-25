@@ -5,20 +5,72 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import {
   BarChart3, CalendarDays, Users, Activity, XCircle, TrendingUp,
+  Printer, Filter, RefreshCw, Calendar, Download, Building2,
+  FileText, Shield, Award, Landmark, Stethoscope, CheckCircle2
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useState } from 'react';
+import { useAuth } from '@/stores/auth';
+import { formatDate } from '@/lib/utils';
 
 export default function ReportsPage() {
   const t = useTranslations('reports');
   const locale = useLocale();
   const isRtl = locale === 'ar';
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'PLATFORM_OWNER';
 
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['dashboard-stats'],
+  // Filters State
+  const [dateRange, setDateRange] = useState('30days'); // today, yesterday, 7days, 30days, thismonth, custom
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [clinicFilter, setClinicFilter] = useState('all');
+  const [planFilter, setPlanFilter] = useState('all');
+
+  const { data: stats, isLoading, refetch } = useQuery({
+    queryKey: ['dashboard-stats-reports', dateRange, startDate, endDate, clinicFilter, planFilter],
     queryFn: () => api.get('/dashboard/stats').then((r) => r.data),
   });
+
+  const { data: clinics } = useQuery<any[]>({
+    queryKey: ['reports-clinics'],
+    queryFn: () => api.get('/clinics').then((r) => r.data),
+    enabled: isAdmin,
+  });
+
+  // Calculate filtered stats dynamically for local demonstration
+  const totalClinicsCount = clinics?.length || 0;
+  const filteredClinics = clinics?.filter(c => {
+    if (planFilter !== 'all' && c.subscriptionPlan !== planFilter) return false;
+    return true;
+  }) || [];
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const resetFilters = () => {
+    setDateRange('30days');
+    setStartDate('');
+    setEndDate('');
+    setClinicFilter('all');
+    setPlanFilter('all');
+  };
+
+  // Preset Date range labels
+  const getFilterLabel = () => {
+    if (dateRange === 'today') return isRtl ? 'اليوم' : 'Today';
+    if (dateRange === 'yesterday') return isRtl ? 'أمس' : 'Yesterday';
+    if (dateRange === '7days') return isRtl ? 'آخر 7 أيام' : 'Last 7 Days';
+    if (dateRange === '30days') return isRtl ? 'آخر 30 يوم' : 'Last 30 Days';
+    if (dateRange === 'thismonth') return isRtl ? 'الشهر الحالي' : 'This Month';
+    return isRtl ? 'فترة مخصصة' : 'Custom Period';
+  };
 
   const reportCards = [
     { label: t('totalVisits'), value: stats?.appointments?.COMPLETED ?? 0, icon: Activity, color: 'text-teal-600', bg: 'bg-teal-50 dark:bg-teal-950/30' },
@@ -27,33 +79,319 @@ export default function ReportsPage() {
     { label: t('cancelledAppointments'), value: stats?.appointments?.CANCELLED ?? 0, icon: XCircle, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-950/30' },
   ];
 
-  const chartData = [
-    { name: 'Jan', visits: 12 },
-    { name: 'Feb', visits: 18 },
-    { name: 'Mar', visits: 15 },
-    { name: 'Apr', visits: 22 },
-    { name: 'May', visits: 28 },
-    { name: 'Jun', visits: 20 },
+  const dayNamesAr = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  const dayNamesEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  const chartData = stats?.weeklyTrend?.map((item: any) => ({
+    name: isRtl ? dayNamesAr[item.dayIdx] : dayNamesEn[item.dayIdx],
+    visits: item.appointments,
+    revenue: item.revenue,
+  })) || [
+    { name: isRtl ? 'السبت' : 'Sat', visits: 0, revenue: 0 },
+    { name: isRtl ? 'الأحد' : 'Sun', visits: 0, revenue: 0 },
+    { name: isRtl ? 'الإثنين' : 'Mon', visits: 0, revenue: 0 },
+    { name: isRtl ? 'الثلاثاء' : 'Tue', visits: 0, revenue: 0 },
+    { name: isRtl ? 'الأربعاء' : 'Wed', visits: 0, revenue: 0 },
+    { name: isRtl ? 'الخميس' : 'Thu', visits: 0, revenue: 0 },
+    { name: isRtl ? 'الجمعة' : 'Fri', visits: 0, revenue: 0 },
   ];
 
-  return (
-    <div className="space-y-6 animate-fade-in" dir={isRtl ? 'rtl' : 'ltr'}>
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white animate-fade-in-down">{t('title')}</h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{t('subtitle')}</p>
+  if (isAdmin) {
+    const pharmaData = stats?.pharmaAnalytics?.topMedications?.map((m: any) => ({
+      name: m.name,
+      prescriptions: m.prescribedCount,
+      category: m.category,
+    })) || [];
 
+    return (
+      <div className="space-y-6 animate-fade-in text-right" dir={isRtl ? 'rtl' : 'ltr'}>
+        
+        {/* Print Only Header (Hidden on screen) */}
+        <div className="hidden print:block border-b-2 border-teal-600 pb-4 mb-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-black text-teal-800">ClinicPro SaaS - بوابة الإدارة العامة</h1>
+              <p className="text-xs text-gray-500 font-mono">التقرير الإداري والتحليلي العام للمنصة</p>
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-bold text-gray-900">تاريخ الإصدار: {new Date().toLocaleDateString('ar-EG')}</p>
+              <p className="text-xs text-gray-500 font-mono">تصفية التقرير: {getFilterLabel()}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Header (Screen only) */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Shield className="w-5 h-5 text-teal-600 animate-pulse" />
+              <span className="text-xs font-semibold text-teal-600 dark:text-teal-400 uppercase tracking-wide">
+                {isRtl ? 'التقارير التحليلية العامة' : 'SaaS Analytics Engine'}
+              </span>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {isRtl ? 'تقارير المنصة وتحليلات الأدوية' : 'Management & Pharma Reports'}
+            </h2>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {isRtl ? 'تحليل شامل لنشاط العيادات، إيرادات الاشتراكات، وحصص الأدوية السوقية' : 'Comprehensive insights on clinic signups, subscription revenues, and market share of prescribed medications'}
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={handlePrint} className="bg-teal-600 hover:bg-teal-700 gap-1.5 shadow-sm">
+              <Printer className="w-4 h-4" />
+              {isRtl ? 'طباعة التقرير' : 'Print Report'}
+            </Button>
+            <Button onClick={() => refetch()} variant="outline" size="sm" className="w-9 h-9 p-0">
+              <RefreshCw className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* ── ADVANCED FILTER PANEL ── */}
+        <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:hidden">
+          <CardHeader className="pb-3 flex-row items-center gap-2">
+            <Filter className="w-4 h-4 text-teal-600" />
+            <CardTitle className="text-sm font-semibold">{isRtl ? 'نظام الفلاتر والبحث المتقدم' : 'Advanced Report Filtering'}</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Period preset */}
+            <div className="space-y-2">
+              <Label className="text-xs">{isRtl ? 'الفترة الزمنية' : 'Time Period'}</Label>
+              <select
+                value={dateRange}
+                onChange={(e) => setDateRange(e.target.value)}
+                className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500"
+              >
+                <option value="today">{isRtl ? 'اليوم' : 'Today'}</option>
+                <option value="yesterday">{isRtl ? 'أمس' : 'Yesterday'}</option>
+                <option value="7days">{isRtl ? 'آخر 7 أيام' : 'Last 7 Days'}</option>
+                <option value="30days">{isRtl ? 'آخر 30 يوم' : 'Last 30 Days'}</option>
+                <option value="thismonth">{isRtl ? 'الشهر الحالي' : 'This Month'}</option>
+                <option value="custom">{isRtl ? 'فترة مخصصة...' : 'Custom Period...'}</option>
+              </select>
+            </div>
+
+            {/* Custom date range fields */}
+            {dateRange === 'custom' && (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-xs">{isRtl ? 'من تاريخ' : 'From Date'}</Label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500 text-right"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">{isRtl ? 'إلى تاريخ' : 'To Date'}</Label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500 text-right"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Filter by Plan */}
+            <div className="space-y-2">
+              <Label className="text-xs">{isRtl ? 'باقة الاشتراك' : 'Subscription Plan'}</Label>
+              <select
+                value={planFilter}
+                onChange={(e) => setPlanFilter(e.target.value)}
+                className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500"
+              >
+                <option value="all">{isRtl ? 'كل الباقات' : 'All Plans'}</option>
+                <option value="FREE">{isRtl ? 'مجاني' : 'Free'}</option>
+                <option value="BASIC">{isRtl ? 'الأساسي' : 'Basic'}</option>
+                <option value="PRO">{isRtl ? 'المحترف' : 'Pro'}</option>
+                <option value="ENTERPRISE">{isRtl ? 'المؤسسات' : 'Enterprise'}</option>
+              </select>
+            </div>
+
+            {/* Reset actions */}
+            <div className="flex items-end gap-2">
+              <Button onClick={resetFilters} variant="ghost" className="w-full h-9 text-xs gap-1">
+                {isRtl ? 'إعادة تعيين' : 'Reset'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── 1. PLATFORM SUMMARY STATS ── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: isRtl ? 'إجمالي الاشتراكات' : 'Total Subscriptions', value: totalClinicsCount, icon: Building2, color: 'text-teal-600', bg: 'bg-teal-50 dark:bg-teal-950/30' },
+            { label: isRtl ? 'إجمالي الروشتات' : 'Total Prescriptions', value: stats?.pharmaAnalytics?.totalPrescriptions || 0, icon: FileText, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/30' },
+            { label: isRtl ? 'إجمالي المرضى' : 'Total Patients', value: stats?.patients || 0, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
+            { label: isRtl ? 'عائدات المنصة المحصلة' : 'Revenue Collected', value: `${(stats?.revenue?.total || 0).toLocaleString()} ج.م`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950/30' },
+          ].map((card, i) => {
+            const Icon = card.icon;
+            return (
+              <Card key={i} className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2.5 rounded-xl ${card.bg} print:bg-gray-100 flex-shrink-0`}>
+                      <Icon className={`w-5 h-5 ${card.color}`} />
+                    </div>
+                    <div>
+                      {isLoading ? <Skeleton className="h-6 w-12" /> : <div className="text-lg md:text-xl font-bold text-gray-900 dark:text-white tabular-nums">{card.value}</div>}
+                      <p className="text-xs text-gray-500 font-semibold">{card.label}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* ── 2. CHARTS & DETAILED ANALYSIS ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:break-inside-avoid">
+          {/* Top prescribed meds */}
+          <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Activity className="w-4 h-4 text-purple-600" /> {isRtl ? 'الأدوية الأكثر وصفاً (المنصة)' : 'Pharma Prescriptions'}</CardTitle></CardHeader>
+            <CardContent>
+              {pharmaData.length > 0 ? (
+                <div className="space-y-4">
+                  {pharmaData.map((item: any, idx: number) => (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span>{item.name} <span className="text-gray-400 font-normal">({item.category})</span></span>
+                        <span className="text-teal-600 font-mono">{item.prescriptions} {isRtl ? 'روشتة' : 'Rx'}</span>
+                      </div>
+                      <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2.5 overflow-hidden">
+                        <div className="bg-gradient-to-r from-purple-500 to-teal-500 h-2.5 rounded-full" style={{ width: `${Math.min((item.prescriptions / (stats?.pharmaAnalytics?.totalPrescriptions || 1)) * 100, 100)}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-10 text-gray-400 text-sm">
+                  {isRtl ? 'لا توجد بيانات أدوية' : 'No prescription records'}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Clinics details table */}
+          <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300 lg:col-span-1">
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Building2 className="w-4 h-4 text-teal-600" /> {isRtl ? 'بيانات العيادات المصدرة' : 'Subscribed Clinics Data'}</CardTitle></CardHeader>
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-right text-xs">
+                <thead>
+                  <tr className="border-b bg-gray-50/80 dark:bg-gray-900/60">
+                    <th className="px-4 py-2 font-bold text-gray-500">{isRtl ? 'العيادة' : 'Clinic'}</th>
+                    <th className="px-4 py-2 font-bold text-gray-500">{isRtl ? 'الخطة' : 'Plan'}</th>
+                    <th className="px-4 py-2 font-bold text-gray-500">{isRtl ? 'المرضى' : 'Patients'}</th>
+                    <th className="px-4 py-2 font-bold text-gray-500">{isRtl ? 'الحالة' : 'Status'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                  {filteredClinics.slice(0, 5).map((clinic) => (
+                    <tr key={clinic.id} className="hover:bg-teal-50/10">
+                      <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{clinic.name}</td>
+                      <td className="px-4 py-3 font-mono">{clinic.subscriptionPlan}</td>
+                      <td className="px-4 py-3 font-bold text-teal-600">{clinic.stats?.patients}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${clinic.subscriptionStatus === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                          {clinic.subscriptionStatus}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Print Only Footer (Hidden on screen) */}
+        <div className="hidden print:flex justify-between items-center border-t border-gray-200 pt-8 mt-12 text-xs text-gray-400">
+          <p>تطبيق كلينك برو لإدارة العيادات والـ SaaS © ٢٠٢٦</p>
+          <p>صفحة الإدارة العامة - تقرير سري للغاية</p>
+          <p className="font-mono">توقيع المسؤول: __________________</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── CLINIC USER REPORTS VIEW (Original preserved + styled beautifully for print) ──
+  return (
+    <div className="space-y-6 animate-fade-in text-right" dir={isRtl ? 'rtl' : 'ltr'}>
+      
+      {/* Print Only Header */}
+      <div className="hidden print:block border-b-2 border-teal-600 pb-4 mb-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-black text-teal-800">ClinicPro - تقارير العيادة اليومية</h1>
+            <p className="text-xs text-gray-500 font-mono">التقرير الدوري للأداء الطبي والزيارات</p>
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-bold text-gray-900">تاريخ الطباعة: {new Date().toLocaleDateString('ar-EG')}</p>
+            <p className="text-xs text-gray-500 font-mono">تصفية التقرير: {getFilterLabel()}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Screen Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white animate-fade-in-down">{t('title')}</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{t('subtitle')}</p>
+        </div>
+
+        <div className="flex gap-2">
+          <Button onClick={handlePrint} className="bg-teal-600 hover:bg-teal-700 gap-1.5 shadow-sm">
+            <Printer className="w-4 h-4" />
+            {isRtl ? 'طباعة التقرير' : 'Print Report'}
+          </Button>
+          <Button onClick={() => refetch()} variant="outline" size="sm" className="w-9 h-9 p-0">
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters (Screen only) */}
+      <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:hidden">
+        <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+          <div className="space-y-2">
+            <Label className="text-xs">{isRtl ? 'الفترة الزمنية للتقرير' : 'Report Period'}</Label>
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500"
+            >
+              <option value="today">{isRtl ? 'اليوم' : 'Today'}</option>
+              <option value="yesterday">{isRtl ? 'أمس' : 'Yesterday'}</option>
+              <option value="7days">{isRtl ? 'آخر 7 أيام' : 'Last 7 Days'}</option>
+              <option value="30days">{isRtl ? 'آخر 30 يوم' : 'Last 30 Days'}</option>
+              <option value="thismonth">{isRtl ? 'الشهر الحالي' : 'This Month'}</option>
+            </select>
+          </div>
+
+          <Button onClick={resetFilters} variant="outline" size="sm" className="h-9 text-xs">
+            {isRtl ? 'إعادة تعيين الفلاتر' : 'Reset'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Cards stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {reportCards.map((card, i) => {
           const Icon = card.icon;
           return (
-            <Card key={i} className="border-gray-200/60 dark:border-gray-800/60 shadow-sm card-hover animate-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
+            <Card key={i} className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-xl ${card.bg} transition-transform duration-150`}>
+                  <div className={`p-2.5 rounded-xl ${card.bg} print:bg-gray-100 flex-shrink-0`}>
                     <Icon className={`w-5 h-5 ${card.color}`} />
                   </div>
                   <div>
-                    {isLoading ? <Skeleton className="h-6 w-12" /> : <p className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">{card.value}</p>}
-                    <p className="text-xs text-gray-500">{card.label}</p>
+                    {isLoading ? <Skeleton className="h-6 w-12" /> : <div className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">{card.value}</div>}
+                    <p className="text-xs text-gray-500 font-semibold">{card.label}</p>
                   </div>
                 </div>
               </CardContent>
@@ -62,10 +400,11 @@ export default function ReportsPage() {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm animate-fade-in-up delay-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:break-inside-avoid">
+        {/* Visit growth */}
+        <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
           <CardHeader><CardTitle className="text-base">{t('patientGrowth')}</CardTitle></CardHeader>
-          <CardContent>
+          <CardContent className="print:hidden">
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -76,32 +415,59 @@ export default function ReportsPage() {
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
+          {/* Printable tabular representation of charts */}
+          <CardContent className="hidden print:block p-0">
+            <table className="w-full text-right text-xs">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="px-4 py-2">{isRtl ? 'الشهر' : 'Month'}</th>
+                  <th className="px-4 py-2">{isRtl ? 'عدد الزيارات المكتملة' : 'Completed Visits'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {chartData.map((d: any, idx: number) => (
+                  <tr key={idx}>
+                    <td className="px-4 py-2 font-semibold">{d.name}</td>
+                    <td className="px-4 py-2 font-mono font-bold text-teal-700">{d.visits}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
         </Card>
 
-        <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm animate-fade-in-up delay-3">
+        {/* Visit Reasons */}
+        <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
           <CardHeader><CardTitle className="text-base">{t('commonReasons')}</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-3">
               {[
-                { reason: 'Checkup', count: 45, pct: 40 },
-                { reason: 'Follow-up', count: 28, pct: 25 },
-                { reason: 'Emergency', count: 15, pct: 13 },
-                { reason: 'Consultation', count: 12, pct: 11 },
-                { reason: 'Vaccination', count: 10, pct: 9 },
+                { reason: isRtl ? 'كشف دوري' : 'Checkup', count: 45, pct: 40 },
+                { reason: isRtl ? 'متابعة كشف' : 'Follow-up', count: 28, pct: 25 },
+                { reason: isRtl ? 'كشف طارئ' : 'Emergency', count: 15, pct: 13 },
+                { reason: isRtl ? 'استشارة طبية' : 'Consultation', count: 12, pct: 11 },
+                { reason: isRtl ? 'تطعيمات' : 'Vaccination', count: 10, pct: 9 },
               ].map((item) => (
-                <div key={item.reason}>
-                  <div className="flex justify-between text-sm mb-1">
+                <div key={item.reason} className="space-y-1">
+                  <div className="flex justify-between text-xs font-semibold">
                     <span className="text-gray-700 dark:text-gray-300">{item.reason}</span>
-                    <span className="text-gray-500 tabular-nums">{item.count}</span>
+                    <span className="text-teal-600 font-mono">{item.count} {isRtl ? 'كشف' : 'visit'}</span>
                   </div>
                   <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
-                    <div className="bg-gradient-to-r from-teal-500 to-teal-400 h-2 rounded-full transition-all duration-1000" style={{ width: `${item.pct}%` }} />
+                    <div className="bg-gradient-to-r from-teal-500 to-teal-400 h-2 rounded-full" style={{ width: `${item.pct}%` }} />
                   </div>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Print Only Footer */}
+      <div className="hidden print:flex justify-between items-center border-t border-gray-200 pt-8 mt-12 text-xs text-gray-400">
+        <p>تطبيق كلينك برو لإدارة العيادات والـ SaaS © ٢٠٢٦</p>
+        <p>تقرير سري وخاص بالعيادة</p>
+        <p className="font-mono">توقيع الطبيب المعالج: __________________</p>
       </div>
     </div>
   );

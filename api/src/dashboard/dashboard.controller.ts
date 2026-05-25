@@ -14,6 +14,16 @@ export class DashboardController {
 
   @Get('recent-activity')
   getRecentActivity(@Query('limit') limit?: string) {
-    return this.dashboardService.getRecentActivity(limit ? parseInt(limit, 10) : 10);
+    return this.dashboardService.getRecentActivity(limit ? parseInt(limit, 10) : 20);
+  }
+
+  @Get('recent-prescriptions')
+  getRecentPrescriptions() {
+    return this.dashboardService.getRecentPrescriptions(5);
+  }
+
+  @Get('recent-invoices')
+  getRecentInvoices() {
+    return this.dashboardService.getRecentInvoices(5);
   }
 }

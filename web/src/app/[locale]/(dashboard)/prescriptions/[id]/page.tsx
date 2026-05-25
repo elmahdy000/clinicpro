@@ -45,6 +45,7 @@ function getAge(dateOfBirth?: string | null): number | null {
 
 export default function PrescriptionDetailPage() {
   const locale = useLocale();
+  const isRtl = locale === 'ar';
   const params = useParams();
   const router = useRouter();
 
@@ -108,7 +109,9 @@ export default function PrescriptionDetailPage() {
         <div className="bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm print:shadow-none print:border-0 print:rounded-none print:px-0 animate-fade-in-up delay-1">
           {/* Clinic header */}
           <div className="px-8 pt-8 pb-6 border-b border-slate-200 print:border-b-2 print:border-slate-300 text-center">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white print:text-black">عيادة كلينيك برو</h1>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white print:text-black">
+              {rx.clinic?.name || (isRtl ? 'عيادة كلينيك برو' : 'ClinicPro Clinic')}
+            </h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 print:text-slate-600 mt-1">روشتة علاجية</p>
             <div className="flex items-center justify-center gap-4 mt-2">
               <span className="text-[11px] text-slate-400 print:text-slate-500 bg-slate-50 dark:bg-slate-900/60 print:bg-slate-100 px-3 py-1 rounded-full font-mono">

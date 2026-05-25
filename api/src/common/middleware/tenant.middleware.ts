@@ -18,10 +18,6 @@ export class TenantMiddleware implements NestMiddleware {
       } catch (e) {}
     }
     
-    // Default to clinicId: 1 for dev/test purposes if missing, 
-    // but in a real app, it would just remain null and fail isolated queries.
-    if (!clinicId) clinicId = 1;
-
     tenantStorage.run({ clinicId }, () => next());
   }
 }
