@@ -300,13 +300,23 @@ export default function NewVisitPage() {
               </h2>
               <p className="text-xs text-slate-500">يرجى البحث باسم المريض أو رقم الهاتف لتحديد المريض أولاً.</p>
             </div>
-            <div className="relative max-w-xl">
-              <Input
-                value={patientSearch}
-                onChange={(e) => setPatientSearch(e.target.value)}
-                placeholder="ابحث باسم المريض أو رقم الهاتف..."
-                className="w-full h-11 pr-4 pl-10 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-teal-500 text-sm"
-              />
+            <div className="flex gap-2 max-w-xl">
+              <div className="relative flex-1">
+                <Input
+                  value={patientSearch}
+                  onChange={(e) => setPatientSearch(e.target.value)}
+                  placeholder="ابحث باسم المريض أو رقم الهاتف..."
+                  className="w-full h-11 pr-4 pl-10 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-teal-500 text-sm"
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={() => router.push(`/${locale}/patients/new`)}
+                className="h-11 rounded-xl gap-1.5 text-xs bg-teal-600 hover:bg-teal-700 shrink-0 font-medium px-4"
+              >
+                <Plus className="w-4 h-4" />
+                مريض جديد
+              </Button>
             </div>
             {patientSearch && patients?.data && (
               <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 max-h-60 overflow-y-auto max-w-xl shadow-lg mt-2 animate-slide-up">
