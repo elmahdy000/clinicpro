@@ -113,21 +113,33 @@ export default function NewVisitPage() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const patientId = searchParams.get('patientId');
+  
+  const patientIdFromQuery = searchParams.get('patientId');
+  const appointmentId = searchParams.get('appointmentId');
+  
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(patientIdFromQuery);
+  const [patientSearch, setPatientSearch] = useState('');
+  
   const [medicines, setMedicines] = useState<MedicineRow[]>([]);
   const [vitalsOpen, setVitalsOpen] = useState(false);
   const [medSearch, setMedSearch] = useState('');
 
   const { data: patient } = useQuery({
-    queryKey: ['patient', patientId],
-    queryFn: () => api.get(`/patients/${patientId}`).then((r) => r.data),
-    enabled: !!patientId,
+    queryKey: ['patient', selectedPatientId],
+    queryFn: () => api.get(`/patients/${selectedPatientId}`).then((r) => r.data),
+    enabled: !!selectedPatientId,
   });
 
   const { data: timeline } = useQuery({
-    queryKey: ['patient-timeline', patientId],
-    queryFn: () => api.get(`/patients/${patientId}/timeline`).then((r) => r.data),
-    enabled: !!patientId,
+    queryKey: ['patient-timeline', selectedPatientId],
+    queryFn: () => api.get(`/patients/${selectedPatientId}/timeline`).then((r) => r.data),
+    enabled: !!selectedPatientId,
+  });
+
+  const { data: patients } = useQuery({
+    queryKey: ['patient-search', patientSearch],
+    queryFn: () => api.get('/patients', { params: { search: patientSearch, limit: 10 } }).then((r) => r.data),
+    enabled: patientSearch.length > 1,
   });
 
   const { data: doctors } = useQuery({
@@ -181,8 +193,9 @@ export default function NewVisitPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['patient-timeline'] });
-      toast.success('تم حفظ الكشف');
-      router.push(`/${locale}/patients/${patientId}`);
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast.success('تم حفظ الكشف بنجاح');
+      router.push(`/${locale}/patients/${selectedPatientId}`);
     },
     onError: () => toast.error('حدث خطأ أثناء الحفظ'),
   });
@@ -205,8 +218,8 @@ export default function NewVisitPage() {
 
   const doSave = (createRx: boolean) => {
     form.handleSubmit((data) => {
-      if (!patientId) {
-        toast.error('لم يتم اختيار مريض');
+      if (!selectedPatientId) {
+        toast.error('لم يتم اختيار مريض بعد');
         return;
       }
       if (!doctorId) {
@@ -214,8 +227,9 @@ export default function NewVisitPage() {
         return;
       }
       mutation.mutate({
-        patientId: parseInt(patientId, 10),
+        patientId: parseInt(selectedPatientId, 10),
         doctorId,
+        appointmentId: appointmentId ? parseInt(appointmentId, 10) : undefined,
         chiefComplaint: data.chiefComplaint,
         diagnosis: data.diagnosis,
         treatmentPlan: data.treatmentPlan,
@@ -275,58 +289,119 @@ export default function NewVisitPage() {
         </div>
       </div>
 
-      {/* ============ PATIENT SUMMARY CARD ============ */}
-      {p && (
-        <Card className="border-slate-200/80 dark:border-slate-800/80 shadow-sm overflow-hidden">
-          <CardContent className="p-4 md:p-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-white text-lg font-bold shadow-md shrink-0">
-                  {firstName?.[0]}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-slate-100">{fullName}</h2>
-                    <Badge variant="secondary" className="text-[11px] gap-1 px-2 py-0.5">
-                      <IdCard className="w-3 h-3" />
-                      P-{String(p.id).padStart(4, '0')}
-                    </Badge>
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs md:text-sm text-slate-600 dark:text-slate-300">
-                    <span className="inline-flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-slate-400" /> {phone}</span>
-                    {age !== null && <span>{age} سنة</span>}
-                    {genderLabel && <span>{genderLabel}</span>}
-                    {p.bloodGroup && <span className="inline-flex items-center gap-1"><Droplets className="w-3 h-3 text-slate-400" /> {p.bloodGroup}</span>}
-                    {lastVisit && (
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-slate-400" />
-                        آخر زيارة: {formatDate(lastVisit.date, locale)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                {allergies && (
-                  <div className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/20 px-2.5 py-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
-                    <span className="text-xs text-rose-700 dark:text-rose-300 font-medium">حساسية: {allergies}</span>
-                  </div>
-                )}
-                {chronicDiseases && (
-                  <div className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 px-2.5 py-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                    <span className="text-xs text-amber-700 dark:text-amber-300 font-medium">أمراض مزمنة: {chronicDiseases}</span>
-                  </div>
-                )}
-              </div>
+      {/* ============ PATIENT SUMMARY / SELECTOR CARD ============ */}
+      {!selectedPatientId ? (
+        <Card className="border-teal-100/80 dark:border-slate-800 shadow-md bg-gradient-to-r from-teal-50/20 to-emerald-50/20 dark:from-teal-950/5 dark:to-emerald-950/5 overflow-hidden animate-slide-up">
+          <CardContent className="p-5 space-y-4">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <UserRound className="w-5 h-5 text-teal-600" />
+                البحث عن مريض مسجل لبدء الكشف
+              </h2>
+              <p className="text-xs text-slate-500">يرجى البحث باسم المريض أو رقم الهاتف لتحديد المريض أولاً.</p>
             </div>
+            <div className="relative max-w-xl">
+              <Input
+                value={patientSearch}
+                onChange={(e) => setPatientSearch(e.target.value)}
+                placeholder="ابحث باسم المريض أو رقم الهاتف..."
+                className="w-full h-11 pr-4 pl-10 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-teal-500 text-sm"
+              />
+            </div>
+            {patientSearch && patients?.data && (
+              <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 p-2 max-h-60 overflow-y-auto max-w-xl shadow-lg mt-2 animate-slide-up">
+                {patients.data.map((pat: any) => (
+                  <button
+                    key={pat.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPatientId(String(pat.id));
+                      setPatientSearch('');
+                    }}
+                    className="w-full text-right px-4 py-2.5 hover:bg-teal-50/50 dark:hover:bg-teal-950/30 rounded-lg flex items-center justify-between group transition-all"
+                  >
+                    <div className="min-w-0">
+                      <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm block">
+                        {pat.firstName} {pat.lastName}
+                      </span>
+                      <span className="text-xs text-slate-400 block mt-0.5">{pat.phone}</span>
+                    </div>
+                    <Badge variant="outline" className="group-hover:border-teal-500 group-hover:text-teal-600 transition-colors text-[10px]">
+                      اختيار المريض
+                    </Badge>
+                  </button>
+                ))}
+                {patients.data.length === 0 && (
+                  <p className="text-xs text-slate-400 text-center py-4">لا توجد نتائج تطابق بحثك</p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
+      ) : (
+        p && (
+          <Card className="border-slate-200/80 dark:border-slate-800/80 shadow-sm overflow-hidden animate-slide-up">
+            <CardContent className="p-4 md:p-5">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center text-white text-lg font-bold shadow-md shrink-0">
+                    {firstName?.[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-slate-100">{fullName}</h2>
+                      <Badge variant="secondary" className="text-[11px] gap-1 px-2 py-0.5">
+                        <IdCard className="w-3 h-3" />
+                        P-{String(p.id).padStart(4, '0')}
+                      </Badge>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedPatientId(null)}
+                        className="text-[10px] text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 h-6 px-2 rounded-md transition-colors"
+                      >
+                        تغيير المريض
+                      </Button>
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs md:text-sm text-slate-600 dark:text-slate-300">
+                      <span className="inline-flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-slate-400" /> {phone}</span>
+                      {age !== null && <span>{age} سنة</span>}
+                      {genderLabel && <span>{genderLabel}</span>}
+                      {p.bloodGroup && <span className="inline-flex items-center gap-1"><Droplets className="w-3 h-3 text-slate-400" /> {p.bloodGroup}</span>}
+                      {lastVisit && (
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          آخر كشف: {formatDate(lastVisit.date, locale)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  {allergies && (
+                    <div className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/20 px-2.5 py-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
+                      <span className="text-xs text-rose-700 dark:text-rose-300 font-medium">حساسية: {allergies}</span>
+                    </div>
+                  )}
+                  {chronicDiseases && (
+                    <div className="flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 px-2.5 py-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span className="text-xs text-amber-700 dark:text-amber-300 font-medium">أمراض مزمنة: {chronicDiseases}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )
       )}
 
       {/* ============ MAIN + SIDEBAR ============ */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
+      {selectedPatientId && (
+        <>
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_360px]">
 
         {/* ===== MAIN COLUMN ===== */}
         <main className="space-y-5">
@@ -533,12 +608,12 @@ export default function NewVisitPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <History className="w-4 h-4 text-slate-400" />
-                تاريخ الزيارات
+                تاريخ الكشوفات السابقة
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {pastVisits.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-3">لا توجد زيارات سابقة</p>
+                <p className="text-xs text-slate-400 text-center py-3">لا توجد كشوفات سابقة للمريض</p>
               ) : (
                 pastVisits.map((v: any, i: number) => (
                   <div key={i} className="rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 p-2.5">
@@ -614,16 +689,16 @@ export default function NewVisitPage() {
                 size="sm"
                 className="h-9 rounded-lg gap-1.5 text-xs border-slate-200 dark:border-slate-700"
                 onClick={() => doSave(false)}
-                disabled={mutation.isPending || !doctorId}
+                disabled={mutation.isPending || !doctorId || !selectedPatientId}
               >
                 <Save className="w-4 h-4" />
-                حفظ الزيارة
+                حفظ الكشف
               </Button>
               <Button
                 size="sm"
                 className="h-9 rounded-lg gap-1.5 text-xs bg-teal-600 hover:bg-teal-700"
                 onClick={() => doSave(true)}
-                disabled={mutation.isPending || !doctorId}
+                disabled={mutation.isPending || !doctorId || !selectedPatientId}
               >
                 <Pill className="w-4 h-4" />
                 {mutation.isPending ? 'جاري الحفظ...' : 'حفظ وإنشاء روشتة'}
@@ -633,7 +708,7 @@ export default function NewVisitPage() {
                 size="sm"
                 className="h-9 rounded-lg gap-1.5 text-xs"
                 onClick={() => doSave(true)}
-                disabled={mutation.isPending || !doctorId}
+                disabled={mutation.isPending || !doctorId || !selectedPatientId}
               >
                 <Printer className="w-4 h-4" />
                 حفظ وطباعة
@@ -642,6 +717,8 @@ export default function NewVisitPage() {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -61,6 +61,14 @@ export class MedicalRecordsService {
         clinicId: 1,
       },
     });
+
+    if (dto.appointmentId) {
+      await this.prisma.appointment.update({
+        where: { id: dto.appointmentId },
+        data: { status: 'COMPLETED' },
+      }).catch((e) => this.logger.error(`Failed to update appointment status: ${e.message}`));
+    }
+
     const full = await this.findOne(record.id);
     await this.notificationHelper.sendMedicalRecordCreated(full, full.doctor.user, full.patient).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));
     return full;
