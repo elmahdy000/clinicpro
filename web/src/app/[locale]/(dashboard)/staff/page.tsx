@@ -34,6 +34,7 @@ export default function StaffManagementPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('NURSE');
+  const [specialization, setSpecialization] = useState('General Medicine');
 
   // Load staff list (Automatically tenant-isolated by backend Prisma middleware!)
   const { data, isLoading } = useQuery({
@@ -52,6 +53,7 @@ export default function StaffManagementPage() {
     setEmail('');
     setPassword('');
     setRole('NURSE');
+    setSpecialization('General Medicine');
     setEditingUser(null);
   };
 
@@ -68,6 +70,7 @@ export default function StaffManagementPage() {
     setEmail(user.email);
     setPassword(''); // Leave password blank unless they want to change it
     setRole(user.role);
+    setSpecialization(user.specialization || 'General Medicine');
     setIsModalOpen(true);
   };
 
@@ -103,7 +106,7 @@ export default function StaffManagementPage() {
         toast.success(isRtl ? `تم تحديث بيانات "${name}" بنجاح!` : `Staff details for "${name}" updated!`);
       } else {
         // Add New User
-        await api.post('/users', { name, email, password, role });
+        await api.post('/users', { name, email, password, role, specialization: role === 'DOCTOR' ? specialization : undefined });
         toast.success(isRtl ? `تم إضافة "${name}" كعضو جديد في الطاقم الطبي!` : `New staff member "${name}" added successfully!`);
       }
 
@@ -432,6 +435,34 @@ export default function StaffManagementPage() {
                     <option value="CLINIC_ADMIN">{isRtl ? 'مدير عيادة (Clinic Admin)' : 'Clinic Admin'}</option>
                   </select>
                 </div>
+
+                {/* Specialization - only shown when role is DOCTOR */}
+                {role === 'DOCTOR' && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-gray-600 dark:text-gray-400 block">
+                      {isRtl ? 'التخصص الطبي *' : 'Specialization *'}
+                    </label>
+                    <select
+                      value={specialization}
+                      onChange={(e) => setSpecialization(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white dark:bg-gray-950 text-gray-900 dark:text-white"
+                    >
+                      <option value="General Medicine">{isRtl ? 'طب عام وباطني' : 'General Medicine'}</option>
+                      <option value="Pediatrics">{isRtl ? 'طب الأطفال وحديثي الولادة' : 'Pediatrics'}</option>
+                      <option value="Cardiology">{isRtl ? 'أمراض القلب والأوعية الدموية' : 'Cardiology'}</option>
+                      <option value="Dentistry">{isRtl ? 'طب وجراحة الفم والأسنان' : 'Dentistry'}</option>
+                      <option value="Orthopedics">{isRtl ? 'جراحة العظام والمفاصل' : 'Orthopedics'}</option>
+                      <option value="Ophthalmology">{isRtl ? 'طب وجراحة العيون' : 'Ophthalmology'}</option>
+                      <option value="Gynecology & Obstetrics">{isRtl ? 'طب النساء والتوليد' : 'Gynecology & Obstetrics'}</option>
+                      <option value="Dermatology & Venereology">{isRtl ? 'الأمراض الجلدية والتناسلية' : 'Dermatology & Venereology'}</option>
+                      <option value="ENT">{isRtl ? 'طب وجراحة الأنف والأذن والحنجرة' : 'ENT'}</option>
+                      <option value="Gastroenterology">{isRtl ? 'أمراض الجهاز الهضمي والكبد' : 'Gastroenterology'}</option>
+                      <option value="Urology">{isRtl ? 'طب وجراحة المسالك البولية' : 'Urology'}</option>
+                      <option value="General Surgery">{isRtl ? 'الجراحة العامة' : 'General Surgery'}</option>
+                      <option value="Endocrinology & Diabetes">{isRtl ? 'الغدد الصماء والسكري' : 'Endocrinology & Diabetes'}</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Form Action Buttons */}

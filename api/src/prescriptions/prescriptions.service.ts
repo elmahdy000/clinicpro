@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { tenantStorage } from '../prisma/tenant-context';
 import { CreatePrescriptionDto } from './dto/create-prescription.dto';
 import { UpdatePrescriptionDto } from './dto/update-prescription.dto';
 import { NotificationHelperService } from '../common/services/notification-helper.service';
@@ -17,7 +18,8 @@ export class PrescriptionsService {
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<any>> {
     const { page = 1, limit = 10, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
-    const where: any = {};
+    const store = tenantStorage.getStore();
+    const where: any = { clinicId: store?.clinicId ?? 0 };
     if (search) {
       where.OR = [
         { notes: { contains: search } },
@@ -39,12 +41,14 @@ export class PrescriptionsService {
   }
 
   async findOne(id: number) {
-    const prescription = await this.prisma.prescription.findUnique({
-      where: { id },
+    const store = tenantStorage.getStore();
+    const prescription = await this.prisma.prescription.findFirst({
+      where: { id, clinicId: store?.clinicId ?? 0 },
       include: {
         patient: true,
         doctor: { include: { user: { select: { id: true, email: true, name: true, role: true } } } },
         medicalRecord: true,
+        clinic: { select: { id: true, name: true, logoUrl: true, address: true, phone: true } },
       },
     });
     if (!prescription) throw new NotFoundException(`Prescription #${id} not found`);
@@ -62,11 +66,9 @@ export class PrescriptionsService {
       return null;
     }
     const name = item.name.trim();
-    // Try to find the medication by exact unique name
     let med = await this.prisma.medication.findUnique({
       where: { name },
     });
-    // If not found, auto-create a custom medication record
     if (!med) {
       try {
         med = await this.prisma.medication.create({
@@ -76,7 +78,6 @@ export class PrescriptionsService {
           },
         });
       } catch (e) {
-        // Fallback in case of race conditions
         med = await this.prisma.medication.findUnique({
           where: { name },
         });
@@ -85,15 +86,51 @@ export class PrescriptionsService {
     return med?.id || null;
   }
 
+  private async decrementStock(medicationId: number, clinicId: number, quantity: number = 1) {
+    try {
+      const stock = await this.prisma.medicationStock.findFirst({
+        where: {
+          medicationId,
+          clinicId,
+          quantityOnHand: { gte: quantity },
+          OR: [
+            { expiryDate: null },
+            { expiryDate: { gt: new Date() } },
+          ],
+        },
+        orderBy: { expiryDate: 'asc' },
+      });
+      if (stock) {
+        await this.prisma.medicationStock.update({
+          where: { id: stock.id },
+          data: { quantityOnHand: stock.quantityOnHand - quantity },
+        });
+        await this.prisma.stockMovement.create({
+          data: {
+            medicationStockId: stock.id,
+            type: 'OUT',
+            quantity: -quantity,
+            referenceType: 'prescription',
+            notes: `Auto-deducted ${quantity} unit(s) via prescription`,
+            performedBy: 0,
+          },
+        });
+      }
+    } catch (e) {
+      this.logger.warn(`Failed to decrement stock for medication #${medicationId}: ${(e as Error).message}`);
+    }
+  }
+
   async create(dto: CreatePrescriptionDto) {
+    const store = tenantStorage.getStore();
+    const clinicId = store?.clinicId ?? 0;
     const data: any = { ...dto };
     const items = data.medications || [];
     if (data.medications && typeof data.medications !== 'string') {
       data.medications = JSON.stringify(data.medications);
     }
-    const prescription = await this.prisma.prescription.create({ data: { ...data, clinicId: 1 } });
+    const prescription = await this.prisma.prescription.create({ data: { ...data, clinicId } });
     
-    // Asynchronously resolve all medication IDs (manually entered names will be auto-created in database)
     const itemsToCreate = [];
     if (Array.isArray(items)) {
       for (const item of items) {
@@ -106,6 +143,7 @@ export class PrescriptionsService {
             frequency: item.frequency || '',
             duration: item.duration || '',
           });
+          await this.decrementStock(medId, clinicId);
         }
       }
     }

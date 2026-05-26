@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useLocale } from 'next-intl';
+import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,87 +43,104 @@ export default function PharmaInsightsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // 1. Top Medicines Mock Data
-  const topMedicationsData = [
-    { name: 'أوجمنتين (Augmentin)', active: 'Amoxicillin + Clavulanic acid', prescriptions: 840, category: 'مضاد حيوي', growth: '+12%', doctor: 'د. خالد عبد الرحمن', clinic: 'عيادة الشروق التخصصية' },
-    { name: 'كونكور (Concor)', active: 'Bisoprolol', prescriptions: 620, category: 'أدوية الضغط والقلب', growth: '+8%', doctor: 'د. سارة المنشاوي', clinic: 'مركز القلب المتكامل' },
-    { name: 'بانادول إكسترا (Panadol)', active: 'Paracetamol + Caffeine', prescriptions: 580, category: 'مسكن وخافض حرارة', growth: '+15%', doctor: 'د. أحمد صبري', clinic: 'عيادة الرحاب الطبية' },
-    { name: 'جالفوس مت (Galvus Met)', active: 'Vildagliptin + Metformin', prescriptions: 490, category: 'أدوية السكر', growth: '+5%', doctor: 'د. مروة الشافعي', clinic: 'عيادة السكر التخصصية' },
-    { name: 'بروفين 400 (Brufen)', active: 'Ibuprofen', prescriptions: 410, category: 'مضاد للالتهابات ومسكن', growth: '-3%', doctor: 'د. عاصم الجوهري', clinic: 'مستشفى السلام الخاص' },
-    { name: 'أوميز 20 (Omez)', active: 'Omeprazole', prescriptions: 370, category: 'أدوية المعدة والجهاز الهضمي', growth: '+20%', doctor: 'د. رانيا يوسف', clinic: 'المركز الهضمي الطبي' },
-    { name: 'كلاريتين (Clarityne)', active: 'Loratadine', prescriptions: 320, category: 'مضادات الحساسية', growth: '+10%', doctor: 'د. هاني شاكر', clinic: 'عيادة النور لحديثي الولادة' }
-  ];
+  // Fetch real pharma insights data
+  const { data: pharmaData, isLoading: statsLoading } = useQuery<any>({
+    queryKey: ['pharma-insights'],
+    queryFn: () => api.get('/dashboard/pharma-insights').then((r) => r.data),
+    refetchInterval: 120_000,
+  });
 
-  // 2. Active Ingredients Mock Data
-  const activeIngredientsData = [
-    { name: 'Paracetamol', prescriptions: 1420, rate: '28%' },
-    { name: 'Amoxicillin', prescriptions: 980, rate: '19%' },
-    { name: 'Metformin', prescriptions: 820, rate: '16%' },
-    { name: 'Bisoprolol', prescriptions: 710, rate: '14%' },
-    { name: 'Omeprazole', prescriptions: 650, rate: '13%' }
-  ];
+  const apiTopMeds = pharmaData?.topMedications || [];
+  const apiDiagCorr = pharmaData?.diagnosisDrugCorrelation || [];
+  const apiCategoryShare = pharmaData?.categoryShare || [];
+  const apiSummary = pharmaData?.summary || {};
 
-  // 3. Diagnosis and Drug Correlation
-  const diagnosisCorrelationData = [
-    { diagnosis: 'التهاب الشعب الهوائية الحاد', drug: 'أوجمنتين (Augmentin)', rate: '78%' },
-    { diagnosis: 'ارتفاع ضغط الدم الأولي', drug: 'كونكور (Concor)', rate: '65%' },
-    { diagnosis: 'مرض السكري من النوع الثاني', drug: 'جالفوس مت (Galvus Met)', rate: '72%' },
-    { diagnosis: 'التهاب المعدة الحاد', drug: 'أوميز 20 (Omez)', rate: '88%' }
-  ];
+  // 1. Top Medicines Data (real API data with mock fallback)
+  const topMedicationsData = apiTopMeds.length > 0
+    ? apiTopMeds.map((m: any) => ({
+        name: m.name,
+        active: m.activeIngredient || m.category || '',
+        prescriptions: m.prescribedCount || 0,
+        category: m.category || '',
+        growth: m.monthlyTrend?.[m.monthlyTrend?.length - 1] ? `+${Math.round((m.monthlyTrend[m.monthlyTrend.length - 1].count / m.monthlyTrend[0]?.count - 1) * 100)}%` : '+0%',
+        doctor: m.topDoctors?.[0]?.name || '—',
+        clinic: m.topClinics?.[0]?.name || '—',
+      }))
+    : [
+        { name: 'أوجمنتين (Augmentin)', active: 'Amoxicillin + Clavulanic acid', prescriptions: 840, category: 'مضاد حيوي', growth: '+12%', doctor: 'د. خالد عبد الرحمن', clinic: 'عيادة الشروق التخصصية' },
+        { name: 'كونكور (Concor)', active: 'Bisoprolol', prescriptions: 620, category: 'أدوية الضغط والقلب', growth: '+8%', doctor: 'د. سارة المنشاوي', clinic: 'مركز القلب المتكامل' },
+        { name: 'بانادول إكسترا (Panadol)', active: 'Paracetamol + Caffeine', prescriptions: 580, category: 'مسكن وخافض حرارة', growth: '+15%', doctor: 'د. أحمد صبري', clinic: 'عيادة الرحاب الطبية' },
+        { name: 'جالفوس مت (Galvus Met)', active: 'Vildagliptin + Metformin', prescriptions: 490, category: 'أدوية السكر', growth: '+5%', doctor: 'د. مروة الشافعي', clinic: 'عيادة السكر التخصصية' },
+        { name: 'بروفين 400 (Brufen)', active: 'Ibuprofen', prescriptions: 410, category: 'مضاد للالتهابات ومسكن', growth: '-3%', doctor: 'د. عاصم الجوهري', clinic: 'مستشفى السلام الخاص' },
+        { name: 'أوميز 20 (Omez)', active: 'Omeprazole', prescriptions: 370, category: 'أدوية المعدة والجهاز الهضمي', growth: '+20%', doctor: 'د. رانيا يوسف', clinic: 'المركز الهضمي الطبي' },
+        { name: 'كلاريتين (Clarityne)', active: 'Loratadine', prescriptions: 320, category: 'مضادات الحساسية', growth: '+10%', doctor: 'د. هاني شاكر', clinic: 'عيادة النور لحديثي الولادة' }
+      ];
 
-  // 4. Competitor Share Mock Data
-  const competitorShareData = [
-    { name: 'بانادول (Panadol)', value: 58 },
-    { name: 'أدول (Adol)', value: 25 },
-    { name: 'بارامول (Paramol)', value: 17 }
-  ];
+  // 2. Active Ingredients Data (from real category share)
+  const activeIngredientsData = apiCategoryShare.length > 0
+    ? apiCategoryShare.slice(0, 5).map((c: any) => ({
+        name: c.name,
+        prescriptions: c.value,
+        rate: `${c.percentage}%`,
+      }))
+    : [];
 
-  // 5. Monthly Prescriptions Trend
-  const monthlyTrendData = [
-    { name: 'يناير', prescriptions: 410, genericShare: 210 },
-    { name: 'فبراير', prescriptions: 490, genericShare: 240 },
-    { name: 'مارس', prescriptions: 580, genericShare: 280 },
-    { name: 'أبريل', prescriptions: 720, genericShare: 350 },
-    { name: 'مايو', prescriptions: 840, genericShare: 410 }
-  ];
+  // 3. Diagnosis and Drug Correlation (from real analytics)
+  const diagnosisCorrelationData = apiDiagCorr.length > 0
+    ? apiDiagCorr.slice(0, 5).map((d: any) => ({
+        diagnosis: d.diagnosis,
+        drug: '—',
+        rate: `${Math.round((d.count / apiDiagCorr.reduce((s: number, x: any) => s + x.count, 0)) * 100)}%`,
+      }))
+    : [];
 
-  // 6. Regional distribution (Egypt Governorates)
-  const regionalDistributionData = [
-    { name: 'القاهرة الكبرى', prescriptions: 1840 },
-    { name: 'الإسكندرية', prescriptions: 1120 },
-    { name: 'الدلتا والوجه البحري', prescriptions: 940 },
-    { name: 'الجيزة والقناة', prescriptions: 760 },
-    { name: 'محافظات الصعيد', prescriptions: 590 }
-  ];
+  // 4. Competitor Share (placeholder)
+  const competitorShareData: { name: string; value: number }[] = [];
 
-  // 7. Missing medications searched by doctors
-  const missingMedicationsData = [
-    { searchName: 'فوركسيجا 10 (Forxiga)', searches: 145, category: 'أدوية السكر الحديثة', potentialGap: 'عالٍ جداً' },
-    { searchName: 'انتريستو (Entresto)', searches: 98, category: 'أدوية فشل القلب الحديثة', potentialGap: 'عالٍ' },
-    { searchName: 'ريبيلسوس 3 (Rybelsus)', searches: 84, category: 'أدوية السكر والسمنة', potentialGap: 'متوسط' }
-  ];
+  // 5. Monthly Prescriptions Trend (from real analytics)
+  const monthlyTrendData = apiTopMeds.length > 0
+    ? (() => {
+        const allMonths: Record<string, number> = {};
+        for (const med of apiTopMeds) {
+          for (const m of med.monthlyTrend || []) {
+            const parts = (m.month || '').split('-');
+            const label = parts.length === 2 ? `${parts[1]}/${parts[0]}` : m.month;
+            allMonths[label] = (allMonths[label] || 0) + m.count;
+          }
+        }
+        return Object.entries(allMonths).map(([name, prescriptions]) => ({ name, prescriptions, genericShare: 0 }));
+      })()
+    : [];
 
-  // 8. Campaigns before/after impact
-  const campaignImpactData = [
-    { name: 'قبل الحملة', prescriptions: 180 },
-    { name: 'أثناء الحملة', prescriptions: 420 },
-    { name: 'بعد الحملة (الاستدامة)', prescriptions: 590 }
-  ];
+  // 6. Regional distribution (placeholder)
+  const regionalDistributionData: { name: string; prescriptions: number }[] = [];
 
-  // 8b. Top Prescribing Doctors data with contact details
-  const topDoctorsPrescribingData = [
-    { name: 'د. خالد عبد الرحمن', specialty: 'أمراض باطنة وجهاز هضمي', clinic: 'عيادة الشروق التخصصية', governorate: 'القاهرة الكبرى', drug: 'أوجمنتين (Augmentin)', prescriptionsCount: 240, rate: '28.5%', contact: '01012345678', email: 'k.abdelrahman@clinicpro.eg' },
-    { name: 'د. سارة المنشاوي', specialty: 'أمراض القلب والأوعية', clinic: 'مركز القلب المتكامل', governorate: 'الإسكندرية', drug: 'كونكور (Concor)', prescriptionsCount: 195, rate: '31.4%', contact: '01123456789', email: 's.almenshawi@clinicpro.eg' },
-    { name: 'د. أحمد صبري', specialty: 'أطفال وحديثي الولادة', clinic: 'عيادة الرحاب الطبية', governorate: 'الجيزة والقناة', drug: 'بانادول إكسترا (Panadol)', prescriptionsCount: 180, rate: '31.0%', contact: '01234567890', email: 'a.sabry@clinicpro.eg' },
-    { name: 'د. مروة الشافعي', specialty: 'غدد صماء وسكر', clinic: 'عيادة السكر التخصصية', governorate: 'الدلتا والوجه البحري', drug: 'جالفوس مت (Galvus Met)', prescriptionsCount: 155, rate: '31.6%', contact: '01545678901', email: 'm.elshafey@clinicpro.eg' },
-    { name: 'د. عاصم الجوهري', specialty: 'عظام ومفاصل', clinic: 'مستشفى السلام الخاص', governorate: 'محافظات الصعيد', drug: 'بروفين 400 (Brufen)', prescriptionsCount: 130, rate: '31.7%', contact: '01098765432', email: 'a.elgohary@clinicpro.eg' },
-    { name: 'د. رانيا يوسف', specialty: 'أمراض باطنة وجهاز هضمي', clinic: 'المركز الهضمي الطبي', governorate: 'القاهرة الكبرى', drug: 'أوميز 20 (Omez)', prescriptionsCount: 120, rate: '32.4%', contact: '01198765432', email: 'r.youssef@clinicpro.eg' },
-    { name: 'د. هاني شاكر', specialty: 'أطفال وحديثي الولادة', clinic: 'عيادة النور لحديثي الولادة', governorate: 'الدلتا والوجه البحري', drug: 'كلاريتين (Clarityne)', prescriptionsCount: 95, rate: '29.6%', contact: '01298765432', email: 'h.shaker@clinicpro.eg' },
-  ];
+  // 7. Missing medications (placeholder)
+  const missingMedicationsData: { searchName: string; searches: number; category: string; potentialGap: string }[] = [];
+
+  // 8. Campaigns before/after impact (placeholder)
+  const campaignImpactData: { name: string; prescriptions: number }[] = [];
+
+  // 8b. Top Prescribing Doctors data (from real analytics)
+  const topDoctorsPrescribingData = apiTopMeds.length > 0
+    ? apiTopMeds.flatMap((m: any) =>
+        (m.topDoctors || []).map((d: any) => ({
+          name: d.name,
+          specialty: d.specialization || '—',
+          clinic: m.topClinics?.[0]?.name || '—',
+          governorate: '—',
+          drug: m.name,
+          prescriptionsCount: d.count || 0,
+          rate: m.prescribedCount ? `${Math.round((d.count / m.prescribedCount) * 100)}%` : '—',
+          contact: '—',
+          email: '—',
+        }))
+      ).slice(0, 20)
+    : [];
 
   // Filter doctors that write the selected medication or show all if none
-  const targetDoctors = topDoctorsPrescribingData.filter(doc => doc.drug === selectedMedication);
-  const otherDoctors = topDoctorsPrescribingData.filter(doc => doc.drug !== selectedMedication);
+  const targetDoctors = topDoctorsPrescribingData.filter((doc: any) => doc.drug === selectedMedication);
+  const otherDoctors = topDoctorsPrescribingData.filter((doc: any) => doc.drug !== selectedMedication);
   const displayDoctors = [...targetDoctors, ...otherDoctors];
 
   // Helper to anonymize strings
@@ -159,7 +178,7 @@ export default function PharmaInsightsPage() {
     }
   };
 
-  const filteredMeds = topMedicationsData.filter(med => {
+  const filteredMeds = topMedicationsData.filter((med: any) => {
     const matchesSearch = med.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           med.active.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           med.category.toLowerCase().includes(searchTerm.toLowerCase());
@@ -167,7 +186,7 @@ export default function PharmaInsightsPage() {
     return matchesSearch;
   });
 
-  const sortedMeds = [...filteredMeds].sort((a, b) => {
+  const sortedMeds = [...filteredMeds].sort((a: any, b: any) => {
     let aVal = a[sortKey];
     let bVal = b[sortKey];
 
@@ -454,7 +473,7 @@ export default function PharmaInsightsPage() {
         <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
           <CardHeader><CardTitle className="text-base flex items-center gap-2"><Sparkles className="w-4 h-4 text-teal-600" /> {isRtl ? 'تقرير المواد الفعالة الأكثر طلباً' : 'Active Ingredients Share'}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            {activeIngredientsData.map((item, idx) => (
+                {activeIngredientsData.map((item: any, idx: number) => (
               <div key={idx} className="space-y-1">
                 <div className="flex justify-between text-xs font-semibold">
                   <span className="font-mono text-gray-700 dark:text-gray-300">{item.name}</span>
@@ -619,7 +638,7 @@ export default function PharmaInsightsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {diagnosisCorrelationData.map((item, idx) => (
+                {diagnosisCorrelationData.map((item: any, idx: number) => (
                   <tr key={idx}>
                     <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{item.diagnosis}</td>
                     <td className="px-4 py-3 font-bold text-teal-700">{item.drug}</td>
@@ -720,7 +739,7 @@ export default function PharmaInsightsPage() {
         <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
           <CardHeader><CardTitle className="text-base flex items-center gap-2"><MapPin className="w-4 h-4 text-teal-600" /> {isRtl ? 'التوزيع الجغرافي للوصفات (مصر)' : 'Regional Distribution'}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            {regionalDistributionData.map((item, idx) => (
+                {regionalDistributionData.map((item: any, idx: number) => (
               <div key={idx} className="space-y-1">
                 <div className="flex justify-between text-xs font-semibold">
                   <span>{item.name}</span>

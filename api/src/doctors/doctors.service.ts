@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { tenantStorage } from '../prisma/tenant-context';
 import { CreateDoctorDto } from './dto/create-doctor.dto';
 import { UpdateDoctorDto } from './dto/update-doctor.dto';
 import { CreateAvailabilityDto } from './dto/create-availability.dto';
@@ -20,7 +21,8 @@ export class DoctorsService {
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<any>> {
     const { page = 1, limit = 10, search, sortBy = 'id', sortOrder = 'desc' } = query;
-    const where: any = {};
+    const store = tenantStorage.getStore();
+    const where: any = { clinicId: store?.clinicId ?? 0 };
     const allowedSortFields = new Set(['id', 'specialization', 'consultationFee', 'status', 'userId', 'departmentId']);
     const safeSortBy = allowedSortFields.has(sortBy) ? sortBy : 'id';
     if (search) {
@@ -44,8 +46,9 @@ export class DoctorsService {
   }
 
   async findOne(id: number) {
-    const doctor = await this.prisma.doctor.findUnique({
-      where: { id },
+    const store = tenantStorage.getStore();
+    const doctor = await this.prisma.doctor.findFirst({
+      where: { id, clinicId: store?.clinicId ?? 0 },
       include: { user: { select: { id: true, email: true, name: true, role: true } }, appointments: true },
     });
     if (!doctor) throw new NotFoundException(`Doctor #${id} not found`);
@@ -53,11 +56,13 @@ export class DoctorsService {
   }
 
   async findByUserId(userId: number) {
-    return this.prisma.doctor.findUnique({ where: { userId } });
+    const store = tenantStorage.getStore();
+    return this.prisma.doctor.findFirst({ where: { userId, clinicId: store?.clinicId ?? 0 } });
   }
 
   async create(dto: CreateDoctorDto) {
-    return this.prisma.doctor.create({ data: { ...(dto as any), clinicId: 1 } });
+    const store = tenantStorage.getStore();
+    return this.prisma.doctor.create({ data: { ...dto, clinicId: store?.clinicId ?? 0 } as any });
   }
 
   async update(id: number, dto: UpdateDoctorDto) {
@@ -71,7 +76,10 @@ export class DoctorsService {
   }
 
   async getAppointments(doctorId: number) {
-    const doctor = await this.prisma.doctor.findUnique({ where: { id: doctorId } });
+    const store = tenantStorage.getStore();
+    const doctor = await this.prisma.doctor.findFirst({
+      where: { id: doctorId, clinicId: store?.clinicId ?? 0 },
+    });
     if (!doctor) throw new NotFoundException(`Doctor #${doctorId} not found`);
     return this.prisma.appointment.findMany({ where: { doctorId } });
   }
@@ -126,7 +134,10 @@ export class DoctorsService {
   }
 
   async removeTimeOff(id: number) {
-    const record = await this.prisma.doctorTimeOff.findUnique({ where: { id } });
+    const store = tenantStorage.getStore();
+    const record = await this.prisma.doctorTimeOff.findFirst({
+      where: { id, doctor: { clinicId: store?.clinicId ?? 0 } },
+    });
     if (!record) throw new NotFoundException(`TimeOff #${id} not found`);
     return this.prisma.doctorTimeOff.delete({ where: { id } });
   }

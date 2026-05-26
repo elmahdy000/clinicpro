@@ -354,120 +354,169 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Filters (Screen only) */}
-      <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:hidden">
-        <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-          <div className="space-y-2">
-            <Label className="text-xs">{isRtl ? 'الفترة الزمنية للتقرير' : 'Report Period'}</Label>
-            <select
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500"
-            >
-              <option value="today">{isRtl ? 'اليوم' : 'Today'}</option>
-              <option value="yesterday">{isRtl ? 'أمس' : 'Yesterday'}</option>
-              <option value="7days">{isRtl ? 'آخر 7 أيام' : 'Last 7 Days'}</option>
-              <option value="30days">{isRtl ? 'آخر 30 يوم' : 'Last 30 Days'}</option>
-              <option value="thismonth">{isRtl ? 'الشهر الحالي' : 'This Month'}</option>
-            </select>
-          </div>
-
-          <Button onClick={resetFilters} variant="outline" size="sm" className="h-9 text-xs">
-            {isRtl ? 'إعادة تعيين الفلاتر' : 'Reset'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Cards stats grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {reportCards.map((card, i) => {
-          const Icon = card.icon;
-          return (
-            <Card key={i} className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2.5 rounded-xl ${card.bg} print:bg-gray-100 flex-shrink-0`}>
-                    <Icon className={`w-5 h-5 ${card.color}`} />
-                  </div>
-                  <div>
-                    {isLoading ? <Skeleton className="h-6 w-12" /> : <div className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">{card.value}</div>}
-                    <p className="text-xs text-gray-500 font-semibold">{card.label}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:break-inside-avoid">
-        {/* Visit growth */}
-        <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
-          <CardHeader><CardTitle className="text-base">{t('patientGrowth')}</CardTitle></CardHeader>
-          <CardContent className="print:hidden">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
-                <Bar dataKey="visits" fill="#0d9488" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-          {/* Printable tabular representation of charts */}
-          <CardContent className="hidden print:block p-0">
-            <table className="w-full text-right text-xs">
-              <thead>
-                <tr className="border-b bg-gray-50">
-                  <th className="px-4 py-2">{isRtl ? 'الشهر' : 'Month'}</th>
-                  <th className="px-4 py-2">{isRtl ? 'عدد الزيارات المكتملة' : 'Completed Visits'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {chartData.map((d: any, idx: number) => (
-                  <tr key={idx}>
-                    <td className="px-4 py-2 font-semibold">{d.name}</td>
-                    <td className="px-4 py-2 font-mono font-bold text-teal-700">{d.visits}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-
-        {/* Visit Reasons */}
-        <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
-          <CardHeader><CardTitle className="text-base">{t('commonReasons')}</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {[
-                { reason: isRtl ? 'كشف دوري' : 'Checkup', count: 45, pct: 40 },
-                { reason: isRtl ? 'متابعة كشف' : 'Follow-up', count: 28, pct: 25 },
-                { reason: isRtl ? 'كشف طارئ' : 'Emergency', count: 15, pct: 13 },
-                { reason: isRtl ? 'استشارة طبية' : 'Consultation', count: 12, pct: 11 },
-                { reason: isRtl ? 'تطعيمات' : 'Vaccination', count: 10, pct: 9 },
-              ].map((item) => (
-                <div key={item.reason} className="space-y-1">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-gray-700 dark:text-gray-300">{item.reason}</span>
-                    <span className="text-teal-600 font-mono">{item.count} {isRtl ? 'كشف' : 'visit'}</span>
-                  </div>
-                  <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
-                    <div className="bg-gradient-to-r from-teal-500 to-teal-400 h-2 rounded-full" style={{ width: `${item.pct}%` }} />
-                  </div>
-                </div>
-              ))}
+      {/* New clinic empty state */}
+      {stats?.isNewClinic ? (
+        <Card className="border-slate-200/60 dark:border-slate-800/60 shadow-sm print:hidden">
+          <CardContent className="p-8 md:p-12">
+            <div className="max-w-md mx-auto text-center space-y-6">
+              <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-950/30 dark:to-cyan-950/30 flex items-center justify-center">
+                <BarChart3 className="w-10 h-10 text-teal-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                  {isRtl ? 'العيادة جديدة — لا توجد تقارير بعد' : 'New Clinic — No Reports Yet'}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+                  {isRtl
+                    ? 'بمجرد أن تبدأ في استقبال المرضى وتسجيل الزيارات ووصف الروشتات، ستبدأ التحليلات والتقارير في الظهور هنا تلقائياً.'
+                    : 'Once you start seeing patients, recording visits, and writing prescriptions, analytics and reports will appear here automatically.'}
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  { icon: Users, label: isRtl ? 'سجل مرضاك' : 'Register Patients' },
+                  { icon: CalendarDays, label: isRtl ? 'أنشئ مواعيد' : 'Create Appointments' },
+                  { icon: FileText, label: isRtl ? 'اكتب روشتات' : 'Write Prescriptions' },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.label} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 space-y-1.5">
+                      <Icon className="w-5 h-5 mx-auto text-teal-500" />
+                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{item.label}</p>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-gray-400">
+                {isRtl ? 'التقارير تظهر تلقائياً — لا حاجة لتفعيل أي شيء' : 'Reports appear automatically — no setup required'}
+              </p>
             </div>
           </CardContent>
         </Card>
-      </div>
+      ) : (
+        <>
+          {/* Filters (Screen only) */}
+          <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:hidden">
+            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+              <div className="space-y-2">
+                <Label className="text-xs">{isRtl ? 'الفترة الزمنية للتقرير' : 'Report Period'}</Label>
+                <select
+                  value={dateRange}
+                  onChange={(e) => setDateRange(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500"
+                >
+                  <option value="today">{isRtl ? 'اليوم' : 'Today'}</option>
+                  <option value="yesterday">{isRtl ? 'أمس' : 'Yesterday'}</option>
+                  <option value="7days">{isRtl ? 'آخر 7 أيام' : 'Last 7 Days'}</option>
+                  <option value="30days">{isRtl ? 'آخر 30 يوم' : 'Last 30 Days'}</option>
+                  <option value="thismonth">{isRtl ? 'الشهر الحالي' : 'This Month'}</option>
+                </select>
+              </div>
+
+              <Button onClick={resetFilters} variant="outline" size="sm" className="h-9 text-xs">
+                {isRtl ? 'إعادة تعيين الفلاتر' : 'Reset'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Cards stats grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {reportCards.map((card, i) => {
+              const Icon = card.icon;
+              return (
+                <Card key={i} className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-xl ${card.bg} print:bg-gray-100 flex-shrink-0`}>
+                        <Icon className={`w-5 h-5 ${card.color}`} />
+                      </div>
+                      <div>
+                        {isLoading ? <Skeleton className="h-6 w-12" /> : <div className="text-xl font-bold text-gray-900 dark:text-white tabular-nums">{card.value}</div>}
+                        <p className="text-xs text-gray-500 font-semibold">{card.label}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:break-inside-avoid">
+            {/* Visit growth */}
+            <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
+              <CardHeader><CardTitle className="text-base">{t('patientGrowth')}</CardTitle></CardHeader>
+              <CardContent className="print:hidden">
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
+                    <Bar dataKey="visits" fill="#0d9488" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+              {/* Printable tabular representation of charts */}
+              <CardContent className="hidden print:block p-0">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="px-4 py-2">{isRtl ? 'اليوم' : 'Day'}</th>
+                      <th className="px-4 py-2">{isRtl ? 'عدد الزيارات' : 'Visits'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {chartData.map((d: any, idx: number) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-2 font-semibold">{d.name}</td>
+                        <td className="px-4 py-2 font-mono font-bold text-teal-700">{d.visits}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+
+            {/* Visit Reasons */}
+            <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
+              <CardHeader><CardTitle className="text-base">{t('commonReasons')}</CardTitle></CardHeader>
+              <CardContent>
+                {(stats?.appointments?.COMPLETED ?? 0) > 0 ? (
+                  <div className="space-y-3">
+                    {[
+                      { reason: isRtl ? 'كشف دوري' : 'Checkup', count: 45, pct: 40 },
+                      { reason: isRtl ? 'متابعة كشف' : 'Follow-up', count: 28, pct: 25 },
+                      { reason: isRtl ? 'كشف طارئ' : 'Emergency', count: 15, pct: 13 },
+                      { reason: isRtl ? 'استشارة طبية' : 'Consultation', count: 12, pct: 11 },
+                      { reason: isRtl ? 'تطعيمات' : 'Vaccination', count: 10, pct: 9 },
+                    ].map((item) => (
+                      <div key={item.reason} className="space-y-1">
+                        <div className="flex justify-between text-xs font-semibold">
+                          <span className="text-gray-700 dark:text-gray-300">{item.reason}</span>
+                          <span className="text-teal-600 font-mono">{item.count} {isRtl ? 'كشف' : 'visit'}</span>
+                        </div>
+                        <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
+                          <div className="bg-gradient-to-r from-teal-500 to-teal-400 h-2 rounded-full" style={{ width: `${item.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-gray-400 text-sm">
+                    {isRtl ? 'لا توجد بيانات كافية — تظهر الأسباب بعد توفر الزيارات' : 'Not enough data — reasons appear after visits are recorded'}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
 
       {/* Print Only Footer */}
       <div className="hidden print:flex justify-between items-center border-t border-gray-200 pt-8 mt-12 text-xs text-gray-400">
         <p>تطبيق كلينك برو لإدارة العيادات والـ SaaS © ٢٠٢٦</p>
-        <p>تقرير سري وخاص بالعيادة</p>
-        <p className="font-mono">توقيع الطبيب المعالج: __________________</p>
+        <p>{isRtl ? 'تقرير سري وخاص بالعيادة' : 'Confidential Clinic Report'}</p>
+        <p className="font-mono">{isRtl ? 'توقيع الطبيب المعالج: __________________' : 'Physician Signature: __________________'}</p>
       </div>
     </div>
   );

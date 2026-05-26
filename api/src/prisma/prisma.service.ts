@@ -5,7 +5,8 @@ import { tenantStorage } from './tenant-context';
 const tenantModels = [
   'ClinicSettings', 'User', 'Doctor', 'DoctorAvailability', 'DoctorTimeOff',
   'Appointment', 'MedicalRecord', 'Prescription', 'Invoice',
-  'FileUpload', 'AuditLog', 'ClinicPatient'
+  'FileUpload', 'AuditLog', 'ClinicPatient',
+  'MedicationStock', 'StockMovement'
 ];
 
 @Injectable()

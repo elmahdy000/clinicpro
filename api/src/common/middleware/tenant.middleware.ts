@@ -11,7 +11,7 @@ export class TenantMiddleware implements NestMiddleware {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       try {
-        const payload = jwt.decode(token) as any;
+        const payload = jwt.verify(token, process.env.JWT_SECRET || 'supersecretjwtkey') as any;
         if (payload && payload.clinicId) {
           clinicId = payload.clinicId;
         }

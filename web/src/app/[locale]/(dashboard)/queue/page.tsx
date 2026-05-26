@@ -30,8 +30,10 @@ type StatusTab = typeof statusTabs[number];
 const STYLE_MAP: Record<string, string> = {
   PENDING: 'badge-waiting',
   CONFIRMED: 'badge-confirmed',
+  IN_PROGRESS: 'badge-in-progress',
   COMPLETED: 'badge-completed',
   CANCELLED: 'badge-cancelled',
+  MISSED: 'badge-missed',
 };
 
 export default function QueuePage() {
@@ -80,7 +82,7 @@ export default function QueuePage() {
     () => ({
       all: today.length,
       waiting: today.filter((a: any) => a.status === 'PENDING').length,
-      inProgress: today.filter((a: any) => a.status === 'CONFIRMED').length,
+      inProgress: today.filter((a: any) => a.status === 'CONFIRMED' || a.status === 'IN_PROGRESS').length,
       completed: today.filter((a: any) => a.status === 'COMPLETED').length,
       cancelled: today.filter((a: any) => a.status === 'CANCELLED' || a.status === 'MISSED').length,
     }),
@@ -91,6 +93,7 @@ export default function QueuePage() {
     const map: Record<string, string> = {
       PENDING: t('waiting'),
       CONFIRMED: t('inProgress'),
+      IN_PROGRESS: t('inProgress'),
       COMPLETED: t('completed'),
       CANCELLED: t('cancelled'),
       MISSED: 'ماحضرش',
@@ -102,7 +105,7 @@ export default function QueuePage() {
     if (activeTab === 'all') return today;
     const map: Record<string, string[]> = {
       waiting: ['PENDING'],
-      inProgress: ['CONFIRMED'],
+      inProgress: ['CONFIRMED', 'IN_PROGRESS'],
       completed: ['COMPLETED'],
       cancelled: ['CANCELLED', 'MISSED'],
     };
@@ -121,14 +124,19 @@ export default function QueuePage() {
 
   const nextPatient = filtered.find((a: any) => a.status === 'PENDING');
   const waitingList = filtered.filter((a: any) => a.status === 'PENDING');
-  const inProgressList = filtered.filter((a: any) => a.status === 'CONFIRMED');
+  const inProgressList = filtered.filter((a: any) => a.status === 'CONFIRMED' || a.status === 'IN_PROGRESS');
   const doneList = filtered.filter((a: any) => a.status === 'COMPLETED' || a.status === 'CANCELLED' || a.status === 'MISSED');
 
   const queueItem = (apt: any, compact = false) => (
     <div key={apt.id} className="rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900 p-3 hover:shadow-sm transition-all">
       <div className="flex items-start gap-2.5">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center text-white text-xs font-semibold">
+        <div className="relative w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center text-white text-xs font-semibold">
           {apt.patient?.firstName?.[0]}{apt.patient?.lastName?.[0]}
+          {apt.queuePosition && (
+            <span className="absolute -top-1.5 -end-1.5 w-4 h-4 rounded-full bg-amber-500 text-white text-[8px] font-bold flex items-center justify-center shadow-sm">
+              {apt.queuePosition}
+            </span>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{apt.patient?.firstName} {apt.patient?.lastName}</p>
@@ -154,7 +162,7 @@ export default function QueuePage() {
             {t('checkIn')}
           </Button>
         )}
-        {apt.status === 'CONFIRMED' && (
+        {(apt.status === 'CONFIRMED' || apt.status === 'IN_PROGRESS') && (
           <Link href={`/${locale}/visits/new?patientId=${apt.patient?.id}`}>
             <Button size="sm" className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 rounded-lg">
               <Stethoscope className="w-3.5 h-3.5 me-1" />
@@ -162,7 +170,7 @@ export default function QueuePage() {
             </Button>
           </Link>
         )}
-        {apt.status !== 'COMPLETED' && apt.status !== 'CANCELLED' && (
+        {apt.status !== 'COMPLETED' && apt.status !== 'CANCELLED' && apt.status !== 'MISSED' && (
           <Button size="sm" variant="ghost" className="h-8 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg" onClick={() => updateMutation.mutate({ id: apt.id, status: 'CANCELLED' })}>
             <XCircle className="w-3.5 h-3.5 me-1" />
             {t('cancel')}

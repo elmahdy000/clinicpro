@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { config } from 'dotenv';
 import compression from 'compression';
+import { join } from 'path';
 
 config();
 
@@ -17,7 +18,7 @@ async function bootstrap() {
     credentials: true,
   });
   app.use(compression());
-  // Static files served via GET /api/upload/:id/download (auth-protected)
+  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/api/uploads' });
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

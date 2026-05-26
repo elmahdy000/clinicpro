@@ -1,7 +1,10 @@
 import { Controller, Post, Get, Put, Body, UseGuards, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
+import { RegisterClinicDto } from './dto/register-clinic.dto';
 import { LoginDto } from './dto/login.dto';
+import { PatientLoginDto } from './dto/patient-login.dto';
+import { PatientRegisterDto } from './dto/patient-register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
@@ -15,7 +18,7 @@ export class AuthController {
   }
 
   @Post('register-clinic')
-  registerClinic(@Body() dto: any) {
+  registerClinic(@Body() dto: RegisterClinicDto) {
     return this.authService.registerClinic(dto);
   }
 
@@ -34,6 +37,16 @@ export class AuthController {
   @Put('me')
   updateProfile(@Req() req: any, @Body() dto: UpdateProfileDto) {
     return this.authService.updateProfile(req.user.id, dto);
+  }
+
+  @Post('patient-login')
+  patientLogin(@Body() dto: PatientLoginDto) {
+    return this.authService.patientLogin(dto);
+  }
+
+  @Post('patient-register')
+  patientRegister(@Body() dto: PatientRegisterDto) {
+    return this.authService.patientRegister(dto);
   }
 
   @UseGuards(JwtAuthGuard)

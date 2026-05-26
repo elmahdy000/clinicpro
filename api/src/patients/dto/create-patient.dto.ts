@@ -19,6 +19,10 @@ export class CreatePatientDto {
 
   @IsOptional()
   @IsString()
+  nationalId?: string;
+
+  @IsOptional()
+  @IsString()
   governorate?: string;
 
   @IsOptional()

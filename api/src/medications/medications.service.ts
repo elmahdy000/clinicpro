@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantStorage } from '../prisma/tenant-context';
 
@@ -269,10 +269,22 @@ export class MedicationsService {
   }
 
   async update(id: number, data: any) {
+    const med = await this.prisma.medication.findUnique({ where: { id } });
+    if (!med) throw new NotFoundException(`Medication #${id} not found`);
+    const store = tenantStorage.getStore();
+    if (store?.clinicId && med.isGlobal) {
+      throw new ForbiddenException('Cannot edit global medications from a clinic context');
+    }
     return this.prisma.medication.update({ where: { id }, data });
   }
 
   async remove(id: number) {
+    const med = await this.prisma.medication.findUnique({ where: { id } });
+    if (!med) throw new NotFoundException(`Medication #${id} not found`);
+    const store = tenantStorage.getStore();
+    if (store?.clinicId && med.isGlobal) {
+      throw new ForbiddenException('Cannot delete global medications from a clinic context');
+    }
     return this.prisma.medication.delete({ where: { id } });
   }
 }

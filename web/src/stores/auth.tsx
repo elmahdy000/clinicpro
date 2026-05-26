@@ -8,6 +8,7 @@ interface User {
   email: string;
   name: string;
   role: string;
+  clinicId?: number;
 }
 
 interface AuthContextType {
@@ -33,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const payload = JSON.parse(atob(stored.split('.')[1]));
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setUser({ id: payload.sub, email: payload.email, name: payload.name || payload.email, role: payload.role });
+        setUser({ id: payload.sub, email: payload.email, name: payload.name || payload.email, role: payload.role, clinicId: payload.clinicId });
       } catch {
         localStorage.removeItem('access_token');
       }
@@ -46,14 +47,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('access_token', data.access_token);
     setToken(data.access_token);
     const payload = JSON.parse(atob(data.access_token.split('.')[1]));
-    setUser({ id: payload.sub, email: payload.email, name: payload.name || payload.email, role: payload.role });
+    setUser({ id: payload.sub, email: payload.email, name: payload.name || payload.email, role: payload.role, clinicId: payload.clinicId });
   };
 
   const logout = () => {
     localStorage.removeItem('access_token');
     setToken(null);
     setUser(null);
-    window.location.href = '/login';
+    const locale = window.location.pathname.split('/')[1] || 'en';
+    window.location.href = `/${locale}/login`;
   };
 
   return (

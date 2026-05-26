@@ -52,8 +52,10 @@ export default function LoginPage() {
   const { login, user } = useAuth();
   const isRtl = locale === 'ar';
 
-  // Toggle state between Login and Register
-  const [isRegister, setIsRegister] = useState(false);
+  // Toggle state between Login, Register, and Patient Login
+  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'patient'>('login');
+  const [patientPhone, setPatientPhone] = useState('');
+  const [patientPassword, setPatientPassword] = useState('');
 
   // Shared form states
   const [email, setEmail] = useState('');
@@ -72,7 +74,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      router.push(`/${locale}/dashboard`);
+      if (user.role === 'PATIENT') {
+        router.push(`/${locale}/patient`);
+      } else {
+        router.push(`/${locale}/dashboard`);
+      }
     }
   }, [user, locale, router]);
 
@@ -85,7 +91,6 @@ export default function LoginPage() {
     try {
       await login(email, password);
       toast.success(isRtl ? 'تم تسجيل الدخول بنجاح!' : 'Logged in successfully!');
-      router.push(`/${locale}/dashboard`);
     } catch {
       toast.error(t('invalidCredentials'));
     } finally {
@@ -130,7 +135,6 @@ export default function LoginPage() {
       
       // Auto login on success
       await login(email, password);
-      router.push(`/${locale}/dashboard`);
     } catch (error: any) {
       const errMsg = error.response?.data?.message || '';
       if (errMsg.includes('already in use')) {
@@ -167,21 +171,47 @@ export default function LoginPage() {
           </div>
           
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {isRegister 
+            {activeTab === 'register' 
               ? (isRtl ? 'تسجيل عيادة جديدة على المنصة' : 'Register a New Clinic')
-              : t('loginTitle')}
+              : activeTab === 'patient'
+                ? (isRtl ? 'بوابة المريض' : 'Patient Portal')
+                : t('loginTitle')}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {isRegister 
+            {activeTab === 'register'
               ? (isRtl ? 'ابنِ عيادتك الرقمية وابدأ استقبال المرضى وطباعة الروشتات الآن!' : 'Build your digital clinic & start issuing prescriptions today!')
-              : t('loginSubtitle')}
+              : activeTab === 'patient'
+                ? (isRtl ? 'تابع مواعيدك وروشتاتك وتقاريرك الطبية' : 'Track your appointments, prescriptions & medical records')
+                : t('loginSubtitle')}
           </p>
         </CardHeader>
 
         <CardContent className="pb-8 px-8">
           
-          {/* LOGIN FORM */}
-          {!isRegister ? (
+          {/* Tab Switcher */}
+          <div className="flex gap-1 mb-6 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+            {[
+              { key: 'login' as const, label: isRtl ? 'دخول العيادة' : 'Clinic Login' },
+              { key: 'register' as const, label: isRtl ? 'تسجيل عيادة' : 'Register Clinic' },
+              { key: 'patient' as const, label: isRtl ? 'بوابة المريض' : 'Patient Portal' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                  activeTab === tab.key
+                    ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* CLINIC LOGIN FORM */}
+          {activeTab === 'login' && (
             <form onSubmit={handleLoginSubmit} className="space-y-5">
               <div className="space-y-2 text-right">
                 <Label htmlFor="email">{t('email')}</Label>
@@ -242,21 +272,11 @@ export default function LoginPage() {
                   </span>
                 ) : t('login')}
               </Button>
-
-              <div className="text-center pt-3 border-t">
-                <button
-                  type="button"
-                  onClick={() => setIsRegister(true)}
-                  className="text-sm font-bold text-teal-600 hover:text-teal-700 dark:text-teal-400 flex items-center gap-1 mx-auto"
-                >
-                  <Building2 className="w-4 h-4" />
-                  {isRtl ? 'تسجيل عيادة جديدة على المنصة' : 'Register a New Clinic'}
-                </button>
-              </div>
             </form>
-          ) : (
-            
-            // REGISTRATION FORM
+          )}
+
+          {/* CLINIC REGISTRATION FORM */}
+          {activeTab === 'register' && (
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-right">
@@ -440,18 +460,18 @@ export default function LoginPage() {
                   </span>
                 ) : (isRtl ? 'تأسيس العيادة والبدء فوراً' : 'Register Clinic & Start Now')}
               </Button>
-
-              <div className="text-center pt-3 border-t">
-                <button
-                  type="button"
-                  onClick={() => setIsRegister(false)}
-                  className="text-sm font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex items-center gap-1 mx-auto"
-                >
-                  <ArrowLeft className={`w-4 h-4 ${isRtl ? 'rotate-180' : ''}`} />
-                  {isRtl ? 'العودة لتسجيل الدخول للعيادة' : 'Back to Login'}
-                </button>
-              </div>
             </form>
+          )}
+
+          {/* PATIENT LOGIN / REGISTER FORM */}
+          {activeTab === 'patient' && (
+            <PatientPortalForm
+              locale={locale}
+              isRtl={isRtl}
+              api={api}
+              router={router}
+              tc={tc}
+            />
           )}
 
           <div className="mt-6 text-center">
@@ -467,6 +487,190 @@ export default function LoginPage() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ── Patient Portal Login/Register Sub-Component ──
+function PatientPortalForm({
+  locale, isRtl, api: axiosApi, router, tc,
+}: {
+  locale: string;
+  isRtl: boolean;
+  api: any;
+  router: any;
+  tc: any;
+}) {
+  const { login } = useAuth();
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handlePatientLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { data } = await axiosApi.post('/auth/patient-login', { phone, password });
+      localStorage.setItem('access_token', data.access_token);
+      window.location.href = `/${locale}/patient`;
+    } catch (error: any) {
+      const msg = error.response?.data?.message || '';
+      if (msg.includes('غير مسجل') || msg.includes('غير موجود') || msg.includes('not registered') || msg.includes('not found')) {
+        toast.error(isRtl ? 'رقم الهاتف غير مسجل. الرجاء التسجيل أولاً.' : 'Phone not registered. Please register first.');
+        setMode('register');
+      } else if (msg.includes('غير صحيحة') || msg.includes('Wrong password') || msg.includes('Incorrect')) {
+        toast.error(isRtl ? 'كلمة المرور غير صحيحة' : 'Wrong password');
+      } else {
+        toast.error(isRtl ? 'فشل تسجيل الدخول' : 'Login failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePatientRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!phone.trim() || !password.trim() || !name.trim()) {
+      toast.error(isRtl ? 'الرجاء ملء جميع الحقول' : 'Please fill all fields');
+      return;
+    }
+    if (password.length < 6) {
+      toast.error(isRtl ? 'كلمة المرور يجب أن تكون ٦ أحرف على الأقل' : 'Password must be at least 6 characters');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data } = await axiosApi.post('/auth/patient-register', { phone, password, name });
+      localStorage.setItem('access_token', data.access_token);
+      window.location.href = `/${locale}/patient`;
+    } catch (error: any) {
+      const msg = error.response?.data?.message || '';
+      if (msg.includes('مسجل') || msg.includes('already')) {
+        toast.error(isRtl ? 'هذا الرقم مسجل بالفعل. الرجاء تسجيل الدخول.' : 'Already registered. Please login.');
+        setMode('login');
+      } else if (msg.includes('غير مسجل') || msg.includes('added by') || msg.includes('not registered') || msg.includes('added by')) {
+        toast.error(isRtl ? 'رقم الهاتف غير مسجل في أي عيادة. يجب أن يتم إضافتك بواسطة العيادة أولاً.' : 'Phone not found at any clinic. Please visit the clinic first.');
+      } else {
+        toast.error(isRtl ? 'فشل التسجيل' : 'Registration failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Login / Register toggle */}
+      <div className="flex gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
+        <button
+          type="button"
+          onClick={() => setMode('login')}
+          className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+            mode === 'login' ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-sm' : 'text-slate-500'
+          }`}
+        >
+          {isRtl ? 'تسجيل دخول' : 'Login'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('register')}
+          className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+            mode === 'register' ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-sm' : 'text-slate-500'
+          }`}
+        >
+          {isRtl ? 'مريض جديد؟ سجل الآن' : 'New Patient? Register'}
+        </button>
+      </div>
+
+      {mode === 'login' ? (
+        <form onSubmit={handlePatientLogin} className="space-y-4">
+          <div className="space-y-2 text-right">
+            <Label>{isRtl ? 'رقم الهاتف' : 'Phone Number'}</Label>
+            <Input
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="01012345678"
+              className="h-11 text-left font-mono transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+            />
+          </div>
+          <div className="space-y-2 text-right">
+            <Label>{isRtl ? 'كلمة المرور' : 'Password'}</Label>
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="h-11 pe-10 text-left font-mono transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className={`absolute top-1/2 -translate-y-1/2 ${isRtl ? 'left-3' : 'right-3'} text-gray-400 hover:text-gray-600 transition-colors`}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <Button type="submit" className="w-full h-11 bg-teal-600 hover:bg-teal-700" disabled={loading}>
+            {loading ? <Loader2 className="animate-spin w-4 h-4" /> : (isRtl ? 'دخول' : 'Login')}
+          </Button>
+        </form>
+      ) : (
+        <form onSubmit={handlePatientRegister} className="space-y-4">
+          <div className="space-y-2 text-right">
+            <Label>{isRtl ? 'الاسم بالكامل' : 'Full Name'}</Label>
+            <Input
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={isRtl ? 'مثال: أحمد محمد' : 'e.g. Ahmed Mohamed'}
+              className="h-11 transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+            />
+          </div>
+          <div className="space-y-2 text-right">
+            <Label>{isRtl ? 'رقم الهاتف' : 'Phone Number'}</Label>
+            <p className="text-[10px] text-slate-400">{isRtl ? 'نفس رقم الهاتف المسجل في العيادة' : 'Must match your clinic record'}</p>
+            <Input
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="01012345678"
+              className="h-11 text-left font-mono transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+            />
+          </div>
+          <div className="space-y-2 text-right">
+            <Label>{isRtl ? 'كلمة المرور' : 'Password'}</Label>
+            <div className="relative">
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="h-11 pe-10 text-left font-mono transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className={`absolute top-1/2 -translate-y-1/2 ${isRtl ? 'left-3' : 'right-3'} text-gray-400 hover:text-gray-600 transition-colors`}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <Button type="submit" className="w-full h-11 bg-teal-600 hover:bg-teal-700" disabled={loading}>
+            {loading ? <Loader2 className="animate-spin w-4 h-4" /> : (isRtl ? 'تسجيل والدخول' : 'Register & Login')}
+          </Button>
+        </form>
+      )}
     </div>
   );
 }

@@ -22,6 +22,8 @@ import { ClinicsModule } from './clinics/clinics.module';
 import { AppController } from './app.controller';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { MedicationsModule } from './medications/medications.module';
+import { PatientPortalModule } from './patient-portal/patient-portal.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -46,6 +48,8 @@ import { MedicationsModule } from './medications/medications.module';
     BillingModule,
     ClinicsModule,
     MedicationsModule,
+    PatientPortalModule,
+    InventoryModule,
   ],
   controllers: [AppController],
 })

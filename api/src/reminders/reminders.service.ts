@@ -67,4 +67,39 @@ export class RemindersService {
 
     this.logger.log(`Processed ${appointments.length} appointment reminder(s)`);
   }
+
+  @Cron(CronExpression.EVERY_10_MINUTES)
+  async handleNoShowDetection() {
+    this.logger.log('Checking for no-show appointments...');
+    const now = new Date();
+    const tenMinAgo = new Date(now.getTime() - 10 * 60 * 1000);
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+
+    const overdue = await this.prisma.appointment.findMany({
+      where: {
+        appointmentDate: { gte: todayStart, lt: tenMinAgo },
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        appointmentEndDate: { lt: tenMinAgo },
+      },
+    });
+
+    for (const apt of overdue) {
+      await this.prisma.appointment.update({
+        where: { id: apt.id },
+        data: { status: 'MISSED' },
+      });
+      await this.prisma.appointmentStatusChange.create({
+        data: {
+          appointmentId: apt.id,
+          fromStatus: apt.status,
+          toStatus: 'MISSED',
+        },
+      });
+      this.logger.log(`Appointment #${apt.id} auto-marked as MISSED (no-show)`);
+    }
+
+    if (overdue.length > 0) {
+      this.logger.log(`Marked ${overdue.length} appointment(s) as MISSED`);
+    }
+  }
 }

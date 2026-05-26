@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { tenantStorage } from '../prisma/tenant-context';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
@@ -25,14 +26,19 @@ export class BillingService {
   }
 
   private async generateInvoiceNumber(): Promise<string> {
-    const count = await this.prisma.invoice.count();
+    const store = tenantStorage.getStore();
+    const count = await this.prisma.invoice.count({
+      where: { clinicId: store?.clinicId ?? 0 },
+    });
     const year = new Date().getFullYear();
     return `INV-${year}-${String(count + 1).padStart(5, '0')}`;
   }
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<any>> {
     const { page = 1, limit = 10, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const store = tenantStorage.getStore();
     const where: any = {};
+    if (store?.clinicId) where.clinicId = store.clinicId;
     if (search) {
       where.OR = [
         { invoiceNumber: { contains: search } },
@@ -54,8 +60,9 @@ export class BillingService {
   }
 
   async findOne(id: number) {
-    const invoice = await this.prisma.invoice.findUnique({
-      where: { id },
+    const store = tenantStorage.getStore();
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id, clinicId: store?.clinicId ?? 0 },
       include: this.invoiceInclude,
     });
     if (!invoice) throw new NotFoundException(`Invoice #${id} not found`);
@@ -68,10 +75,11 @@ export class BillingService {
     const discount = dto.discount ?? 0;
     const total = subtotal + tax - discount;
     const invoiceNumber = await this.generateInvoiceNumber();
+    const store = tenantStorage.getStore();
 
     const invoice = await this.prisma.invoice.create({
       data: {
-        clinicId: 1,
+        clinicId: store?.clinicId ?? 0,
         invoiceNumber,
         patientId: dto.patientId,
         doctorId: dto.doctorId,
@@ -105,5 +113,22 @@ export class BillingService {
   async remove(id: number) {
     await this.findOne(id);
     return this.prisma.invoice.delete({ where: { id } });
+  }
+
+  async getSummary() {
+    const store = tenantStorage.getStore();
+    const where: any = {};
+    if (store?.clinicId) where.clinicId = store.clinicId;
+
+    const invoices = await this.prisma.invoice.findMany({
+      where,
+      select: { status: true, total: true, createdAt: true },
+    });
+
+    const collected = invoices.filter((i) => i.status === 'PAID').reduce((s, i) => s + i.total, 0);
+    const pending = invoices.filter((i) => i.status === 'PENDING').reduce((s, i) => s + i.total, 0);
+    const overdue = invoices.filter((i) => i.status === 'OVERDUE').reduce((s, i) => s + i.total, 0);
+
+    return { totalCollected: collected, totalPending: pending, totalOverdue: overdue, count: invoices.length };
   }
 }

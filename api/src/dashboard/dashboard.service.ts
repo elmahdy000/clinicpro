@@ -128,7 +128,12 @@ export class DashboardService {
     const toStatusMap = (rows: { status: string; _count: { id: number } }[]) =>
       rows.reduce((acc: Record<string, number>, curr) => { acc[curr.status] = curr._count.id; return acc; }, {});
 
+    const hasRealActivity = patientsCount > 0
+      || appointmentsByStatus.some((a) => a._count.id > 0)
+      || prescriptionsCount > 0;
+
     const result = {
+      isNewClinic: !hasRealActivity,
       clinicsCount,
       patients: patientsCount,
       totalPatients: patientsCount,

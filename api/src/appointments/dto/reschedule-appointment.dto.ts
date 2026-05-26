@@ -13,4 +13,8 @@ export class RescheduleAppointmentDto {
   @IsOptional()
   @IsString()
   reason?: string;
+
+  @IsOptional()
+  @IsString()
+  rescheduleStatus?: string;
 }

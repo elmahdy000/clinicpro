@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../api/node_modules/@prisma/client"
 }
 
 datasource db {
@@ -12,6 +13,7 @@ model Clinic {
   name               String
   address            String?
   phone              String?
+  logoUrl            String?
   subscriptionPlan   String   @default("FREE")
   subscriptionStatus String   @default("ACTIVE")
   createdAt          DateTime @default(now())
@@ -27,6 +29,7 @@ model Clinic {
   fileUploads    FileUpload[]
   auditLogs      AuditLog[]
   settings       ClinicSettings?
+  medicationStocks MedicationStock[]
 }
 
 model ClinicSettings {
@@ -49,9 +52,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  doctorProfile  Doctor?    @relation("DoctorProfile")
-  patientProfile Patient?   @relation("PatientProfile")
-  auditLogs      AuditLog[]
+  doctorProfile            Doctor?                    @relation("DoctorProfile")
+  patientProfile           Patient?                   @relation("PatientProfile")
+  auditLogs                AuditLog[]
+  appointmentStatusChanges AppointmentStatusChange[]
+  uploadedFiles            FileUpload[]
+  notifications            Notification[]
+  performedStockMovements  StockMovement[]
 }
 
 model Doctor {
@@ -73,7 +80,7 @@ model Doctor {
 
 model DoctorAvailability {
   id           Int     @id @default(autoincrement())
-  doctor       Doctor  @relation(fields: [doctorId], references: [id])
+  doctor       Doctor  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   doctorId     Int
   dayOfWeek    Int // 0=Sun, 1=Mon ... 6=Sat
   startTime    String // HH:mm format
@@ -86,7 +93,7 @@ model DoctorAvailability {
 
 model DoctorTimeOff {
   id       Int      @id @default(autoincrement())
-  doctor   Doctor   @relation(fields: [doctorId], references: [id])
+  doctor   Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   doctorId Int
   date     DateTime
   reason   String?
@@ -122,6 +129,7 @@ model Patient {
   userId         Int?            @unique
 
   clinics        ClinicPatient[]
+  fileUploads    FileUpload[]
 }
 
 model ClinicPatient {
@@ -151,9 +159,12 @@ model Appointment {
   reason             String?
   status             String         @default("PENDING")
   notes              String?
+  queuePosition      Int?
+  queueJoinedAt      DateTime?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   medicalRecord      MedicalRecord? @relation("AppointmentMedicalRecord")
+  statusChanges      AppointmentStatusChange[]
 }
 
 model MedicalRecord {
@@ -229,8 +240,13 @@ model FileUpload {
   fileName   String
   fileType   String
   url        String
-  uploadedBy Int
+  uploadedBy  Int
+  uploadedByUser User   @relation(fields: [uploadedBy], references: [id])
   uploadedAt DateTime @default(now())
+  patientId  Int?
+  patient    Patient? @relation(fields: [patientId], references: [id])
+  notes      String?
+  category   String?
 }
 
 model AuditLog {
@@ -247,6 +263,7 @@ model AuditLog {
 model Notification {
   id            Int      @id @default(autoincrement())
   userId        Int
+  user          User     @relation(fields: [userId], references: [id])
   title         String
   message       String
   type          String   @default("INFO")
@@ -278,6 +295,7 @@ model Medication {
   updatedAt        DateTime @updatedAt
 
   prescriptionItems PrescriptionItem[]
+  stock             MedicationStock[]
 }
 
 model PrescriptionItem {
@@ -292,4 +310,62 @@ model PrescriptionItem {
   instructions   String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+}
+
+model AppointmentStatusChange {
+  id                Int         @id @default(autoincrement())
+  appointmentId     Int
+  appointment       Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  fromStatus        String
+  toStatus          String
+  changedByUserId   Int?
+  changedByUser     User?       @relation(fields: [changedByUserId], references: [id])
+  createdAt         DateTime    @default(now())
+}
+
+model MedicationStock {
+  id              Int          @id @default(autoincrement())
+  medicationId    Int
+  medication      Medication   @relation(fields: [medicationId], references: [id])
+  clinicId        Int
+  clinic          Clinic       @relation(fields: [clinicId], references: [id])
+  quantityOnHand  Int          @default(0)
+  batchNumber     String?
+  expiryDate      DateTime?
+  location        String?
+  lastRestockedAt DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  stockMovements StockMovement[]
+
+  @@unique([medicationId, clinicId, batchNumber])
+}
+
+model StockMovement {
+  id                Int              @id @default(autoincrement())
+  medicationStockId Int
+  medicationStock   MedicationStock  @relation(fields: [medicationStockId], references: [id], onDelete: Cascade)
+  type              String // IN, OUT, ADJUSTMENT
+  quantity          Int
+  referenceType     String? // prescription, manual, adjustment
+  referenceId       Int?
+  notes             String?
+  performedBy       Int?
+  performedByUser   User?            @relation(fields: [performedBy], references: [id])
+  createdAt         DateTime         @default(now())
+}
+
+model Plan {
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String   @unique // FREE, BASIC, PRO, ENTERPRISE
+  description String?
+  price       Float    @default(0)
+  features    String   @default("[]") // JSON array of feature strings
+  maxDoctors  Int      @default(1)
+  maxPatients Int      @default(100)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

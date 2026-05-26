@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
+import * as fs from 'fs';
 
 @Injectable()
 export class ClinicsService {
@@ -29,6 +30,7 @@ export class ClinicsService {
       name: c.name,
       address: c.address,
       phone: c.phone,
+      logoUrl: c.logoUrl,
       subscriptionPlan: c.subscriptionPlan,
       subscriptionStatus: c.subscriptionStatus,
       currency: c.settings?.currency ?? 'EGP',
@@ -150,6 +152,7 @@ export class ClinicsService {
       name: clinic.name,
       address: clinic.address,
       phone: clinic.phone,
+      logoUrl: clinic.logoUrl,
       subscriptionPlan: clinic.subscriptionPlan,
       subscriptionStatus: clinic.subscriptionStatus,
       currency: clinic.settings?.currency ?? 'EGP',
@@ -213,7 +216,7 @@ export class ClinicsService {
           email: data.email,
           name: data.ownerName || data.name,
           password: hashedPassword,
-          role: 'CLINIC_ADMIN',
+          role: 'DOCTOR',
           clinicId: clinic.id,
         },
       });
@@ -243,6 +246,25 @@ export class ClinicsService {
         subscriptionStatus: data.subscriptionStatus,
       },
     });
+  }
+
+  async updateLogo(id: number, filename: string, user: any) {
+    const clinic = await this.prisma.clinic.findUnique({ where: { id } });
+    if (!clinic) throw new NotFoundException(`Clinic #${id} not found`);
+
+    if (user.role !== 'PLATFORM_OWNER' && user.clinicId !== id) {
+      throw new ForbiddenException('You can only update your own clinic logo');
+    }
+
+    if (clinic.logoUrl) {
+      const segments = clinic.logoUrl.split('/');
+      const oldFile = segments[segments.length - 1];
+      const oldPath = `./uploads/${oldFile}`;
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+
+    const logoUrl = `/api/uploads/${filename}`;
+    return this.prisma.clinic.update({ where: { id }, data: { logoUrl } });
   }
 
   async delete(id: number) {

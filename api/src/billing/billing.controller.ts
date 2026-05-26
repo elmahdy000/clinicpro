@@ -25,6 +25,12 @@ export class BillingController {
   }
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST)
+  @Get('summary')
+  getSummary() {
+    return this.billingService.getSummary();
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.billingService.findOne(id);

@@ -26,7 +26,7 @@ export class UsersService {
         data: {
           userId: user.id,
           clinicId: user.clinicId,
-          specialization: 'General Medicine',
+          specialization: dto.specialization || 'General Medicine',
           consultationFee: 100,
           status: 'ACTIVE',
         }
@@ -92,7 +92,7 @@ export class UsersService {
             data: {
               userId: user.id,
               clinicId: user.clinicId,
-              specialization: 'General Medicine',
+              specialization: (dto as any).specialization || 'General Medicine',
               consultationFee: 100,
               status: 'ACTIVE',
             }

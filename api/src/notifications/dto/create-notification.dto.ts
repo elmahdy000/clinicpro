@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsInt } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsInt, IsIn } from 'class-validator';
 
 export class CreateNotificationDto {
   @IsInt()
@@ -15,6 +15,7 @@ export class CreateNotificationDto {
 
   @IsOptional()
   @IsString()
+  @IsIn(['INFO', 'WARNING', 'ERROR', 'SUCCESS'])
   type?: string;
 
   @IsOptional()

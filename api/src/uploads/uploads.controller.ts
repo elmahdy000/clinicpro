@@ -15,6 +15,7 @@ import {
   MaxFileSizeValidator,
   ParseFilePipe,
   FileTypeValidator,
+  Body,
 } from '@nestjs/common';
 import * as fs from 'fs';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -25,6 +26,7 @@ import { UploadsService } from './uploads.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { UserRole } from '../users/user-role.enum';
+import { UploadFileDto } from './dto/upload-file.dto';
 
 const ALLOWED_MIMETYPES = [
   'image/jpeg', 'image/png', 'image/gif', 'image/webp',
@@ -79,16 +81,23 @@ export class UploadsController {
     )
     file: Express.Multer.File,
     @Req() req: any,
+    @Body() dto: UploadFileDto,
   ) {
-    return this.uploadsService.upload(file, req.user.id);
+    return this.uploadsService.upload(
+      file,
+      req.user.id,
+      dto.patientId,
+      dto.notes,
+      dto.category,
+    );
   }
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE)
   @Get(':id/download')
   async download(@Param('id', ParseIntPipe) id: number, @Res() res: any) {
-    const file = await this.uploadsService.findOne(id);
-    if (fs.existsSync(file.url)) {
-      res.download(file.url, file.fileName);
+    const fileRecord = await this.uploadsService.findOne(id);
+    if (fs.existsSync(fileRecord.url)) {
+      res.download(fileRecord.url, fileRecord.fileName);
     } else {
       throw new NotFoundException('File not found on disk');
     }

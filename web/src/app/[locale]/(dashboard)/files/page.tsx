@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchBox } from '@/components/common/SearchBox';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -127,6 +128,9 @@ export default function FilesPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [fileType, setFileType] = useState('Other');
   const [fileNotes, setFileNotes] = useState('');
+  const [uploadCategory, setUploadCategory] = useState('');
+  const [uploadPatientId, setUploadPatientId] = useState<string>('');
+  const [patientSearch, setPatientSearch] = useState('');
   const [uploading, setUploading] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<CategoryKey>('all');
@@ -145,6 +149,12 @@ export default function FilesPage() {
     onError: () => toast.error('فشل حذف الملف'),
   });
 
+  const { data: patientResults } = useQuery({
+    queryKey: ['patient-search-upload', patientSearch],
+    queryFn: () => api.get('/patients', { params: { search: patientSearch, limit: 5 } }).then((r) => r.data),
+    enabled: patientSearch.length > 1,
+  });
+
   const handleUpload = async () => {
     const fileInput = fileInputRef.current;
     if (!fileInput?.files?.length) {
@@ -156,6 +166,9 @@ export default function FilesPage() {
     try {
       const formData = new FormData();
       formData.append('file', fileInput.files[0]);
+      if (uploadPatientId) formData.append('patientId', uploadPatientId);
+      if (fileNotes) formData.append('notes', fileNotes);
+      if (uploadCategory) formData.append('category', uploadCategory);
       await api.post('/upload/medical-document', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -165,6 +178,9 @@ export default function FilesPage() {
       fileInput.value = '';
       setFileNotes('');
       setFileType('Other');
+      setUploadCategory('');
+      setUploadPatientId('');
+      setPatientSearch('');
     } catch (e: any) {
       toast.error(e?.response?.data?.message || 'فشل رفع الملف');
     } finally {
@@ -273,6 +289,32 @@ export default function FilesPage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label>ربط بمريض (اختياري)</Label>
+                <Input
+                  value={patientSearch}
+                  onChange={(e) => setPatientSearch(e.target.value)}
+                  placeholder="ابحث باسم المريض..."
+                  className="h-9 text-sm"
+                />
+                {patientSearch && patientResults?.data && (
+                  <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 max-h-40 overflow-y-auto mt-1">
+                    {patientResults.data.map((pat: any) => (
+                      <button
+                        key={pat.id}
+                        type="button"
+                        onClick={() => { setUploadPatientId(String(pat.id)); setPatientSearch(`${pat.firstName} ${pat.lastName}`); }}
+                        className={`w-full text-right px-3 py-2 text-sm rounded-md hover:bg-teal-50 dark:hover:bg-teal-950/30 transition-colors ${uploadPatientId === String(pat.id) ? 'bg-teal-50 dark:bg-teal-950/30 font-semibold' : ''}`}
+                      >
+                        {pat.firstName} {pat.lastName} - {pat.phone}
+                      </button>
+                    ))}
+                    {patientResults.data.length === 0 && (
+                      <p className="text-xs text-slate-400 text-center py-2">لا توجد نتائج</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
                 <Label>نوع الملف</Label>
                 <Select defaultValue="Other" onValueChange={(v: string | null) => setFileType(v ?? '')}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -284,8 +326,25 @@ export default function FilesPage() {
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label>التصنيف (اختياري)</Label>
+                <Select value={uploadCategory} onValueChange={(v: string | null) => setUploadCategory(v ?? '')}>
+                  <SelectTrigger><SelectValue placeholder="اختر التصنيف" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lab">تحليل</SelectItem>
+                    <SelectItem value="xray">أشعة</SelectItem>
+                    <SelectItem value="scan">سكان</SelectItem>
+                    <SelectItem value="report">تقرير</SelectItem>
+                    <SelectItem value="prescription">روشتة</SelectItem>
+                    <SelectItem value="image">صورة</SelectItem>
+                    <SelectItem value="pdf">PDF</SelectItem>
+                    <SelectItem value="dicom">DICOM</SelectItem>
+                    <SelectItem value="other">أخرى</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label>ملاحظات</Label>
-                <Textarea rows={2} value={fileNotes} onChange={(e) => setFileNotes(e.target.value)} />
+                <Textarea rows={2} value={fileNotes} onChange={(e) => setFileNotes(e.target.value)} placeholder="أي ملاحظات عن الملف..." />
               </div>
               <Button className="w-full bg-cyan-600 hover:bg-cyan-700" onClick={handleUpload} disabled={uploading}>
                 {uploading ? 'جارٍ الرفع...' : 'رفع الملف'}

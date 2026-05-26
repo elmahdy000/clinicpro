@@ -42,17 +42,17 @@ export class NotificationsController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.notificationsService.findOne(id);
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.notificationsService.findOne(id, req.user.id);
   }
 
   @Put(':id/read')
-  markAsRead(@Param('id', ParseIntPipe) id: number) {
-    return this.notificationsService.markAsRead(id);
+  markAsRead(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.notificationsService.markAsRead(id, req.user.id);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.notificationsService.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.notificationsService.remove(id, req.user.id);
   }
 }

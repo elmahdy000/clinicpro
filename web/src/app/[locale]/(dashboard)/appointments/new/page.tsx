@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { AlertTriangle, ArrowLeft, Clock3, Save, UserRound } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Clock3, Save, UserRound, Stethoscope } from 'lucide-react';
 
 export default function NewAppointmentPage() {
   const locale = useLocale();
@@ -28,6 +28,7 @@ export default function NewAppointmentPage() {
 
   const [patientSearch, setPatientSearch] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
   const durationOptions = [15, 30, 45, 60];
 
   const appointmentLabels = {
@@ -120,11 +121,12 @@ export default function NewAppointmentPage() {
   const appointmentTime = form.watch('appointmentTime');
   const durationMinutes = form.watch('durationMinutes');
   const doctorId = useMemo(() => {
+    if (selectedDoctorId) return selectedDoctorId;
     const allDoctors = doctors?.data || [];
     const matchedDoctor = allDoctors.find((d: any) => d?.user?.id === user?.id);
     const fallbackDoctor = allDoctors[0];
     return matchedDoctor?.id || fallbackDoctor?.id || null;
-  }, [doctors, user?.id]);
+  }, [doctors, user?.id, selectedDoctorId]);
 
   const endTime = useMemo(() => {
     if (!appointmentDate || !appointmentTime || !durationMinutes) return '-';
@@ -135,17 +137,18 @@ export default function NewAppointmentPage() {
   }, [appointmentDate, appointmentTime, durationMinutes, locale]);
 
   const hasConflict = useMemo(() => {
-    if (!appointmentDate || !appointmentTime || !durationMinutes) return false;
+    if (!appointmentDate || !appointmentTime || !durationMinutes || !doctorId) return false;
     const start = new Date(`${appointmentDate}T${appointmentTime}:00`);
     const end = new Date(start.getTime() + Number(durationMinutes) * 60000);
     const list = allAppointments?.data || [];
     return list.some((a: any) => {
       if (a.status === 'CANCELLED' || a.status === 'COMPLETED') return false;
+      if (a.doctorId !== doctorId) return false;
       const aStart = new Date(a.appointmentDate);
       const aEnd = a.appointmentEndDate ? new Date(a.appointmentEndDate) : new Date(aStart.getTime() + Number(a.durationMinutes || 30) * 60000);
       return start < aEnd && end > aStart;
     });
-  }, [appointmentDate, appointmentTime, durationMinutes, allAppointments]);
+  }, [appointmentDate, appointmentTime, durationMinutes, allAppointments, doctorId]);
 
   const handleSubmit = form.handleSubmit((data) => {
     if (!selectedPatient) {
@@ -228,6 +231,19 @@ export default function NewAppointmentPage() {
         <Card className="medical-panel animate-fade-in-up delay-2">
           <CardHeader><CardTitle className="text-base">{appointmentLabels.details}</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <Label className="flex items-center gap-1.5"><Stethoscope className="w-3.5 h-3.5 text-teal-600" />{isRtl ? 'الطبيب' : 'Doctor'}</Label>
+              <select
+                value={selectedDoctorId ?? ''}
+                onChange={(e) => setSelectedDoctorId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full h-10 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+              >
+                <option value="">{isRtl ? '-- اختر الطبيب --' : '-- Select Doctor --'}</option>
+                {(doctors?.data || []).map((doc: any) => (
+                  <option key={doc.id} value={doc.id}>{doc.user?.name} - {doc.specialization}</option>
+                ))}
+              </select>
+            </div>
             <div className="space-y-2">
               <Label>{appointmentLabels.date}</Label>
               <div className="grid grid-cols-3 gap-2">

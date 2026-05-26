@@ -172,7 +172,10 @@ export class PatientsService {
   }
 
   async getAppointments(patientId: number) {
-    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    const store = tenantStorage.getStore();
+    const patient = await this.prisma.patient.findFirst({
+      where: { id: patientId, clinics: store?.clinicId ? { some: { clinicId: store.clinicId } } : undefined },
+    });
     if (!patient) throw new NotFoundException(`Patient #${patientId} not found`);
     return this.prisma.appointment.findMany({
       where: { patientId },
@@ -181,11 +184,14 @@ export class PatientsService {
   }
 
   async getTimeline(patientId: number) {
+    const store = tenantStorage.getStore();
     const key = `patients:timeline:${patientId}`;
     const cached = await this.redis.get<any[]>(key);
     if (cached) return cached;
 
-    const patient = await this.prisma.patient.findUnique({ where: { id: patientId } });
+    const patient = await this.prisma.patient.findFirst({
+      where: { id: patientId, clinics: store?.clinicId ? { some: { clinicId: store.clinicId } } : undefined },
+    });
     if (!patient) throw new NotFoundException(`Patient #${patientId} not found`);
 
     const [appointments, medicalRecords, prescriptions, invoices] = await Promise.all([

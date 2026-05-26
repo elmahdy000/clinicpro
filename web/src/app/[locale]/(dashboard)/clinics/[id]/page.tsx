@@ -270,7 +270,7 @@ export default function ClinicDetailPage() {
                       <p className="text-[10px] text-gray-500">{doc.specialization}</p>
                     </div>
                     <div className="text-end flex-shrink-0">
-                      <p className="text-xs font-bold text-teal-600">{doc.consultationFee} ج.م</p>
+                      <p className="text-xs font-bold text-teal-600">{doc.consultationFee} {clinic.currency || 'ج.م'}</p>
                       <p className="text-[9px] text-gray-400">{doc._count?.appointments} {isRtl ? 'موعد' : 'appts'}</p>
                     </div>
                   </div>

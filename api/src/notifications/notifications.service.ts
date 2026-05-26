@@ -45,9 +45,11 @@ export class NotificationsService {
     return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findOne(id: number) {
-    const notification = await this.prisma.notification.findUnique({
-      where: { id },
+  async findOne(id: number, userId?: number) {
+    const where: any = { id };
+    if (userId) where.userId = userId;
+    const notification = await this.prisma.notification.findFirst({
+      where,
     });
     if (!notification) {
       throw new NotFoundException(`Notification #${id} not found`);
@@ -55,8 +57,8 @@ export class NotificationsService {
     return notification;
   }
 
-  async markAsRead(id: number) {
-    await this.findOne(id);
+  async markAsRead(id: number, userId?: number) {
+    await this.findOne(id, userId);
     return this.prisma.notification.update({
       where: { id },
       data: { isRead: true },
@@ -71,8 +73,8 @@ export class NotificationsService {
     return { message: 'All notifications marked as read' };
   }
 
-  async remove(id: number) {
-    await this.findOne(id);
+  async remove(id: number, userId?: number) {
+    await this.findOne(id, userId);
     return this.prisma.notification.delete({ where: { id } });
   }
 

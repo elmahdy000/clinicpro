@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { tenantStorage } from '../prisma/tenant-context';
 import { CreateMedicalRecordDto } from './dto/create-medical-record.dto';
 import { UpdateMedicalRecordDto } from './dto/update-medical-record.dto';
 import { NotificationHelperService } from '../common/services/notification-helper.service';
@@ -17,7 +18,8 @@ export class MedicalRecordsService {
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<any>> {
     const { page = 1, limit = 10, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
-    const where: any = {};
+    const store = tenantStorage.getStore();
+    const where: any = { clinicId: store?.clinicId ?? 0 };
     if (search) {
       where.OR = [
         { diagnosis: { contains: search } },
@@ -40,8 +42,9 @@ export class MedicalRecordsService {
   }
 
   async findOne(id: number) {
-    const record = await this.prisma.medicalRecord.findUnique({
-      where: { id },
+    const store = tenantStorage.getStore();
+    const record = await this.prisma.medicalRecord.findFirst({
+      where: { id, clinicId: store?.clinicId ?? 0 },
       include: {
         patient: true,
         doctor: { include: { user: { select: { id: true, email: true, name: true, role: true } } } },
@@ -54,19 +57,30 @@ export class MedicalRecordsService {
   }
 
   async create(dto: CreateMedicalRecordDto) {
+    const store = tenantStorage.getStore();
     const record = await this.prisma.medicalRecord.create({
       data: {
         ...dto,
         vitalSigns: dto.vitalSigns ? JSON.stringify(dto.vitalSigns) : '{}',
-        clinicId: 1,
+        clinicId: store?.clinicId ?? 0,
       },
     });
 
     if (dto.appointmentId) {
+      const oldApt = await this.prisma.appointment.findUnique({ where: { id: dto.appointmentId }, select: { status: true } });
       await this.prisma.appointment.update({
         where: { id: dto.appointmentId },
         data: { status: 'COMPLETED' },
       }).catch((e) => this.logger.error(`Failed to update appointment status: ${e.message}`));
+      if (oldApt && oldApt.status !== 'COMPLETED') {
+        await this.prisma.appointmentStatusChange.create({
+          data: {
+            appointmentId: dto.appointmentId,
+            fromStatus: oldApt.status,
+            toStatus: 'COMPLETED',
+          },
+        });
+      }
     }
 
     const full = await this.findOne(record.id);

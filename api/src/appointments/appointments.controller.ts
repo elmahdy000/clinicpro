@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe, UseGuards, Query, Req } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
@@ -41,14 +41,14 @@ export class AppointmentsController {
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST)
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAppointmentDto) {
-    return this.appointmentsService.update(id, dto);
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateAppointmentDto, @Req() req: any) {
+    return this.appointmentsService.update(id, dto, req.user?.id);
   }
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST)
   @Put(':id/reschedule')
-  reschedule(@Param('id', ParseIntPipe) id: number, @Body() dto: RescheduleAppointmentDto) {
-    return this.appointmentsService.reschedule(id, dto);
+  reschedule(@Param('id', ParseIntPipe) id: number, @Body() dto: RescheduleAppointmentDto, @Req() req: any) {
+    return this.appointmentsService.reschedule(id, dto, req.user?.id);
   }
 
   @Roles(UserRole.ADMIN)
