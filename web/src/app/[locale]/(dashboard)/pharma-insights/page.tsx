@@ -217,7 +217,7 @@ export default function PharmaInsightsPage() {
   const COLORS = ['#0f766e', '#0284c7', '#8b5cf6', '#f59e0b', '#ec4899'];
 
   return (
-    <div className="space-y-6 animate-fade-in text-right" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className={`space-y-6 animate-fade-in ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
       
       {/* Print Official Header */}
       <div className="hidden print:block border-b-2 border-teal-600 pb-4 mb-6">
@@ -473,7 +473,9 @@ export default function PharmaInsightsPage() {
         <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
           <CardHeader><CardTitle className="text-base flex items-center gap-2"><Sparkles className="w-4 h-4 text-teal-600" /> {isRtl ? 'تقرير المواد الفعالة الأكثر طلباً' : 'Active Ingredients Share'}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-                {activeIngredientsData.map((item: any, idx: number) => (
+                {activeIngredientsData.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-8">{isRtl ? 'لا توجد بيانات متاحة' : 'No data available'}</p>
+                ) : activeIngredientsData.map((item: any, idx: number) => (
               <div key={idx} className="space-y-1">
                 <div className="flex justify-between text-xs font-semibold">
                   <span className="font-mono text-gray-700 dark:text-gray-300">{item.name}</span>
@@ -696,38 +698,43 @@ export default function PharmaInsightsPage() {
         <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
           <CardHeader><CardTitle className="text-base flex items-center gap-2"><Landmark className="w-4 h-4 text-teal-600" /> {isRtl ? 'مقارنة الحصة السوقية للبدائل' : 'Competitor Share Index'}</CardTitle></CardHeader>
           <CardContent className="flex flex-col items-center">
-            <div className="h-[180px] w-full print:hidden">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={competitorShareData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {competitorShareData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            {/* Custom Legend */}
-            <div className="w-full space-y-2 mt-4 text-xs font-semibold">
-              {competitorShareData.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                    <span>{item.name}</span>
-                  </div>
-                  <span className="font-mono text-teal-600">{item.value}%</span>
+            {competitorShareData.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-12">{isRtl ? 'لا توجد بيانات متاحة' : 'No data available'}</p>
+            ) : (
+              <>
+                <div className="h-[180px] w-full print:hidden">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={competitorShareData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {competitorShareData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-              ))}
-            </div>
+                <div className="w-full space-y-2 mt-4 text-xs font-semibold">
+                  {competitorShareData.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                        <span>{item.name}</span>
+                      </div>
+                      <span className="font-mono text-teal-600">{item.value}%</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -739,7 +746,9 @@ export default function PharmaInsightsPage() {
         <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
           <CardHeader><CardTitle className="text-base flex items-center gap-2"><MapPin className="w-4 h-4 text-teal-600" /> {isRtl ? 'التوزيع الجغرافي للوصفات (مصر)' : 'Regional Distribution'}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-                {regionalDistributionData.map((item: any, idx: number) => (
+                {regionalDistributionData.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-8">{isRtl ? 'لا توجد بيانات متاحة' : 'No data available'}</p>
+                ) : regionalDistributionData.map((item: any, idx: number) => (
               <div key={idx} className="space-y-1">
                 <div className="flex justify-between text-xs font-semibold">
                   <span>{item.name}</span>
@@ -808,7 +817,9 @@ export default function PharmaInsightsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {missingMedicationsData.map((item, idx) => (
+                {missingMedicationsData.length === 0 ? (
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-xs text-gray-400">{isRtl ? 'لا توجد بيانات متاحة' : 'No data available'}</td></tr>
+                ) : missingMedicationsData.map((item, idx) => (
                   <tr key={idx}>
                     <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white font-mono">{item.searchName}</td>
                     <td className="px-4 py-3 font-bold text-amber-600 font-mono">{item.searches}</td>
@@ -829,15 +840,21 @@ export default function PharmaInsightsPage() {
         <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
           <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="w-4 h-4 text-green-600" /> {isRtl ? 'تقرير قياس فاعلية الحملات الطبية (قبل / بعد)' : 'Campaign Impact Analysis (Before vs After)'}</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="h-[180px] print:hidden">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={campaignImpactData}>
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                  <YAxis hide />
-                  <Bar dataKey="prescriptions" fill="#0d9488" radius={[4, 4, 0, 0]} label={{ position: 'top', fill: '#0d9488', fontSize: 11 }} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {campaignImpactData.length === 0 ? (
+              <div className="flex items-center justify-center h-[180px] print:hidden">
+                <p className="text-xs text-gray-400">{isRtl ? 'لا توجد بيانات متاحة' : 'No data available'}</p>
+              </div>
+            ) : (
+              <div className="h-[180px] print:hidden">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={campaignImpactData}>
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                    <YAxis hide />
+                    <Bar dataKey="prescriptions" fill="#0d9488" radius={[4, 4, 0, 0]} label={{ position: 'top', fill: '#0d9488', fontSize: 11 }} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
             {/* Description */}
             <div className="flex flex-col justify-center space-y-3 text-xs leading-relaxed">
               <div className="bg-teal-50 dark:bg-teal-950/20 p-3 rounded-lg border border-teal-500/10">

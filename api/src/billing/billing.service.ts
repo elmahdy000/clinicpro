@@ -5,6 +5,7 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
+import { NotificationHelperService } from '../common/services/notification-helper.service';
 
 @Injectable()
 export class BillingService {
@@ -15,7 +16,10 @@ export class BillingService {
     appointment: true,
   };
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationHelper: NotificationHelperService,
+  ) {}
 
   private parseInvoice(invoice: any) {
     if (!invoice) return invoice;
@@ -94,11 +98,15 @@ export class BillingService {
       },
       include: this.invoiceInclude,
     });
+
+    const clinic = await this.prisma.clinic.findUnique({ where: { id: store?.clinicId ?? 0 } });
+    await this.notificationHelper.sendInvoiceCreated(invoice, invoice.patient, clinic?.name || 'ClinicPro').catch(() => {});
+
     return this.parseInvoice(invoice);
   }
 
   async update(id: number, dto: UpdateInvoiceDto) {
-    await this.findOne(id);
+    const old = await this.findOne(id);
     const data: any = { ...dto };
     if (dto.paidAt) data.paidAt = new Date(dto.paidAt);
     if (dto.status === 'PAID' && !dto.paidAt) data.paidAt = new Date();
@@ -107,6 +115,12 @@ export class BillingService {
       data,
       include: this.invoiceInclude,
     });
+
+    if (invoice.status === 'PAID' && old.status !== 'PAID') {
+      const clinic = await this.prisma.clinic.findUnique({ where: { id: invoice.clinicId } });
+      await this.notificationHelper.sendInvoicePaid(invoice, invoice.patient, clinic?.name || 'ClinicPro').catch(() => {});
+    }
+
     return this.parseInvoice(invoice);
   }
 

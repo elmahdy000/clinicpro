@@ -96,13 +96,69 @@ export class AppointmentsService {
     }
   }
 
+  private async getClinicTimezone(): Promise<string> {
+    const store = tenantStorage.getStore();
+    const clinicId = store?.clinicId ?? 0;
+    if (!clinicId) return 'Africa/Cairo';
+    const settings = await this.prisma.clinicSettings.findUnique({
+      where: { clinicId },
+    });
+    return settings?.timezone || 'Africa/Cairo';
+  }
+
+  private getLocalDateStr(date: Date, timezone: string): string {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const parts = formatter.formatToParts(date);
+    const year = parts.find(p => p.type === 'year')?.value;
+    const month = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+    return `${year}-${month}-${day}`;
+  }
+
+  private getLocalDayBoundsInUtc(dateStr: string, timezone: string) {
+    const startLocal = new Date(`${dateStr}T00:00:00`);
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(startLocal);
+    const partValues: any = {};
+    parts.forEach(p => partValues[p.type] = p.value);
+    const tzDate = new Date(Date.UTC(
+      Number(partValues.year),
+      Number(partValues.month) - 1,
+      Number(partValues.day),
+      Number(partValues.hour),
+      Number(partValues.minute),
+      Number(partValues.second)
+    ));
+    const offsetMs = tzDate.getTime() - startLocal.getTime();
+    const startUtc = new Date(startLocal.getTime() - offsetMs);
+    const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000 - 1);
+    return { startUtc, endUtc };
+  }
+
   private async getNextQueuePosition(doctorId: number): Promise<number> {
+    const timezone = await this.getClinicTimezone();
+    const todayStr = this.getLocalDateStr(new Date(), timezone);
+    const { startUtc, endUtc } = this.getLocalDayBoundsInUtc(todayStr, timezone);
     const lastToday = await this.prisma.appointment.findFirst({
       where: {
         doctorId,
         appointmentDate: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0)),
-          lt: new Date(new Date().setHours(24, 0, 0, 0)),
+          gte: startUtc,
+          lt: endUtc,
         },
         queuePosition: { not: null },
       },
@@ -149,6 +205,8 @@ export class AppointmentsService {
 
     if (dto.status === 'CANCELLED') {
       await this.notificationHelper.sendAppointmentCancelled(full, full.doctor.user, full.patient).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));
+    } else if (dto.status === 'IN_PROGRESS' && old.status !== 'IN_PROGRESS') {
+      await this.notificationHelper.sendQueuePositionCalled(full.patient, full.doctor.user.name, full.queuePosition || 1).catch((e) => this.logger.warn(`Queue notification failed: ${(e as Error).message}`));
     } else if (dto.appointmentDate && Math.abs(new Date(dto.appointmentDate).getTime() - old.appointmentDate.getTime()) > 1000) {
       await this.notificationHelper.sendAppointmentUpdated(full, full.doctor.user, full.patient, old.appointmentDate.toISOString(), dto.reason).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));
     }
@@ -201,14 +259,13 @@ export class AppointmentsService {
 
   async findToday() {
     const store = tenantStorage.getStore();
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const startOfTomorrow = new Date(startOfDay);
-    startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+    const timezone = await this.getClinicTimezone();
+    const todayStr = this.getLocalDateStr(new Date(), timezone);
+    const { startUtc, endUtc } = this.getLocalDayBoundsInUtc(todayStr, timezone);
     return this.prisma.appointment.findMany({
       where: {
         clinicId: store?.clinicId ?? 0,
-        appointmentDate: { gte: startOfDay, lt: startOfTomorrow },
+        appointmentDate: { gte: startUtc, lt: endUtc },
       },
       include: { patient: true, doctor: { include: { user: { select: { id: true, email: true, name: true, role: true } } } } },
     });
@@ -231,12 +288,14 @@ export class AppointmentsService {
     const store = tenantStorage.getStore();
     const now = new Date();
     const tenMinAgo = new Date(now.getTime() - 10 * 60 * 1000);
-    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const timezone = await this.getClinicTimezone();
+    const todayStr = this.getLocalDateStr(now, timezone);
+    const { startUtc } = this.getLocalDayBoundsInUtc(todayStr, timezone);
 
     const overdue = await this.prisma.appointment.findMany({
       where: {
         clinicId: store?.clinicId ?? 0,
-        appointmentDate: { gte: todayStart, lt: tenMinAgo },
+        appointmentDate: { gte: startUtc, lt: tenMinAgo },
         status: { in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED] },
         appointmentEndDate: { lt: tenMinAgo },
       },

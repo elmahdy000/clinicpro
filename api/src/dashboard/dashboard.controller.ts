@@ -16,31 +16,31 @@ export class DashboardController {
     private readonly prisma: PrismaService,
   ) {}
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.PLATFORM_OWNER)
   @Get('stats')
   getStats() {
     return this.dashboardService.getStats();
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST, UserRole.NURSE)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST, UserRole.NURSE, UserRole.PLATFORM_OWNER)
   @Get('recent-activity')
   getRecentActivity(@Query('limit') limit?: string) {
     return this.dashboardService.getRecentActivity(limit ? parseInt(limit, 10) : 20);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.PLATFORM_OWNER)
   @Get('recent-prescriptions')
   getRecentPrescriptions() {
     return this.dashboardService.getRecentPrescriptions(5);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.PLATFORM_OWNER)
   @Get('recent-invoices')
   getRecentInvoices() {
     return this.dashboardService.getRecentInvoices(5);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.PLATFORM_OWNER)
   @Get('pharma-insights')
   async getPharmaInsights() {
     const analytics = await this.medicationsService.getAnalytics();

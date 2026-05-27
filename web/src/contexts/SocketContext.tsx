@@ -56,8 +56,10 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     socketInstance.on('notification', (notification: any) => {
       console.log('Real-time notification received:', notification);
       
-      // Invalidate notifications query to refresh UI list
+      // Invalidate notifications queries to refresh both Doctor/Admin and Patient lists
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['patient-notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['patient-dashboard'] });
 
       // Trigger standard and custom audio alert
       try {
@@ -93,12 +95,15 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       console.log('Real-time appointment update received');
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointments-list'] });
+      queryClient.invalidateQueries({ queryKey: ['patient-appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['patient-dashboard'] });
     });
 
     socketInstance.on('dashboardUpdate', () => {
       console.log('Real-time dashboard update received');
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['queue'] });
+      queryClient.invalidateQueries({ queryKey: ['patient-dashboard'] });
     });
 
     setSocket(socketInstance);

@@ -194,7 +194,7 @@ export default function StaffManagementPage() {
   const receptionistsCount = staffList.filter((u: any) => u.role === 'RECEPTIONIST').length;
 
   return (
-    <div className="space-y-6 animate-fade-in text-right" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className={`space-y-6 animate-fade-in ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
 
       {/* ── HEADER ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

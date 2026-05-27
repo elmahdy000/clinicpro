@@ -127,7 +127,7 @@ export default function AppointmentsPage() {
   // Status Change Mutation
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
-      api.patch(`/appointments/${id}/status`, { status }),
+      api.put(`/appointments/${id}`, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       toast.success(isRtl ? 'تم تحديث حالة الموعد بنجاح!' : 'Appointment status updated successfully!');

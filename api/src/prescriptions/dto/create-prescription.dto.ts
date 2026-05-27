@@ -11,7 +11,6 @@ export class CreatePrescriptionDto {
   @IsNumber()
   medicalRecordId?: number;
 
-  @IsObject()
   @IsNotEmpty()
   medications: any;
 

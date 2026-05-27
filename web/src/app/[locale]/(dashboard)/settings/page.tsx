@@ -28,6 +28,19 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const { user } = useAuth();
 
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!user?.clinicId) return;
+    api.get(`/clinics/${user.clinicId}`).then((r) => {
+      if (r.data?.logoUrl) {
+        setLogoPreview(`${API_BASE.replace('/api', '')}${r.data.logoUrl}`);
+      }
+    }).catch(() => {});
+  }, [user?.clinicId]);
+
   const switchLocale = (targetLocale: 'en' | 'ar') => {
     const pathWithoutLocale = pathname.replace(/^\/(en|ar)/, '');
     router.replace(`/${targetLocale}${pathWithoutLocale || '/settings'}`);
@@ -64,7 +77,7 @@ export default function SettingsPage() {
   // If the user is PLATFORM_OWNER, show SaaS Platform Settings
   if (user?.role === 'PLATFORM_OWNER') {
     return (
-      <div className="max-w-4xl mx-auto space-y-6 animate-fade-in text-right" dir={isRtl ? 'rtl' : 'ltr'}>
+      <div className={`max-w-4xl mx-auto space-y-6 animate-fade-in ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -196,19 +209,6 @@ export default function SettingsPage() {
   }
 
   // Clinic User Settings View
-  const [logoUploading, setLogoUploading] = useState(false);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!user?.clinicId) return;
-    api.get(`/clinics/${user.clinicId}`).then((r) => {
-      if (r.data?.logoUrl) {
-        setLogoPreview(`${API_BASE.replace('/api', '')}${r.data.logoUrl}`);
-      }
-    }).catch(() => {});
-  }, [user?.clinicId]);
-
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user?.clinicId) return;
@@ -236,7 +236,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className={`max-w-4xl mx-auto space-y-6 animate-fade-in ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white animate-fade-in-down">{t('title')}</h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{t('subtitle')}</p>
 

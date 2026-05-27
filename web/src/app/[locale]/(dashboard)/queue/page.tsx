@@ -47,7 +47,7 @@ export default function QueuePage() {
 
   const { data: appointments, isLoading } = useQuery({
     queryKey: ['today-appointments'],
-    queryFn: () => api.get('/appointments').then((r) => r.data),
+    queryFn: () => api.get('/appointments/today').then((r) => r.data),
   });
 
     const updateMutation = useMutation({
@@ -64,7 +64,7 @@ export default function QueuePage() {
     toast.success('تم تحديث القائمة');
   };
 
-  const all = appointments?.data || [];
+  const all = Array.isArray(appointments) ? appointments : appointments?.data || [];
 
   const today = useMemo(
     () =>
@@ -91,12 +91,12 @@ export default function QueuePage() {
 
   const statusLabel = (status: string) => {
     const map: Record<string, string> = {
-      PENDING: t('waiting'),
-      CONFIRMED: t('inProgress'),
-      IN_PROGRESS: t('inProgress'),
-      COMPLETED: t('completed'),
-      CANCELLED: t('cancelled'),
-      MISSED: 'ماحضرش',
+      PENDING: isRtl ? 'منتظر' : 'Waiting',
+      CONFIRMED: isRtl ? 'داخل الكشف' : 'In Progress',
+      IN_PROGRESS: isRtl ? 'داخل الكشف' : 'In Progress',
+      COMPLETED: isRtl ? 'تم الكشف' : 'Completed',
+      CANCELLED: isRtl ? 'ملغي' : 'Cancelled',
+      MISSED: isRtl ? 'لم يحضر' : 'Missed',
     };
     return map[status] || status;
   };

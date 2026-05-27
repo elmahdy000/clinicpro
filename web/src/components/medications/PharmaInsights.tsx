@@ -47,7 +47,7 @@ export function PharmaInsights() {
   const totalPrescribed = summary?.totalPrescribedItems || 0;
 
   return (
-    <div className="space-y-6 animate-fade-in text-right" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className={`space-y-6 animate-fade-in ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
 
       {/* ── Summary Key Metrics ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -133,7 +133,7 @@ export function PharmaInsights() {
                     <button
                       key={med.id}
                       onClick={() => setSelectedMedId(med.id)}
-                      className={`w-full text-right p-3 rounded-xl transition-all flex items-center justify-between border ${
+                      className={`w-full ${isRtl ? 'text-right' : 'text-left'} p-3 rounded-xl transition-all flex items-center justify-between border ${
                         isActive
                           ? 'bg-teal-500 text-white border-teal-500 dark:bg-teal-600 dark:border-teal-600 shadow-md shadow-teal-500/10'
                           : 'bg-transparent text-gray-700 dark:text-gray-300 border-transparent hover:bg-teal-50/50 dark:hover:bg-teal-950/20'

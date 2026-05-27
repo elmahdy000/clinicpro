@@ -104,7 +104,7 @@ export default function ReportsPage() {
     })) || [];
 
     return (
-      <div className="space-y-6 animate-fade-in text-right" dir={isRtl ? 'rtl' : 'ltr'}>
+      <div className={`space-y-6 animate-fade-in ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
         
         {/* Print Only Header (Hidden on screen) */}
         <div className="hidden print:block border-b-2 border-teal-600 pb-4 mb-6">
@@ -320,7 +320,7 @@ export default function ReportsPage() {
 
   // ── CLINIC USER REPORTS VIEW (Original preserved + styled beautifully for print) ──
   return (
-    <div className="space-y-6 animate-fade-in text-right" dir={isRtl ? 'rtl' : 'ltr'}>
+    <div className={`space-y-6 animate-fade-in ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
       
       {/* Print Only Header */}
       <div className="hidden print:block border-b-2 border-teal-600 pb-4 mb-6">

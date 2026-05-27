@@ -13,6 +13,66 @@ export class DashboardService {
     private redis: RedisService,
   ) {}
 
+  private async getClinicTimezone(): Promise<string> {
+    const store = tenantStorage.getStore();
+    const clinicId = store?.clinicId ?? null;
+    if (!clinicId) return 'Africa/Cairo';
+    const settings = await this.prisma.clinicSettings.findUnique({
+      where: { clinicId },
+    });
+    return settings?.timezone || 'Africa/Cairo';
+  }
+
+  private getLocalDateStr(date: Date, timezone: string): string {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const parts = formatter.formatToParts(date);
+    const year = parts.find(p => p.type === 'year')?.value;
+    const month = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+    return `${year}-${month}-${day}`;
+  }
+
+  private getStartOfWeekDateStr(dateStr: string, timezone: string): string {
+    const date = new Date(`${dateStr}T12:00:00`);
+    const dayOfWeek = date.getDay();
+    const startOfWeekDate = new Date(date.getTime() - dayOfWeek * 24 * 60 * 60 * 1000);
+    return this.getLocalDateStr(startOfWeekDate, timezone);
+  }
+
+  private getLocalDayBoundsInUtc(dateStr: string, timezone: string) {
+    const startLocal = new Date(`${dateStr}T00:00:00`);
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(startLocal);
+    const partValues: any = {};
+    parts.forEach(p => partValues[p.type] = p.value);
+    const tzDate = new Date(Date.UTC(
+      Number(partValues.year),
+      Number(partValues.month) - 1,
+      Number(partValues.day),
+      Number(partValues.hour),
+      Number(partValues.minute),
+      Number(partValues.second)
+    ));
+    const offsetMs = tzDate.getTime() - startLocal.getTime();
+    const startUtc = new Date(startLocal.getTime() - offsetMs);
+    const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000 - 1);
+    return { startUtc, endUtc };
+  }
+
   async getStats() {
     const store = tenantStorage.getStore();
     const clinicId = store?.clinicId ?? null;
@@ -24,11 +84,15 @@ export class DashboardService {
     const clinicWhere: any = clinicId ? { clinicId } : {};
     const patientClinicWhere: any = clinicId ? { clinics: { some: { clinicId } } } : {};
 
+    const timezone = await this.getClinicTimezone();
     const now = new Date();
-    const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = new Date(now); endOfToday.setHours(23, 59, 59, 999);
-    const startOfMonth = new Date(now); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
-    const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay()); startOfWeek.setHours(0, 0, 0, 0);
+    const todayStr = this.getLocalDateStr(now, timezone);
+
+    const { startUtc: startOfToday, endUtc: endOfToday } = this.getLocalDayBoundsInUtc(todayStr, timezone);
+    const monthStartStr = `${todayStr.slice(0, 8)}01`;
+    const { startUtc: startOfMonth } = this.getLocalDayBoundsInUtc(monthStartStr, timezone);
+    const weekStartStr = this.getStartOfWeekDateStr(todayStr, timezone);
+    const { startUtc: startOfWeek } = this.getLocalDayBoundsInUtc(weekStartStr, timezone);
 
     const [
       usersByRole,
@@ -90,13 +154,9 @@ export class DashboardService {
 
     // Calculate dynamic 7-day weekly trend
     const trendPromises = Array.from({ length: 7 }).map(async (_, idx) => {
-      const d = new Date(now);
-      d.setDate(now.getDate() - (6 - idx));
-      d.setHours(0, 0, 0, 0);
-      
-      const startOfDay = new Date(d);
-      const endOfDay = new Date(d);
-      endOfDay.setHours(23, 59, 59, 999);
+      const d = new Date(now.getTime() - (6 - idx) * 24 * 60 * 60 * 1000);
+      const dayStr = this.getLocalDateStr(d, timezone);
+      const { startUtc: startOfDay, endUtc: endOfDay } = this.getLocalDayBoundsInUtc(dayStr, timezone);
 
       const [appointmentsCount, revenueSum] = await Promise.all([
         this.prisma.appointment.count({
@@ -116,7 +176,7 @@ export class DashboardService {
       ]);
 
       return {
-        date: d.toISOString().split('T')[0],
+        date: dayStr,
         dayIdx: d.getDay(),
         appointments: appointmentsCount,
         revenue: Number(revenueSum._sum.total ?? 0),
@@ -170,8 +230,9 @@ export class DashboardService {
     const store = tenantStorage.getStore();
     const clinicId = store?.clinicId ?? null;
 
-    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = new Date(); endOfToday.setHours(23, 59, 59, 999);
+    const timezone = await this.getClinicTimezone();
+    const todayStr = this.getLocalDateStr(new Date(), timezone);
+    const { startUtc: startOfToday, endUtc: endOfToday } = this.getLocalDayBoundsInUtc(todayStr, timezone);
 
     const where: any = { appointmentDate: { gte: startOfToday, lte: endOfToday } };
     if (clinicId) where.clinicId = clinicId;

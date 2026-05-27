@@ -3,6 +3,10 @@ generator client {
   output   = "../api/node_modules/@prisma/client"
 }
 
+generator client_root {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
@@ -16,6 +20,10 @@ model Clinic {
   logoUrl            String?
   subscriptionPlan   String   @default("FREE")
   subscriptionStatus String   @default("ACTIVE")
+  governorateId      String?
+  cityId             String?
+  governorate        Governorate? @relation(fields: [governorateId], references: [id])
+  city               City?        @relation(fields: [cityId], references: [id])
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -30,6 +38,9 @@ model Clinic {
   auditLogs      AuditLog[]
   settings       ClinicSettings?
   medicationStocks MedicationStock[]
+
+  @@index([governorateId])
+  @@index([cityId])
 }
 
 model ClinicSettings {
@@ -113,6 +124,10 @@ model Patient {
   address          String?
   governorate      String?
   city             String?
+  governorateId    String?
+  cityId           String?
+  governorateRel   Governorate? @relation("PatientGovernorate", fields: [governorateId], references: [id])
+  cityRel          City?        @relation("PatientCity", fields: [cityId], references: [id])
   bloodGroup       String?
   allergies        String?
   medicalHistory   String?
@@ -130,6 +145,9 @@ model Patient {
 
   clinics        ClinicPatient[]
   fileUploads    FileUpload[]
+
+  @@index([governorateId])
+  @@index([cityId])
 }
 
 model ClinicPatient {
@@ -368,4 +386,37 @@ model Plan {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Governorate {
+  id        String   @id @default(cuid())
+  nameAr    String   @unique
+  nameEn    String?
+  code      String   @unique
+  cities    City[]
+
+  clinics   Clinic[]
+  patients  Patient[] @relation("PatientGovernorate")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model City {
+  id             String      @id @default(cuid())
+  governorateId String
+  governorate   Governorate @relation(fields: [governorateId], references: [id], onDelete: Cascade)
+
+  nameAr        String
+  nameEn        String?
+  code          String?
+
+  clinics       Clinic[]
+  patients      Patient[] @relation("PatientCity")
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([governorateId, nameAr])
+  @@index([governorateId])
 }

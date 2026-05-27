@@ -18,7 +18,7 @@ export class PatientsController {
     return this.patientsService.findAll(query);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DOCTOR)
   @Post()
   create(@Body() dto: CreatePatientDto) {
     return this.patientsService.create(dto);
@@ -36,7 +36,7 @@ export class PatientsController {
     return this.patientsService.findOne(id);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST)
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DOCTOR)
   @Put(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePatientDto) {
     return this.patientsService.update(id, dto);

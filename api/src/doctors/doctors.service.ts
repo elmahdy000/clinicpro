@@ -142,6 +142,59 @@ export class DoctorsService {
     return this.prisma.doctorTimeOff.delete({ where: { id } });
   }
 
+  private async getClinicTimezone(): Promise<string> {
+    const store = tenantStorage.getStore();
+    const clinicId = store?.clinicId ?? 0;
+    if (!clinicId) return 'Africa/Cairo';
+    const settings = await this.prisma.clinicSettings.findUnique({
+      where: { clinicId },
+    });
+    return settings?.timezone || 'Africa/Cairo';
+  }
+
+  private getLocalDateStr(date: Date, timezone: string): string {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const parts = formatter.formatToParts(date);
+    const year = parts.find(p => p.type === 'year')?.value;
+    const month = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+    return `${year}-${month}-${day}`;
+  }
+
+  private getLocalDayBoundsInUtc(dateStr: string, timezone: string) {
+    const startLocal = new Date(`${dateStr}T00:00:00`);
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    });
+    const parts = formatter.formatToParts(startLocal);
+    const partValues: any = {};
+    parts.forEach(p => partValues[p.type] = p.value);
+    const tzDate = new Date(Date.UTC(
+      Number(partValues.year),
+      Number(partValues.month) - 1,
+      Number(partValues.day),
+      Number(partValues.hour),
+      Number(partValues.minute),
+      Number(partValues.second)
+    ));
+    const offsetMs = tzDate.getTime() - startLocal.getTime();
+    const startUtc = new Date(startLocal.getTime() - offsetMs);
+    const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000 - 1);
+    return { startUtc, endUtc };
+  }
+
   async getAvailableDays(
     doctorId: number,
     fromDate: string,
@@ -153,8 +206,12 @@ export class DoctorsService {
     if (cached) return cached;
 
     await this.findOne(doctorId);
+    const timezone = await this.getClinicTimezone();
     const from = new Date(fromDate);
     const to = new Date(toDate);
+
+    const { startUtc: startBound } = this.getLocalDayBoundsInUtc(fromDate, timezone);
+    const { endUtc: endBound } = this.getLocalDayBoundsInUtc(toDate, timezone);
 
     const [timeOffs, availabilities, existingAppointments] = await Promise.all([
       this.prisma.doctorTimeOff.findMany({
@@ -167,7 +224,7 @@ export class DoctorsService {
       this.prisma.appointment.findMany({
         where: {
           doctorId,
-          appointmentDate: { gte: from, lt: new Date(to.getTime() + 86400000) },
+          appointmentDate: { gte: startBound, lt: endBound },
           status: { notIn: ['CANCELLED'] },
         },
         select: { appointmentDate: true, appointmentEndDate: true },
@@ -236,9 +293,11 @@ export class DoctorsService {
     if (cached) return cached;
 
     await this.findOne(doctorId);
-    const date = new Date(dateStr);
-    if (date < new Date(new Date().toDateString())) return [];
+    const timezone = await this.getClinicTimezone();
+    const todayStr = this.getLocalDateStr(new Date(), timezone);
+    if (dateStr < todayStr) return [];
 
+    const date = new Date(dateStr);
     const dayOfWeek = date.getDay();
 
     const isOff = await this.prisma.doctorTimeOff.findUnique({
@@ -251,12 +310,14 @@ export class DoctorsService {
     });
     if (!availability || !availability.isAvailable) return [];
 
+    const { startUtc, endUtc } = this.getLocalDayBoundsInUtc(dateStr, timezone);
+
     const existingAppointments = await this.prisma.appointment.findMany({
       where: {
         doctorId,
         appointmentDate: {
-          gte: new Date(`${dateStr}T00:00:00.000Z`),
-          lt: new Date(`${dateStr}T23:59:59.999Z`),
+          gte: startUtc,
+          lt: endUtc,
         },
         status: { notIn: ['CANCELLED'] },
       },

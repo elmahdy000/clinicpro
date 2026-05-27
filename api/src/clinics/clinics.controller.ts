@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, UseInterceptors, UploadedFile, BadRequestException, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, UseInterceptors, UploadedFile, BadRequestException, Req, ParseIntPipe } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -32,9 +32,9 @@ export class ClinicsController {
   }
 
   @Put(':id')
-  @Roles(UserRole.PLATFORM_OWNER)
-  update(@Param('id') id: string, @Body() body: any) {
-    return this.clinicsService.update(+id, body);
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.ADMIN)
+  update(@Param('id', ParseIntPipe) id: number, @Body() body: any, @Req() req: any) {
+    return this.clinicsService.update(id, body, req.user);
   }
 
   @Put(':id/logo')

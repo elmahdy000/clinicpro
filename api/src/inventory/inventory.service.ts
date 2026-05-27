@@ -3,10 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { tenantStorage } from '../prisma/tenant-context';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
+import { NotificationHelperService } from '../common/services/notification-helper.service';
 
 @Injectable()
 export class InventoryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationHelper: NotificationHelperService,
+  ) {}
 
   async findAll(query: PaginationDto & { medicationId?: string; lowStock?: string }): Promise<PaginatedResult<any>> {
     const { page = 1, limit = 20, search, medicationId, lowStock } = query;
@@ -133,6 +137,16 @@ export class InventoryService {
         performedBy: performedBy ?? null,
       },
     });
+
+    if (updated.quantityOnHand <= 10) {
+      const admin = await this.prisma.user.findFirst({
+        where: { clinicId: item.clinicId, role: 'CLINIC_ADMIN' },
+      });
+      if (admin) {
+        await this.notificationHelper.sendMedicationLowStock(admin.id, item.medication.name, updated.quantityOnHand).catch(() => {});
+      }
+    }
+
     return updated;
   }
 
@@ -153,6 +167,16 @@ export class InventoryService {
         performedBy: performedBy ?? null,
       },
     });
+
+    if (updated.quantityOnHand <= 10) {
+      const admin = await this.prisma.user.findFirst({
+        where: { clinicId: item.clinicId, role: 'CLINIC_ADMIN' },
+      });
+      if (admin) {
+        await this.notificationHelper.sendMedicationLowStock(admin.id, item.medication.name, updated.quantityOnHand).catch(() => {});
+      }
+    }
+
     return updated;
   }
 

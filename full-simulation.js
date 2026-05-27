@@ -120,7 +120,8 @@ async function runSimulation() {
         console.log("\n--- 4. SCHEDULING & APPOINTMENTS ---");
         
         const appointmentDate = new Date();
-        appointmentDate.setDate(appointmentDate.getDate() + 1); // Tomorrow
+        appointmentDate.setDate(appointmentDate.getDate() + 2 + Math.floor(Math.random() * 10)); // Sometime in the future
+        appointmentDate.setHours(9 + Math.floor(Math.random() * 6), 0, 0, 0); // Business hours
         
         // Reserve Appointment
         const reserveApt = await request('/appointments', 'POST', {
@@ -135,7 +136,7 @@ async function runSimulation() {
         const aptId = reserveApt.data.id;
 
         // Reschedule Appointment
-        appointmentDate.setHours(appointmentDate.getHours() + 2);
+        appointmentDate.setHours(appointmentDate.getHours() + 3 + Math.floor(Math.random() * 5));
         const rescheduleApt = await request(`/appointments/${aptId}/reschedule`, 'PUT', {
             appointmentDate: appointmentDate.toISOString(),
             reason: "Patient asked for delay"
