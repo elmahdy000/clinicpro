@@ -171,6 +171,12 @@ export function Header() {
     </header>
     {user?.role !== 'PLATFORM_OWNER' && (
       <div className="z-10">
+        {subscriptionStatus === 'PENDING' && (
+          <div className="bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-900/50 px-4 py-2 flex flex-wrap items-center justify-center gap-1.5 text-blue-700 dark:text-blue-400 text-xs font-bold text-center">
+            <AlertCircle className="w-4 h-4 shrink-0 animate-pulse" />
+            <span>{locale === 'ar' ? 'حساب عيادتك قيد المراجعة بانتظار موافقة الإدارة.' : 'Your clinic account is under review awaiting administrative approval.'}</span>
+          </div>
+        )}
         {subscriptionStatus === 'SUSPENDED' && (
           <div className="bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-900/50 px-4 py-2 flex flex-wrap items-center justify-center gap-1.5 text-red-700 dark:text-red-400 text-xs font-bold text-center">
             <AlertCircle className="w-4 h-4 shrink-0" />

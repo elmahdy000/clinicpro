@@ -83,6 +83,7 @@ export class AuthService {
           governorateId: dto.governorateId || undefined,
           cityId: dto.cityId || undefined,
           subscriptionPlan: 'FREE',
+          subscriptionStatus: 'PENDING',
         }
       });
 

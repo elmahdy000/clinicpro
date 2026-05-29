@@ -28,7 +28,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
-  Building2, Search, Plus, RefreshCw, Eye, Power, PowerOff,
+  Building2, Search, Plus, RefreshCw, Eye, Power, PowerOff, CheckCircle2,
   User, Mail, Phone, MapPin,
   Users, CalendarDays, CircleDollarSign, LayoutGrid, LayoutList,
   MoreHorizontal, SlidersHorizontal, AlertCircle, Trash2
@@ -51,12 +51,14 @@ const STATUS_COLOR: Record<string, string> = {
   ACTIVE: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900',
   SUSPENDED: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-900',
   TRIAL: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900',
+  PENDING: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900',
 };
 
 const STATUS_MAP_AR: Record<string, string> = {
   ACTIVE: 'نشط',
   SUSPENDED: 'موقوف / معطل',
   TRIAL: 'تجريبي',
+  PENDING: 'بانتظار الموافقة',
 };
 
 const PLAN_MAP_AR: Record<string, string> = {
@@ -592,6 +594,7 @@ export default function ClinicsPage() {
                     <option value="ACTIVE">{isRtl ? 'نشط (ACTIVE)' : 'ACTIVE'}</option>
                     <option value="TRIAL">{isRtl ? 'فترة تجريبية (TRIAL)' : 'TRIAL'}</option>
                     <option value="SUSPENDED">{isRtl ? 'معطل (SUSPENDED)' : 'SUSPENDED'}</option>
+                    <option value="PENDING">{isRtl ? 'قيد الموافقة (PENDING)' : 'PENDING'}</option>
                   </select>
                 </div>
               </div>
@@ -785,6 +788,7 @@ export default function ClinicsPage() {
                           <option value="ACTIVE">{isRtl ? 'نشط (ACTIVE)' : 'ACTIVE'}</option>
                           <option value="TRIAL">{isRtl ? 'فترة تجريبية (TRIAL)' : 'TRIAL'}</option>
                           <option value="SUSPENDED">{isRtl ? 'موقوف / معطل' : 'SUSPENDED'}</option>
+                          <option value="PENDING">{isRtl ? 'بانتظار الموافقة (PENDING)' : 'PENDING'}</option>
                         </select>
                       </div>
 
@@ -1187,22 +1191,32 @@ export default function ClinicsPage() {
 
                                   <DropdownMenuSeparator className="my-1" />
 
-                                  <DropdownMenuItem
-                                    onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)}
-                                    className={`cursor-pointer font-bold gap-2 ${isSuspended ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
-                                  >
-                                    {isSuspended ? (
-                                      <>
-                                        <Power className="w-3.5 h-3.5 shrink-0" />
-                                        {isRtl ? 'تفعيل ترخيص العيادة' : 'Activate License'}
-                                      </>
-                                    ) : (
-                                      <>
-                                        <PowerOff className="w-3.5 h-3.5 shrink-0" />
-                                        {isRtl ? 'إيقاف / تعطيل العيادة' : 'Suspend License'}
-                                      </>
-                                    )}
-                                  </DropdownMenuItem>
+                                  {c.subscriptionStatus === 'PENDING' ? (
+                                    <DropdownMenuItem
+                                      onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)}
+                                      className="cursor-pointer font-bold gap-2 text-emerald-600 dark:text-emerald-400 focus:bg-emerald-50 dark:focus:bg-emerald-950/20"
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                      {isRtl ? 'تفعيل وترخيص العيادة' : 'Approve & Activate Clinic'}
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem
+                                      onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)}
+                                      className={`cursor-pointer font-bold gap-2 ${isSuspended ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
+                                    >
+                                      {isSuspended ? (
+                                        <>
+                                          <Power className="w-3.5 h-3.5 shrink-0" />
+                                          {isRtl ? 'تفعيل ترخيص العيادة' : 'Activate License'}
+                                        </>
+                                      ) : (
+                                        <>
+                                          <PowerOff className="w-3.5 h-3.5 shrink-0" />
+                                          {isRtl ? 'إيقاف / تعطيل العيادة' : 'Suspend License'}
+                                        </>
+                                      )}
+                                    </DropdownMenuItem>
+                                  )}
 
                                   <DropdownMenuSeparator className="my-1" />
                                   <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
@@ -1369,19 +1383,29 @@ export default function ClinicsPage() {
                             }
                           />
                           <DropdownMenuContent align="end" className="text-xs font-bold w-52 p-1.5" dir={isRtl ? 'rtl' : 'ltr'}>
-                            <DropdownMenuItem onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)} className={`cursor-pointer font-bold gap-2 ${isSuspended ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                              {isSuspended ? (
-                                <>
-                                  <Power className="w-3.5 h-3.5 shrink-0" />
-                                  {isRtl ? 'تفعيل ترخيص العيادة' : 'Activate License'}
-                                </>
-                              ) : (
-                                <>
-                                  <PowerOff className="w-3.5 h-3.5 shrink-0" />
-                                  {isRtl ? 'إيقاف / تعطيل العيادة' : 'Suspend License'}
-                                </>
-                              )}
-                            </DropdownMenuItem>
+                            {c.subscriptionStatus === 'PENDING' ? (
+                              <DropdownMenuItem
+                                onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)}
+                                className="cursor-pointer font-bold gap-2 text-emerald-600 dark:text-emerald-400 focus:bg-emerald-50 dark:focus:bg-emerald-950/20"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                {isRtl ? 'تفعيل وترخيص العيادة' : 'Approve & Activate Clinic'}
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)} className={`cursor-pointer font-bold gap-2 ${isSuspended ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                {isSuspended ? (
+                                  <>
+                                    <Power className="w-3.5 h-3.5 shrink-0" />
+                                    {isRtl ? 'تفعيل ترخيص العيادة' : 'Activate License'}
+                                  </>
+                                ) : (
+                                  <>
+                                    <PowerOff className="w-3.5 h-3.5 shrink-0" />
+                                    {isRtl ? 'إيقاف / تعطيل العيادة' : 'Suspend License'}
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                            )}
 
                             <DropdownMenuSeparator className="my-1" />
                             <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
