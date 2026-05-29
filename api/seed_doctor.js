@@ -5,11 +5,24 @@ const prisma = new PrismaClient();
 async function main() {
   const email = 'doctor@clinic.com';
 
-  // 1. Clean up existing records to allow clean re-runs
-  await prisma.user.deleteMany({
+  // 1. Clean up existing records safely, taking care of foreign key constraints
+  const existingUser = await prisma.user.findUnique({
     where: { email }
   });
+
+  if (existingUser) {
+    console.log('Cleaning up existing doctor user and profile...');
+    // Delete doctor profile first
+    await prisma.doctor.deleteMany({
+      where: { userId: existingUser.id }
+    });
+    // Then delete the user
+    await prisma.user.delete({
+      where: { id: existingUser.id }
+    });
+  }
   
+  // Clean up default clinic
   await prisma.clinic.deleteMany({
     where: { name: 'ClinicPro Premium Clinic' }
   });
