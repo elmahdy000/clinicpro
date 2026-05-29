@@ -27,16 +27,16 @@ export default function LandingPage() {
           </div>
 
           <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-600">
-            <a href="#features" className="hover:text-teal-600 transition-colors">المميزات</a>
-            <a href="#demo" className="hover:text-teal-600 transition-colors">كيف يعمل</a>
-            <a href="#why-us" className="hover:text-teal-600 transition-colors">لماذا نحن</a>
+            <a id="nav-link-features" href="#features" className="hover:text-teal-600 transition-colors">المميزات</a>
+            <a id="nav-link-demo" href="#demo" className="hover:text-teal-600 transition-colors">كيف يعمل</a>
+            <a id="nav-link-why-us" href="#why-us" className="hover:text-teal-600 transition-colors">لماذا نحن</a>
           </nav>
 
           <div className="flex items-center gap-4">
-            <Link href="/ar/login" className="text-sm font-semibold text-slate-600 hover:text-teal-600 px-4 py-2 rounded-lg transition-colors">
+            <Link id="btn-header-login" href="/ar/login" className="text-sm font-semibold text-slate-600 hover:text-teal-600 px-4 py-2 rounded-lg transition-colors">
               تسجيل الدخول
             </Link>
-            <Link href="/ar/login" className="text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 px-5 py-2.5 rounded-xl shadow-md shadow-teal-600/10 transition-all hover:scale-[1.02] active:scale-[0.98]">
+            <Link id="btn-header-start" href="/ar/login" className="text-sm font-bold text-white bg-teal-600 hover:bg-teal-700 px-5 py-2.5 rounded-xl shadow-md shadow-teal-600/10 transition-all hover:scale-[1.02] active:scale-[0.98]">
               ابدأ مجاناً
             </Link>
           </div>
@@ -67,13 +67,13 @@ export default function LandingPage() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto mb-12">
-                <Link href="/ar/login" className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-4 rounded-xl shadow-lg shadow-teal-600/10 hover:scale-[1.02] active:scale-[0.98] transition-all text-center">
+                <Link id="btn-hero-cta" href="/ar/login" className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-4 rounded-xl shadow-lg shadow-teal-600/10 hover:scale-[1.02] active:scale-[0.98] transition-all text-center">
                   جرب النظام مجاناً الآن
                   <svg fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="h-5 w-5 transform rotate-180">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
                   </svg>
                 </Link>
-                <a href="#demo" className="flex items-center justify-center gap-2 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold px-8 py-4 rounded-xl shadow-sm transition-all text-center">
+                <a id="btn-hero-demo" href="#demo" className="flex items-center justify-center gap-2 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold px-8 py-4 rounded-xl shadow-sm transition-all text-center">
                   شاهد لوحة التحكم
                 </a>
               </div>
@@ -203,6 +203,7 @@ export default function LandingPage() {
               
               <div className="flex flex-col gap-2.5">
                 <button 
+                  id="tab-btn-schedule"
                   onClick={() => setActiveTab('schedule')}
                   className={`p-4 rounded-xl text-right transition-all border ${activeTab === 'schedule' ? 'bg-white border-teal-500/20 text-slate-900 shadow-md shadow-slate-200' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
                 >
@@ -210,6 +211,7 @@ export default function LandingPage() {
                   <div className="text-xs text-slate-500 mt-1">تحديد فترات العمل، تنظيم الحجوزات ووضع المرضى في قائمة الانتظار الذكية.</div>
                 </button>
                 <button 
+                  id="tab-btn-emr"
                   onClick={() => setActiveTab('emr')}
                   className={`p-4 rounded-xl text-right transition-all border ${activeTab === 'emr' ? 'bg-white border-teal-500/20 text-slate-900 shadow-md shadow-slate-200' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
                 >
@@ -217,6 +219,7 @@ export default function LandingPage() {
                   <div className="text-xs text-slate-500 mt-1">حفظ التاريخ المرضي والأدوية وتتبع الحساسية والأمراض المزمنة لكل حالة.</div>
                 </button>
                 <button 
+                  id="tab-btn-billing"
                   onClick={() => setActiveTab('billing')}
                   className={`p-4 rounded-xl text-right transition-all border ${activeTab === 'billing' ? 'bg-white border-teal-500/20 text-slate-900 shadow-md shadow-slate-200' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
                 >
@@ -224,6 +227,7 @@ export default function LandingPage() {
                   <div className="text-xs text-slate-500 mt-1">تنظيم حسابات العيادة، طباعة إيصالات الدفع وتتبع الفواتير المتأخرة.</div>
                 </button>
                 <button 
+                  id="tab-btn-reports"
                   onClick={() => setActiveTab('reports')}
                   className={`p-4 rounded-xl text-right transition-all border ${activeTab === 'reports' ? 'bg-white border-teal-500/20 text-slate-900 shadow-md shadow-slate-200' : 'border-transparent text-slate-500 hover:text-slate-900'}`}
                 >
@@ -395,7 +399,7 @@ export default function LandingPage() {
               انضم إلى مئات الأطباء الذين قاموا بتنظيم المواعيد، وزيادة الرضا لدى المرضى، وزيادة أرباح عيادتهم باستخدام ClinicPro.
             </p>
             <div className="flex justify-center gap-4">
-              <Link href="/ar/login" className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-4 rounded-xl shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]">
+              <Link id="btn-cta-start" href="/ar/login" className="bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-4 rounded-xl shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]">
                 ابدأ تجربتك المجانية الآن
               </Link>
             </div>
@@ -413,9 +417,9 @@ export default function LandingPage() {
           </div>
 
           <div className="flex gap-8">
-            <Link href="/ar/login" className="hover:text-teal-600 transition-colors">تسجيل الدخول</Link>
-            <a href="mailto:support@clinicpro.online" className="hover:text-teal-600 transition-colors">الدعم الفني</a>
-            <a href="/sitemap.xml" className="hover:text-teal-600 transition-colors">خريطة الموقع</a>
+            <Link id="footer-link-login" href="/ar/login" className="hover:text-teal-600 transition-colors">تسجيل الدخول</Link>
+            <a id="footer-link-support" href="mailto:support@clinicpro.online" className="hover:text-teal-600 transition-colors">الدعم الفني</a>
+            <a id="footer-link-sitemap" href="/sitemap.xml" className="hover:text-teal-600 transition-colors">خريطة الموقع</a>
           </div>
 
           <div className="text-slate-400">

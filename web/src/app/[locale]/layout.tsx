@@ -13,55 +13,78 @@ type Props = {
   params: Promise<{ locale: string }>;
 };
 
-export const metadata: Metadata = {
-  title: { default: 'ClinicPro — نظام إدارة العيادات الطبية المتكامل', template: '%s — ClinicPro' },
-  description: 'منصة ClinicPro لإدارة العيادات والمراكز الطبية: تنظيم المواعيد، السجلات الطبية الإلكترونية للرعاية الصحية، الفواتير، الصيدلية وإدارة شؤون المرضى بكل سهولة.',
-  keywords: [
-    'إدارة العيادات', 'برنامج عيادة طبية', 'سجلات طبية إلكترونية', 'حجز مواعيد أطباء', 
-    'برنامج عيادات طبية', 'EHR', 'Clinic Management System', 'ClinicPro', 'نظام عيادات متكامل'
-  ],
-  manifest: '/manifest.webmanifest',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'ClinicPro',
-  },
-  formatDetection: { telephone: false },
-  alternates: {
-    canonical: 'https://clinicpro.online',
-    languages: {
-      'ar': 'https://clinicpro.online/ar',
-      'en': 'https://clinicpro.online/en',
-    },
-  },
-  openGraph: {
-    type: 'website',
-    locale: 'ar_EG',
-    url: 'https://clinicpro.online',
-    title: 'ClinicPro — نظام إدارة العيادات الطبية المتكامل',
-    description: 'نظام إدارة العيادات والمراكز الطبية المتطور للأطباء والمرضى. إدارة السجلات الطبية والملفات الإلكترونية وحجز المواعيد.',
-    siteName: 'ClinicPro',
-    images: [
-      {
-        url: 'https://clinicpro.online/icon-512.png',
-        width: 512,
-        height: 512,
-        alt: 'ClinicPro Logo',
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'ClinicPro — نظام إدارة العيادات الطبية المتكامل',
-    description: 'إدارة متكاملة لعيادتك الطبية من أي مكان. تنظيم ملفات المرضى، المواعيد، والفواتير.',
-    images: ['https://clinicpro.online/icon-512.png'],
-  },
-  other: {
-    'msapplication-TileColor': '#0d9488',
-    'msapplication-TileImage': '/icon-144.png',
-    'msapplication-config': '/browserconfig.xml',
-  },
+type MetadataProps = {
+  params: Promise<{ locale: string }>;
 };
+
+export async function generateMetadata({ params }: MetadataProps): Promise<Metadata> {
+  const { locale } = await params;
+  const isAr = locale === 'ar';
+
+  return {
+    title: {
+      default: isAr ? 'ClinicPro — نظام إدارة العيادات الطبية المتكامل' : 'ClinicPro — Complete Clinic Management System',
+      template: '%s — ClinicPro'
+    },
+    description: isAr
+      ? 'منصة ClinicPro لإدارة العيادات والمراكز الطبية: تنظيم المواعيد، السجلات الطبية الإلكترونية للرعاية الصحية، الفواتير، الصيدلية وإدارة شؤون المرضى بكل سهولة.'
+      : 'ClinicPro platform for medical clinics & centers management: organize appointments, electronic health records (EHR/EMR), medical billing, pharmacy, and patient portal with ease.',
+    keywords: isAr
+      ? [
+          'إدارة العيادات', 'برنامج عيادة طبية', 'سجلات طبية إلكترونية', 'حجز مواعيد أطباء', 
+          'برنامج عيادات طبية', 'EHR', 'Clinic Management System', 'ClinicPro', 'نظام عيادات متكامل'
+        ]
+      : [
+          'clinic management', 'clinic software', 'electronic health records', 'ehr software',
+          'doctor appointment scheduling', 'emr system', 'integrated medical software', 'clinicpro'
+        ],
+    manifest: '/manifest.webmanifest',
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'default',
+      title: 'ClinicPro',
+    },
+    formatDetection: { telephone: false },
+    alternates: {
+      canonical: 'https://clinicpro.online',
+      languages: {
+        'ar': 'https://clinicpro.online/ar',
+        'en': 'https://clinicpro.online/en',
+      },
+    },
+    openGraph: {
+      type: 'website',
+      locale: isAr ? 'ar_EG' : 'en_US',
+      url: 'https://clinicpro.online',
+      title: isAr ? 'ClinicPro — نظام إدارة العيادات الطبية المتكامل' : 'ClinicPro — Complete Clinic Management System',
+      description: isAr
+        ? 'نظام إدارة العيادات والمراكز الطبية المتطور للأطباء والمرضى. إدارة السجلات الطبية والملفات الإلكترونية وحجز المواعيد.'
+        : 'Advanced medical clinic and center management system for doctors and patients. Manage medical records, EMR, and appointments.',
+      siteName: 'ClinicPro',
+      images: [
+        {
+          url: 'https://clinicpro.online/icon-512.png',
+          width: 512,
+          height: 512,
+          alt: 'ClinicPro Logo',
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: isAr ? 'ClinicPro — نظام إدارة العيادات الطبية المتكامل' : 'ClinicPro — Complete Clinic Management System',
+      description: isAr
+        ? 'إدارة متكاملة لعيادتك الطبية من أي مكان. تنظيم ملفات المرضى، المواعيد، والفواتير.'
+        : 'Complete management of your medical clinic from anywhere. Organize patient files, appointments, and billing.',
+      images: ['https://clinicpro.online/icon-512.png'],
+    },
+    other: {
+      'msapplication-TileColor': '#0d9488',
+      'msapplication-TileImage': '/icon-144.png',
+      'msapplication-config': '/browserconfig.xml',
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: [
