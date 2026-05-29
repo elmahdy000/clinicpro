@@ -15,7 +15,9 @@ export class InventoryService {
   ) {}
 
   async findAll(query: PaginationDto & { medicationId?: string; lowStock?: string }): Promise<PaginatedResult<any>> {
-    const { page = 1, limit = 20, search, medicationId, lowStock } = query;
+    const page = query.page ? parseInt(query.page as any, 10) : 1;
+    const limit = query.limit ? parseInt(query.limit as any, 10) : 20;
+    const { search, medicationId, lowStock } = query;
     const store = tenantStorage.getStore();
     const where: any = { clinicId: store?.clinicId ?? 0 };
     if (medicationId) where.medicationId = parseInt(medicationId, 10);

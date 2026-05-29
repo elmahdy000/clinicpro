@@ -11,6 +11,7 @@ import { CreateStockDto } from './dto/create-stock.dto';
 import { AddStockDto } from './dto/add-stock.dto';
 import { RemoveStockDto } from './dto/remove-stock.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
+import { GetInventoryQueryDto } from './dto/get-inventory-query.dto';
 
 @Controller('inventory')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -19,7 +20,7 @@ export class InventoryController {
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get()
-  findAll(@Query() query: PaginationDto & { medicationId?: string; lowStock?: string }) {
+  findAll(@Query() query: GetInventoryQueryDto) {
     return this.inventoryService.findAll(query);
   }
 
