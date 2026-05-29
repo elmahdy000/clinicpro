@@ -117,7 +117,10 @@ export default function ClinicDashboard() {
 
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
-    setIsMounted(true);
+    const timer = setTimeout(() => {
+      setIsMounted(true);
+    }, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   const { data: stats, isLoading } = useQuery<ClinicDashboardStats>({

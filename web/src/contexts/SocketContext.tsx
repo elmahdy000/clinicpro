@@ -47,8 +47,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     }
 
     const socketInstance = io(socketUrl, {
-      transports: ['polling', 'websocket'], // Robust fallback for proxy/load balancer limits
-      upgrade: true,
+      transports: ['websocket'], // Force websocket only to prevent PM2 cluster 400 Bad Request session mismatches
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 10,
