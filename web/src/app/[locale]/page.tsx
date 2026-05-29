@@ -68,13 +68,13 @@ export default function LandingPage() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto mb-12">
-                <Link href="/ar/login" className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-4 rounded-xl shadow-lg shadow-teal-600/10 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                <Link href="/ar/login" className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold px-8 py-4 rounded-xl shadow-lg shadow-teal-600/10 hover:scale-[1.02] active:scale-[0.98] transition-all text-center">
                   جرب النظام مجاناً الآن
                   <svg fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="h-5 w-5 transform rotate-180">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
                   </svg>
                 </Link>
-                <a href="#demo" className="flex items-center justify-center gap-2 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold px-8 py-4 rounded-xl shadow-sm transition-all">
+                <a href="#demo" className="flex items-center justify-center gap-2 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold px-8 py-4 rounded-xl shadow-sm transition-all text-center">
                   شاهد لوحة التحكم
                 </a>
               </div>
@@ -96,95 +96,36 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Hero Right: Live Interactive Mockup */}
+            {/* Hero Right: High-Quality Doctor Image */}
             <div className="lg:col-span-6 w-full relative">
-              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-tr from-teal-500 to-emerald-500 opacity-5 blur-3xl pointer-events-none" />
+              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-tr from-teal-500 to-emerald-500 opacity-10 blur-3xl pointer-events-none" />
               
-              {/* Device Frame */}
-              <div className="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-xl overflow-hidden">
-                {/* Browser bar Mock */}
-                <div className="flex gap-1.5 mb-4 items-center">
-                  <span className="w-3 h-3 rounded-full bg-red-400" />
-                  <span className="w-3 h-3 rounded-full bg-amber-400" />
-                  <span className="w-3 h-3 rounded-full bg-green-400" />
-                  <span className="text-xs text-slate-400 mr-3 font-medium select-none">clinicpro.online/dashboard</span>
+              {/* Image Frame */}
+              <div className="relative rounded-2xl border border-slate-200/80 bg-white p-2.5 shadow-xl overflow-hidden">
+                <img 
+                  src="/images/hero_doctor_clinic.png" 
+                  alt="Professional Doctor using Tablet in modern clinic setting" 
+                  className="w-full h-auto rounded-xl object-cover min-h-[380px] select-none"
+                />
+
+                {/* Patient Visit card floating overlay */}
+                <div className="absolute bottom-6 right-6 bg-white/95 backdrop-blur-md border border-slate-100 p-4 rounded-xl shadow-lg flex items-center gap-3.5 max-w-xs animate-float">
+                  <div className="h-10 w-10 rounded-full bg-teal-500 flex items-center justify-center text-white text-xs font-bold shadow-md shadow-teal-500/20">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-5 w-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400 font-medium">المريض النشط حالياً</div>
+                    <div className="text-sm font-bold text-slate-800 mt-0.5">أحمد محمد عبد الرحمن</div>
+                    <div className="text-[10px] text-teal-600 font-semibold bg-teal-50 px-2 py-0.5 rounded-full mt-1.5 inline-block">تم تسجيل الدخول بالعيادة</div>
+                  </div>
                 </div>
 
-                {/* Dashboard Inner App Mockup */}
-                <div className="bg-slate-50 rounded-lg border border-slate-100 overflow-hidden min-h-[360px] text-xs text-slate-600">
-                  <div className="flex h-full min-h-[360px]">
-                    {/* App Sidebar */}
-                    <div className="w-36 border-l border-slate-100 bg-white p-2.5 flex flex-col gap-1.5">
-                      <div className="h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center gap-2 px-2.5 font-bold mb-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-teal-500" />
-                        لوحة التحكم
-                      </div>
-                      <div className="h-7 rounded-lg text-slate-400 hover:bg-slate-50 flex items-center gap-2 px-2.5">📅 الحجوزات</div>
-                      <div className="h-7 rounded-lg text-slate-400 hover:bg-slate-50 flex items-center gap-2 px-2.5">👤 المرضى</div>
-                      <div className="h-7 rounded-lg text-slate-400 hover:bg-slate-50 flex items-center gap-2 px-2.5">💊 الروشتات</div>
-                      <div className="h-7 rounded-lg text-slate-400 hover:bg-slate-50 flex items-center gap-2 px-2.5">💳 الفواتير</div>
-                    </div>
-
-                    {/* App Main Area */}
-                    <div className="flex-1 p-4 flex flex-col gap-4">
-                      {/* Grid Stats */}
-                      <div className="grid grid-cols-3 gap-2.5">
-                        <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                          <div className="text-slate-400 font-medium">حجوزات اليوم</div>
-                          <div className="text-base font-bold text-slate-900 mt-0.5">18 حالة</div>
-                        </div>
-                        <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                          <div className="text-slate-400 font-medium">الإيرادات</div>
-                          <div className="text-base font-bold text-teal-600 mt-0.5">4,850 ج.م</div>
-                        </div>
-                        <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                          <div className="text-slate-400 font-medium">الانتظار</div>
-                          <div className="text-base font-bold text-amber-600 mt-0.5">3 مرضى</div>
-                        </div>
-                      </div>
-
-                      {/* Main Interactive Tab Preview */}
-                      <div className="bg-white rounded-xl border border-slate-100 p-4 flex-1 flex flex-col justify-between shadow-sm">
-                        <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-2">
-                          <span className="font-bold text-slate-800 text-xs">حالة الكشف الحالية</span>
-                          <span className="text-[10px] text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full font-bold">نشط الآن</span>
-                        </div>
-
-                        {/* Interactive Queue Item */}
-                        <div className="flex items-center justify-between p-2.5 rounded-lg bg-teal-50/40 border border-teal-100">
-                          <div className="flex items-center gap-2.5">
-                            <span className="h-7.5 w-7.5 rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 flex items-center justify-center font-bold text-white text-[10px]">أم</span>
-                            <div>
-                              <div className="font-bold text-slate-800">أحمد محمد علي</div>
-                              <div className="text-[10px] text-slate-400">زيارة كشف • كود: P-1254</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] text-teal-600 font-bold bg-teal-50 border border-teal-200/50 px-2.5 py-0.5 rounded">بالداخل</span>
-                        </div>
-
-                        <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100 opacity-60">
-                          <div className="flex items-center gap-2.5">
-                            <span className="h-7.5 w-7.5 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-500 text-[10px]">سح</span>
-                            <div>
-                              <div className="font-bold text-slate-600">سارة حسن عبد الله</div>
-                              <div className="text-[10px] text-slate-400">زيارة استشارة • كود: P-1255</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] text-amber-600 font-bold bg-amber-50 border border-amber-200/50 px-2.5 py-0.5 rounded">انتظار</span>
-                        </div>
-
-                        {/* App Quick Action */}
-                        <div className="mt-3 flex gap-2">
-                          <button type="button" className="flex-1 bg-teal-600 text-white font-bold py-2 rounded-lg text-center hover:bg-teal-700 transition-colors shadow-sm">
-                            إضافة روشتة
-                          </button>
-                          <button type="button" className="px-3.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg border border-slate-200/60 transition-colors">
-                            إنهاء
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                {/* Left floating badge */}
+                <div className="absolute top-6 left-6 bg-white/95 backdrop-blur-md border border-slate-100 py-2.5 px-4 rounded-xl shadow-lg flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+                  <span className="text-xs font-bold text-slate-800">حجوزات اليوم منتظمة</span>
                 </div>
               </div>
             </div>
@@ -376,13 +317,12 @@ export default function LandingPage() {
                     <span className="text-sm font-bold text-slate-900">تحليل أداء الأسبوع</span>
                     <span className="text-xs text-teal-600 bg-teal-50 px-2 py-1 rounded font-bold">معدل الإيراد اليومي</span>
                   </div>
-                  <div className="h-40 flex items-end justify-between gap-3 px-4 pt-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                    {[60, 45, 90, 75, 120, 80, 110].map((val, i) => (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                        <div className="w-full bg-gradient-to-t from-teal-500 to-emerald-600 rounded-t" style={{ height: `${val}px` }} />
-                        <span className="text-[9px] text-slate-400">يوم {i+1}</span>
-                      </div>
-                    ))}
+                  <div className="relative rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                    <img 
+                      src="/images/clinic_dashboard_preview.png" 
+                      alt="Clinic Dashboard Analytics preview" 
+                      className="w-full h-auto max-h-[180px] object-cover"
+                    />
                   </div>
                 </div>
               )}
@@ -407,22 +347,38 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="text-center p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
-              <div className="mx-auto h-12 w-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center mb-4 text-xl">🔒</div>
+              <div className="mx-auto h-12 w-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center mb-4 text-xl">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                </svg>
+              </div>
               <h4 className="text-base font-bold text-slate-900 mb-2">أمان كامل للبيانات</h4>
               <p className="text-sm text-slate-500 leading-relaxed">تشفير كامل وحفظ بيانات المرضى في خوادم سحابية آمنة ومحمية بالكامل.</p>
             </div>
             <div className="text-center p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
-              <div className="mx-auto h-12 w-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center mb-4 text-xl">💬</div>
+              <div className="mx-auto h-12 w-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center mb-4 text-xl">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 9.75a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375m-13.5 3.01c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.184-4.183a1.14 1.14 0 0 1 .778-.332 48.294 48.294 0 0 0 5.83-.498c1.585-.233 2.708-1.626 2.708-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
+                </svg>
+              </div>
               <h4 className="text-base font-bold text-slate-900 mb-2">دعم فني وتدريب مجاني</h4>
               <p className="text-sm text-slate-500 leading-relaxed">فريقنا متواجد لمساعدتك في أي وقت لحل المشاكل وتدريب فريق عمل عيادتك.</p>
             </div>
             <div className="text-center p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
-              <div className="mx-auto h-12 w-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center mb-4 text-xl">🇪🇬</div>
+              <div className="mx-auto h-12 w-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center mb-4 text-xl">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 0 0 8.716-6.747M12 21a9.004 9.004 0 0 1-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 0 1 7.843 4.582M12 3a8.997 8.997 0 0 0-7.843 4.582m15.686 0A11.953 11.953 0 0 1 12 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0 1 21 12c0 .778-.099 1.533-.284 2.253m0 0A17.909 17.909 0 0 1 12 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 0 1 3 12c0-.778.099-1.533.284-2.253" />
+                </svg>
+              </div>
               <h4 className="text-base font-bold text-slate-900 mb-2">مناسب للعيادات والمراكز</h4>
               <p className="text-sm text-slate-500 leading-relaxed">يدعم الجداول، الأقسام المتعددة، وتخصيص التقارير بما يناسب نظام عملك.</p>
             </div>
             <div className="text-center p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
-              <div className="mx-auto h-12 w-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center mb-4 text-xl">⚡</div>
+              <div className="mx-auto h-12 w-12 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center mb-4 text-xl">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                </svg>
+              </div>
               <h4 className="text-base font-bold text-slate-900 mb-2">سهل وبدون تنصيب</h4>
               <p className="text-sm text-slate-500 leading-relaxed">يعمل بالكامل من المتصفح وعلى أي جهاز (موبايل، تابلت، كمبيوتر) وبسرعة فائقة.</p>
             </div>
