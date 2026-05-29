@@ -30,7 +30,6 @@ export default function LandingPage() {
             <a href="#features" className="hover:text-teal-600 transition-colors">المميزات</a>
             <a href="#demo" className="hover:text-teal-600 transition-colors">كيف يعمل</a>
             <a href="#why-us" className="hover:text-teal-600 transition-colors">لماذا نحن</a>
-            <a href="#pricing" className="hover:text-teal-600 transition-colors">الأسعار</a>
           </nav>
 
           <div className="flex items-center gap-4">
