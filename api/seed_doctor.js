@@ -1,8 +1,20 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function main() {
-  // 1. Create a default clinic
+  const email = 'doctor@clinic.com';
+
+  // 1. Clean up existing records to allow clean re-runs
+  await prisma.user.deleteMany({
+    where: { email }
+  });
+  
+  await prisma.clinic.deleteMany({
+    where: { name: 'ClinicPro Premium Clinic' }
+  });
+
+  // 2. Create a default clinic
   const clinic = await prisma.clinic.create({
     data: {
       name: 'ClinicPro Premium Clinic',
@@ -12,11 +24,13 @@ async function main() {
   });
   console.log('Created clinic:', clinic.name, 'with ID:', clinic.id);
 
-  // 2. Create the User (DOCTOR role) linked to the clinic
+  const hashedPassword = await bcrypt.hash('password123', 10);
+
+  // 3. Create the User (DOCTOR role) linked to the clinic
   const u = await prisma.user.create({
     data: {
-      email: 'doctor@clinic.com',
-      password: 'password123',
+      email,
+      password: hashedPassword,
       name: 'Dr. John Doe',
       role: 'DOCTOR',
       clinicId: clinic.id,
@@ -30,7 +44,7 @@ async function main() {
       },
     },
   });
-  console.log('Created doctor credentials:', u.email);
+  console.log('Created doctor credentials with Bcrypt Hash:', u.email);
 }
 
 main()
