@@ -38,6 +38,11 @@ export default function PharmaInsightsPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // State Management
   const [anonymizedMode, setAnonymizedMode] = useState(true);
   const [selectedGovernorate, setSelectedGovernorate] = useState(searchParams.get('governorateId') || '');
@@ -1017,16 +1022,18 @@ export default function PharmaInsightsPage() {
           </CardHeader>
           <CardContent className="pt-4">
             <div className="h-[260px] print:hidden">
-              <ResponsiveContainer minWidth={0} width="100%" height="100%">
-                <LineChart data={monthlyTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="prescriptions" stroke="#0d9488" strokeWidth={3} activeDot={{ r: 8 }} name={isRtl ? 'الروشتات الإجمالية' : 'Total Prescriptions'} />
-                  <Line type="monotone" dataKey="genericShare" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" name={isRtl ? 'حصة البدائل (Generics)' : 'Generics Share'} />
-                </LineChart>
-              </ResponsiveContainer>
+              {isMounted && (
+                <ResponsiveContainer minWidth={0} width="100%" height="100%">
+                  <LineChart data={monthlyTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="prescriptions" stroke="#0d9488" strokeWidth={3} activeDot={{ r: 8 }} name={isRtl ? 'الروشتات الإجمالية' : 'Total Prescriptions'} />
+                    <Line type="monotone" dataKey="genericShare" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="5 5" name={isRtl ? 'حصة البدائل (Generics)' : 'Generics Share'} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
             {/* Tabular data for printing */}
             <table className="w-full text-right text-xs mt-2 hidden print:table">
@@ -1064,24 +1071,26 @@ export default function PharmaInsightsPage() {
             ) : (
               <>
                 <div className="h-[180px] w-full print:hidden">
-                  <ResponsiveContainer minWidth={0} width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={competitorShareData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
-                        paddingAngle={3}
-                        dataKey="value"
-                      >
-                        {competitorShareData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  {isMounted && (
+                    <ResponsiveContainer minWidth={0} width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={competitorShareData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={80}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {competitorShareData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
                 <div className="w-full space-y-2 mt-4 text-xs font-semibold">
                   {competitorShareData.map((item, idx) => (
@@ -1222,13 +1231,15 @@ export default function PharmaInsightsPage() {
               </div>
             ) : (
               <div className="h-[180px] print:hidden">
-                <ResponsiveContainer minWidth={0} width="100%" height="100%">
-                  <BarChart data={campaignImpactData}>
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                    <YAxis hide />
-                    <Bar dataKey="prescriptions" fill="#0d9488" radius={[4, 4, 0, 0]} label={{ position: 'top', fill: '#0d9488', fontSize: 11 }} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {isMounted && (
+                  <ResponsiveContainer minWidth={0} width="100%" height="100%">
+                    <BarChart data={campaignImpactData}>
+                      <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                      <YAxis hide />
+                      <Bar dataKey="prescriptions" fill="#0d9488" radius={[4, 4, 0, 0]} label={{ position: 'top', fill: '#0d9488', fontSize: 11 }} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             )}
             {/* Description */}

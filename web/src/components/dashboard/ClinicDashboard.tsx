@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useAuth } from '@/stores/auth';
 import { useQuery } from '@tanstack/react-query';
@@ -113,6 +114,11 @@ export default function ClinicDashboard() {
   const locale = useLocale();
   const isRtl = locale === 'ar';
   const { user } = useAuth();
+
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const { data: stats, isLoading } = useQuery<ClinicDashboardStats>({
     queryKey: ['clinic-dash-stats'],
@@ -265,26 +271,28 @@ export default function ClinicDashboard() {
           </CardHeader>
           <CardContent className="pt-2">
             <div className="h-[220px] w-full">
-              <ResponsiveContainer minWidth={0} width="100%" height="100%">
-                <AreaChart data={weeklyTrendData} margin={{ top: 10, right: 15, left: 10, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorVisits" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0d9488" stopOpacity={0.25}/>
-                      <stop offset="95%" stopColor="#0d9488" stopOpacity={0.01}/>
-                    </linearGradient>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#16a34a" stopOpacity={0.25}/>
-                      <stop offset="95%" stopColor="#16a34a" stopOpacity={0.01}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
-                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={30} />
-                  <Tooltip content={<CustomTooltip isRtl={isRtl} />} />
-                  <Area type="monotone" dataKey="appointments" name={isRtl ? 'عدد الحالات' : 'Total Cases'} stroke="#0d9488" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVisits)" />
-                  <Area type="monotone" dataKey="revenue" name={isRtl ? 'النشاط التقديري (ج.م)' : 'Activity (EGP)'} stroke="#16a34a" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
-                </AreaChart>
-              </ResponsiveContainer>
+              {isMounted && (
+                <ResponsiveContainer minWidth={0} width="100%" height="100%">
+                  <AreaChart data={weeklyTrendData} margin={{ top: 10, right: 15, left: 10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorVisits" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0d9488" stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor="#0d9488" stopOpacity={0.01}/>
+                      </linearGradient>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#16a34a" stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor="#16a34a" stopOpacity={0.01}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
+                    <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={30} />
+                    <Tooltip content={<CustomTooltip isRtl={isRtl} />} />
+                    <Area type="monotone" dataKey="appointments" name={isRtl ? 'عدد الحالات' : 'Total Cases'} stroke="#0d9488" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVisits)" />
+                    <Area type="monotone" dataKey="revenue" name={isRtl ? 'النشاط التقديري (ج.م)' : 'Activity (EGP)'} stroke="#16a34a" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -353,7 +361,7 @@ export default function ClinicDashboard() {
                 { label: t('addPatient'), icon: UserPlus, color: 'text-teal-600', bg: 'bg-teal-50 dark:bg-teal-950/30', href: `/${locale}/patients/new` },
                 { label: t('bookAppointment'), icon: CalendarDays, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30', href: `/${locale}/appointments/new` },
                 { label: t('startVisit'), icon: Stethoscope, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30', href: `/${locale}/visits/new` },
-                { label: t('createPrescription'), icon: Pill, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/30', href: `/${locale}/prescriptions/new` },
+                { label: t('createPrescription'), icon: Pill, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/30', href: `/${locale}/visits/new` },
               ].map((action) => {
                 const Icon = action.icon;
                 return (

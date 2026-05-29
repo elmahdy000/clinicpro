@@ -16,7 +16,7 @@ import {
   FileText, Shield, Award, Landmark, Stethoscope, CheckCircle2
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/stores/auth';
 import { formatDate } from '@/lib/utils';
 import { usePrint } from '@/hooks/usePrint';
@@ -35,6 +35,11 @@ export default function ReportsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'PLATFORM_OWNER';
   const { printElement } = usePrint();
+
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Filters State
   const [dateRange, setDateRange] = useState('all'); // today, yesterday, 7days, 30days, thismonth, custom
@@ -610,15 +615,19 @@ export default function ReportsPage() {
             <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
               <CardHeader><CardTitle className="text-base">{t('patientGrowth')}</CardTitle></CardHeader>
               <CardContent className="print:hidden">
-                <ResponsiveContainer minWidth={0} width="100%" height={300}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
-                    <Bar dataKey="visits" fill="#0d9488" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div className="h-[300px] w-full">
+                  {isMounted && (
+                    <ResponsiveContainer minWidth={0} width="100%" height="100%">
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
+                        <Bar dataKey="visits" fill="#0d9488" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
               </CardContent>
               {/* Printable tabular representation of charts */}
               <CardContent className="hidden print:block p-0">

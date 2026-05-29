@@ -31,13 +31,23 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const socketUrl = process.env.NEXT_PUBLIC_API_URL 
-      ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '/events')
-      : 'http://localhost:3000/events';
+    let socketUrl = 'http://localhost:3000/events';
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      if (process.env.NEXT_PUBLIC_API_URL.endsWith('/api')) {
+        socketUrl = process.env.NEXT_PUBLIC_API_URL.replace('/api', '/events');
+      } else {
+        const base = process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '');
+        socketUrl = `${base}/events`;
+      }
+    }
 
     const socketInstance = io(socketUrl, {
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'], // Robust fallback for proxy/load balancer limits
+      upgrade: true,
       autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
     });
 
     socketInstance.on('connect', () => {

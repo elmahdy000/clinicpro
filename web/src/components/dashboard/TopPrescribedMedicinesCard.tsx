@@ -285,7 +285,7 @@ export default function TopPrescribedMedicinesCard({ locale, isRtl }: TopPrescri
                   ? 'ستظهر هنا الأدوية الأكثر استخداماً فور كتابة أول روشتة للمرضى'
                   : 'Clinic-scoped medications will show here once you write your first prescription'}
               </p>
-              <Link href={`/${locale}/prescriptions/new`} className="mt-4">
+              <Link href={`/${locale}/visits/new`} className="mt-4">
                 <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-xs font-semibold gap-1.5 shadow-sm">
                   {isRtl ? 'كتابة روشتة جديدة' : 'Create Prescription'}
                 </Button>
