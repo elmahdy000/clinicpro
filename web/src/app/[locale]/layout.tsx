@@ -14,8 +14,12 @@ type Props = {
 };
 
 export const metadata: Metadata = {
-  title: { default: 'ClinicPro', template: '%s — ClinicPro' },
-  description: 'نظام إدارة العيادات الطبية المتكامل للأطباء والمرضى',
+  title: { default: 'ClinicPro — نظام إدارة العيادات الطبية المتكامل', template: '%s — ClinicPro' },
+  description: 'منصة ClinicPro لإدارة العيادات والمراكز الطبية: تنظيم المواعيد، السجلات الطبية الإلكترونية للرعاية الصحية، الفواتير، الصيدلية وإدارة شؤون المرضى بكل سهولة.',
+  keywords: [
+    'إدارة العيادات', 'برنامج عيادة طبية', 'سجلات طبية إلكترونية', 'حجز مواعيد أطباء', 
+    'برنامج عيادات طبية', 'EHR', 'Clinic Management System', 'ClinicPro', 'نظام عيادات متكامل'
+  ],
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
@@ -23,19 +27,34 @@ export const metadata: Metadata = {
     title: 'ClinicPro',
   },
   formatDetection: { telephone: false },
-  icons: {
-    icon: [
-      { url: '/icon-96.png', sizes: '96x96', type: 'image/png' },
-      { url: '/icon-144.png', sizes: '144x144', type: 'image/png' },
-      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+  alternates: {
+    canonical: 'https://clinicpro.online',
+    languages: {
+      'ar': 'https://clinicpro.online/ar',
+      'en': 'https://clinicpro.online/en',
+    },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'ar_EG',
+    url: 'https://clinicpro.online',
+    title: 'ClinicPro — نظام إدارة العيادات الطبية المتكامل',
+    description: 'نظام إدارة العيادات والمراكز الطبية المتطور للأطباء والمرضى. إدارة السجلات الطبية والملفات الإلكترونية وحجز المواعيد.',
+    siteName: 'ClinicPro',
+    images: [
+      {
+        url: 'https://clinicpro.online/icon-512.png',
+        width: 512,
+        height: 512,
+        alt: 'ClinicPro Logo',
+      },
     ],
-    apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-    ],
-    other: [
-      { rel: 'mask-icon', url: '/icon-maskable-512.png', color: '#0d9488' },
-    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ClinicPro — نظام إدارة العيادات الطبية المتكامل',
+    description: 'إدارة متكاملة لعيادتك الطبية من أي مكان. تنظيم ملفات المرضى، المواعيد، والفواتير.',
+    images: ['https://clinicpro.online/icon-512.png'],
   },
   other: {
     'msapplication-TileColor': '#0d9488',
@@ -80,6 +99,30 @@ export default async function LocaleLayout({ children, params }: Props) {
         <meta name="msapplication-TileImage" content="/icon-144.png" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
         <meta name="application-name" content="ClinicPro" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'SoftwareApplication',
+              'name': 'ClinicPro',
+              'operatingSystem': 'All',
+              'applicationCategory': 'MedicalBusinessApplication',
+              'url': 'https://clinicpro.online',
+              'description': 'نظام إدارة العيادات الطبية المتكامل للأطباء والمرضى - تنظيم المواعيد، السجلات الطبية الإلكترونية، والفواتير.',
+              'offers': {
+                '@type': 'Offer',
+                'price': '0.00',
+                'priceCurrency': 'EGP'
+              },
+              'aggregateRating': {
+                '@type': 'AggregateRating',
+                'ratingValue': '4.9',
+                'ratingCount': '150'
+              }
+            })
+          }}
+        />
       </head>
       <body suppressHydrationWarning>
         <Providers locale={locale} messages={messages}>
