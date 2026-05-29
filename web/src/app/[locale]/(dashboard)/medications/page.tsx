@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MedicationModal } from '@/components/medications/MedicationModal';
 import { PharmaInsights } from '@/components/medications/PharmaInsights';
+import { toast } from 'sonner';
 import {
   Pill, Plus, Search, Globe, Building2, Pencil, Trash2,
   ChevronRight, ChevronLeft, X, SlidersHorizontal, FlaskConical, BarChart3
@@ -50,6 +51,7 @@ export default function MedicationsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [importing, setImporting] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery<any>({
     queryKey: ['medications', search, page, catFilter, formFilter, sourceFilter],
@@ -69,10 +71,24 @@ export default function MedicationsPage() {
   }, [qc]);
 
   const handleDelete = async (id: number) => {
-    if (!confirm(isRtl ? 'هل تريد حذف هذا الدواء من القاموس؟' : 'Delete this medicine?')) return;
+    if (!confirm(isRtl ? 'هل تريد حذف هذا الدواء من سجل الأدوية؟' : 'Delete this medicine?')) return;
     setDeleting(id);
     try { await api.delete(`/medications/${id}`); refetch(); }
     finally { setDeleting(null); }
+  };
+
+  const handleImportToPrivate = async (medicineId: number) => {
+    setImporting(medicineId);
+    try {
+      await api.post('/my-medicines/import', { medicineId });
+      toast.success(isRtl ? 'تمت إضافة الدواء إلى أدويتك الخاصة' : 'Medicine added to your private list');
+    } catch (err: any) {
+      if (err?.response?.status !== 409) {
+        toast.error(err?.response?.data?.message || (isRtl ? 'فشلت الإضافة' : 'Failed to add'));
+      }
+    } finally {
+      setImporting(null);
+    }
   };
 
   const openAdd = () => { setEditing(null); setModalOpen(true); };
@@ -95,11 +111,11 @@ export default function MedicationsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Pill className="w-6 h-6 text-teal-600" />
-            {isRtl ? 'قاموس الأدوية' : 'Medicine Dictionary'}
+            {isRtl ? 'سجل الأدوية العام' : 'Drug Registry'}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             {isRtl
-              ? 'أدوية الروشتات — قاموس مشترك بين كل عيادات المنصة'
+              ? 'أدوية الروشتات — سجل مشترك بين كل عيادات المنصة'
               : 'Medicines used in prescriptions — shared across all clinics'}
           </p>
         </div>
@@ -120,7 +136,7 @@ export default function MedicationsPage() {
           }`}
         >
           <Pill className="w-4 h-4" />
-          {isRtl ? 'قاموس الأدوية' : 'Medication Dictionary'}
+          {isRtl ? 'سجل الأدوية' : 'Drug Registry'}
         </button>
         <button
           onClick={() => setActiveTab('insights')}
@@ -278,7 +294,7 @@ export default function MedicationsPage() {
                   <p className="text-sm mt-1">
                     {search || hasActiveFilter
                       ? (isRtl ? 'جرّب تغيير الفلتر أو البحث' : 'Try changing filters or search')
-                      : (isRtl ? 'ابدأ بإضافة أول دواء في القاموس' : 'Start by adding the first medicine')}
+                      : (isRtl ? 'ابدأ بإضافة أول دواء في سجل الأدوية' : 'Start by adding the first medicine')}
                   </p>
                   {!search && !hasActiveFilter && (
                     <Button onClick={openAdd} className="mt-4 bg-teal-600 hover:bg-teal-700 gap-1.5">
@@ -362,6 +378,17 @@ export default function MedicationsPage() {
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                               </Button>
+                              {!isAdmin && (
+                                <Button
+                                  variant="ghost" size="sm"
+                                  onClick={() => handleImportToPrivate(m.id)}
+                                  disabled={importing === m.id}
+                                  className="h-7 w-7 p-0 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                                  title={isRtl ? 'إضافة إلى أدويتي الخاصة' : 'Add to my medicines'}
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
                               {isAdmin && (
                                 <Button
                                   variant="ghost" size="sm"

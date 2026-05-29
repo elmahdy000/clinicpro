@@ -13,43 +13,52 @@ datasource db {
 }
 
 model Clinic {
-  id                 Int      @id @default(autoincrement())
+  id                 Int          @id @default(autoincrement())
   name               String
   address            String?
   phone              String?
   logoUrl            String?
-  subscriptionPlan   String   @default("FREE")
-  subscriptionStatus String   @default("ACTIVE")
+  subscriptionPlan   String       @default("FREE")
+  subscriptionStatus String       @default("ACTIVE")
   governorateId      String?
   cityId             String?
   governorate        Governorate? @relation(fields: [governorateId], references: [id])
   city               City?        @relation(fields: [cityId], references: [id])
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
-  users          User[]
-  doctors        Doctor[]
-  clinicPatients ClinicPatient[]
-  appointments   Appointment[]
-  medicalRecords MedicalRecord[]
-  prescriptions  Prescription[]
-  invoices       Invoice[]
-  fileUploads    FileUpload[]
-  auditLogs      AuditLog[]
-  settings       ClinicSettings?
-  medicationStocks MedicationStock[]
+  users                       User[]
+  doctors                     Doctor[]
+  clinicPatients              ClinicPatient[]
+  appointments                Appointment[]
+  medicalRecords              MedicalRecord[]
+  prescriptions               Prescription[]
+  invoices                    Invoice[]
+  fileUploads                 FileUpload[]
+  auditLogs                   AuditLog[]
+  settings                    ClinicSettings?
+  medicationStocks            MedicationStock[]
+  PatientMedicalFile          PatientMedicalFile[]
+  PatientMedicalTimelineEvent PatientMedicalTimelineEvent[]
+  subscriptionInvoices        SubscriptionInvoice[]
+  customMedications           Medication[]
+  doctorMedicines             DoctorMedicine[]
 
   @@index([governorateId])
   @@index([cityId])
 }
 
 model ClinicSettings {
-  id        Int      @id @default(autoincrement())
-  clinicId  Int      @unique
-  clinic    Clinic   @relation(fields: [clinicId], references: [id])
-  currency  String   @default("EGP")
-  timezone  String   @default("Africa/Cairo")
-  updatedAt DateTime @updatedAt
+  id               Int      @id @default(autoincrement())
+  clinicId         Int      @unique
+  clinic           Clinic   @relation(fields: [clinicId], references: [id])
+  currency         String   @default("EGP")
+  timezone         String   @default("Africa/Cairo")
+  workingHoursFrom String?  @default("09:00 AM")
+  workingHoursTo   String?  @default("05:00 PM")
+  workingDays      String?  @default("[\"Sat\",\"Sun\",\"Mon\",\"Tue\",\"Wed\",\"Thu\"]")
+  branches         String?
+  updatedAt        DateTime @updatedAt
 }
 
 model User {
@@ -63,8 +72,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  doctorProfile            Doctor?                    @relation("DoctorProfile")
-  patientProfile           Patient?                   @relation("PatientProfile")
+  doctorProfile            Doctor?                   @relation("DoctorProfile")
+  patientProfile           Patient?                  @relation("PatientProfile")
   auditLogs                AuditLog[]
   appointmentStatusChanges AppointmentStatusChange[]
   uploadedFiles            FileUpload[]
@@ -87,6 +96,7 @@ model Doctor {
   invoices        Invoice[]
   availability    DoctorAvailability[]
   timeOff         DoctorTimeOff[]
+  doctorMedicines DoctorMedicine[]
 }
 
 model DoctorAvailability {
@@ -113,12 +123,12 @@ model DoctorTimeOff {
 }
 
 model Patient {
-  id               Int       @id @default(autoincrement())
+  id               Int          @id @default(autoincrement())
   firstName        String
   lastName         String
-  email            String?   @unique
-  phone            String?   @unique
-  nationalId       String?   @unique
+  email            String?      @unique
+  phone            String?      @unique
+  nationalId       String?      @unique
   dateOfBirth      DateTime?
   gender           String?
   address          String?
@@ -133,8 +143,8 @@ model Patient {
   medicalHistory   String?
   emergencyContact String?
   emailVerifiedAt  DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   appointments   Appointment[]   @relation("AppointmentPatient")
   medicalRecords MedicalRecord[] @relation("MedicalRecordPatient")
@@ -143,8 +153,10 @@ model Patient {
   user           User?           @relation("PatientProfile", fields: [userId], references: [id])
   userId         Int?            @unique
 
-  clinics        ClinicPatient[]
-  fileUploads    FileUpload[]
+  clinics                     ClinicPatient[]
+  fileUploads                 FileUpload[]
+  PatientMedicalFile          PatientMedicalFile[]
+  PatientMedicalTimelineEvent PatientMedicalTimelineEvent[]
 
   @@index([governorateId])
   @@index([cityId])
@@ -162,26 +174,28 @@ model ClinicPatient {
 }
 
 model Appointment {
-  id                 Int            @id @default(autoincrement())
+  id                 Int                       @id @default(autoincrement())
   clinicId           Int
-  clinic             Clinic         @relation(fields: [clinicId], references: [id])
-  patient            Patient        @relation("AppointmentPatient", fields: [patientId], references: [id])
+  clinic             Clinic                    @relation(fields: [clinicId], references: [id])
+  patient            Patient                   @relation("AppointmentPatient", fields: [patientId], references: [id])
   patientId          Int
-  doctor             Doctor         @relation("AppointmentDoctor", fields: [doctorId], references: [id])
+  doctor             Doctor                    @relation("AppointmentDoctor", fields: [doctorId], references: [id])
   doctorId           Int
   appointmentDate    DateTime
   appointmentEndDate DateTime
   invoices           Invoice[]
-  durationMinutes    Int            @default(30)
+  durationMinutes    Int                       @default(30)
   type               String
   reason             String?
-  status             String         @default("PENDING")
+  status             String                    @default("PENDING")
   notes              String?
+  branchId           String?
+  branchName         String?
   queuePosition      Int?
   queueJoinedAt      DateTime?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  medicalRecord      MedicalRecord? @relation("AppointmentMedicalRecord")
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  medicalRecord      MedicalRecord?            @relation("AppointmentMedicalRecord")
   statusChanges      AppointmentStatusChange[]
 }
 
@@ -200,6 +214,8 @@ model MedicalRecord {
   treatmentPlan  String
   vitalSigns     String
   notes          String?
+  branchId       String?
+  branchName     String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   prescription   Prescription? @relation("PrescriptionMedicalRecord")
@@ -216,12 +232,14 @@ model Prescription {
   medicalRecord   MedicalRecord? @relation("PrescriptionMedicalRecord", fields: [medicalRecordId], references: [id])
   medicalRecordId Int?           @unique
   prescribedDate  DateTime       @default(now())
-  medications     String?        // Legacy text field, migrating to items
+  medications     String? // Legacy text field, migrating to items
   instructions    String?
+  branchId        String?
+  branchName      String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  items           PrescriptionItem[]
+  items PrescriptionItem[]
 }
 
 model Invoice {
@@ -242,6 +260,8 @@ model Invoice {
   total         Float
   status        String       @default("PENDING")
   paymentMethod String?
+  branchId      String?
+  branchName    String?
   dueDate       DateTime?
   paidAt        DateTime?
   notes         String?
@@ -251,20 +271,38 @@ model Invoice {
   @@unique([clinicId, invoiceNumber])
 }
 
+model SubscriptionInvoice {
+  id            Int      @id @default(autoincrement())
+  clinicId      Int
+  clinic        Clinic   @relation(fields: [clinicId], references: [id])
+  invoiceNumber String   @unique
+  plan          String
+  amount        Float
+  status        String   @default("PENDING") // PENDING, PAID, OVERDUE, CANCELLED
+  billingPeriod String   // e.g. "May 2026"
+  dueDate       DateTime
+  paymentDate   DateTime?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([clinicId])
+}
+
 model FileUpload {
-  id         Int      @id @default(autoincrement())
-  clinicId   Int
-  clinic     Clinic   @relation(fields: [clinicId], references: [id])
-  fileName   String
-  fileType   String
-  url        String
-  uploadedBy  Int
-  uploadedByUser User   @relation(fields: [uploadedBy], references: [id])
-  uploadedAt DateTime @default(now())
-  patientId  Int?
-  patient    Patient? @relation(fields: [patientId], references: [id])
-  notes      String?
-  category   String?
+  id             Int      @id @default(autoincrement())
+  clinicId       Int
+  clinic         Clinic   @relation(fields: [clinicId], references: [id])
+  fileName       String
+  fileType       String
+  url            String
+  uploadedBy     Int
+  uploadedByUser User     @relation(fields: [uploadedBy], references: [id])
+  uploadedAt     DateTime @default(now())
+  patientId      Int?
+  patient        Patient? @relation(fields: [patientId], references: [id])
+  notes          String?
+  category       String?
 }
 
 model AuditLog {
@@ -301,19 +339,69 @@ model OtpVerification {
 }
 
 model Medication {
-  id               Int      @id @default(autoincrement())
-  name             String   @unique
-  activeIngredient String?
-  manufacturer     String?
-  category         String?
-  strength         String?  // e.g. "500mg", "10mg/5ml"
-  form             String?  // e.g. "أقراص", "شراب", "حقن"
-  isGlobal         Boolean  @default(true)  // true = platform medicine, false = clinic custom
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                 Int      @id @default(autoincrement())
+  name               String   @unique
+  activeIngredient   String?
+  manufacturer       String?
+  category           String?
+  strength           String? // e.g. "500mg", "10mg/5ml"
+  form               String? // e.g. "أقراص", "شراب", "حقن"
+  therapeuticClass   String?
+  route              String?
+  price              Float?
+  warnings           String? // JSON string or comma separated
+  contraindications  String? // JSON string
+  ageRestrictions    String?
+  pregnancyWarning   String?
+  lactationWarning   String?
+  isMarketShortage   Boolean  @default(false) // true = drug is currently scarce in market
+  shortageNote       String?  // optional message: when to expect return, alternative suggestion
+  isGlobal           Boolean  @default(true) // true = platform medicine, false = clinic custom
+  clinicId           Int?     // non-null if isGlobal=false (scoped to this clinic)
+  clinic             Clinic?  @relation(fields: [clinicId], references: [id])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
-  prescriptionItems PrescriptionItem[]
-  stock             MedicationStock[]
+  prescriptionItems  PrescriptionItem[]
+  stock              MedicationStock[]
+  doctorMedicines    DoctorMedicine[]
+
+  @@index([clinicId])
+}
+
+model DoctorMedicine {
+  id              Int        @id @default(autoincrement())
+  clinicId        Int
+  clinic          Clinic     @relation(fields: [clinicId], references: [id])
+  doctorId        Int
+  doctor          Doctor     @relation(fields: [doctorId], references: [id])
+  medicineId      Int?
+  medicine        Medication? @relation(fields: [medicineId], references: [id])
+
+  tradeName        String
+  activeIngredient String?
+  strength         String?
+  dosageForm       String?
+  route            String?
+  therapeuticClass String?
+  manufacturer     String?
+
+  defaultDose          String?
+  defaultFrequency     String?
+  defaultDuration      String?
+  defaultInstructions  String?
+
+  isFavorite        Boolean  @default(false)
+  showInQuickSearch  Boolean  @default(true)
+  usageCount        Int      @default(0)
+  source            String   @default("MANUAL") // MANUAL, FROM_GLOBAL_DICTIONARY, FROM_PRESCRIPTION_USAGE
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clinicId])
+  @@index([doctorId])
+  @@index([medicineId])
 }
 
 model PrescriptionItem {
@@ -331,29 +419,29 @@ model PrescriptionItem {
 }
 
 model AppointmentStatusChange {
-  id                Int         @id @default(autoincrement())
-  appointmentId     Int
-  appointment       Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  fromStatus        String
-  toStatus          String
-  changedByUserId   Int?
-  changedByUser     User?       @relation(fields: [changedByUserId], references: [id])
-  createdAt         DateTime    @default(now())
+  id              Int         @id @default(autoincrement())
+  appointmentId   Int
+  appointment     Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  fromStatus      String
+  toStatus        String
+  changedByUserId Int?
+  changedByUser   User?       @relation(fields: [changedByUserId], references: [id])
+  createdAt       DateTime    @default(now())
 }
 
 model MedicationStock {
-  id              Int          @id @default(autoincrement())
+  id              Int        @id @default(autoincrement())
   medicationId    Int
-  medication      Medication   @relation(fields: [medicationId], references: [id])
+  medication      Medication @relation(fields: [medicationId], references: [id])
   clinicId        Int
-  clinic          Clinic       @relation(fields: [clinicId], references: [id])
-  quantityOnHand  Int          @default(0)
+  clinic          Clinic     @relation(fields: [clinicId], references: [id])
+  quantityOnHand  Int        @default(0)
   batchNumber     String?
   expiryDate      DateTime?
   location        String?
   lastRestockedAt DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   stockMovements StockMovement[]
 
@@ -361,17 +449,17 @@ model MedicationStock {
 }
 
 model StockMovement {
-  id                Int              @id @default(autoincrement())
+  id                Int             @id @default(autoincrement())
   medicationStockId Int
-  medicationStock   MedicationStock  @relation(fields: [medicationStockId], references: [id], onDelete: Cascade)
+  medicationStock   MedicationStock @relation(fields: [medicationStockId], references: [id], onDelete: Cascade)
   type              String // IN, OUT, ADJUSTMENT
   quantity          Int
   referenceType     String? // prescription, manual, adjustment
   referenceId       Int?
   notes             String?
   performedBy       Int?
-  performedByUser   User?            @relation(fields: [performedBy], references: [id])
-  createdAt         DateTime         @default(now())
+  performedByUser   User?           @relation(fields: [performedBy], references: [id])
+  createdAt         DateTime        @default(now())
 }
 
 model Plan {
@@ -389,34 +477,94 @@ model Plan {
 }
 
 model Governorate {
-  id        String   @id @default(cuid())
-  nameAr    String   @unique
-  nameEn    String?
-  code      String   @unique
-  cities    City[]
+  id     String  @id @default(cuid())
+  nameAr String  @unique
+  nameEn String?
+  code   String  @unique
+  cities City[]
 
-  clinics   Clinic[]
-  patients  Patient[] @relation("PatientGovernorate")
+  clinics  Clinic[]
+  patients Patient[] @relation("PatientGovernorate")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model City {
-  id             String      @id @default(cuid())
+  id            String      @id @default(cuid())
   governorateId String
   governorate   Governorate @relation(fields: [governorateId], references: [id], onDelete: Cascade)
 
-  nameAr        String
-  nameEn        String?
-  code          String?
+  nameAr String
+  nameEn String?
+  code   String?
 
-  clinics       Clinic[]
-  patients      Patient[] @relation("PatientCity")
+  clinics  Clinic[]
+  patients Patient[] @relation("PatientCity")
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([governorateId, nameAr])
   @@index([governorateId])
+}
+
+model PatientMedicalFile {
+  id                 Int       @id @default(autoincrement())
+  patientId          Int
+  patient            Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinicId           Int?
+  clinic             Clinic?   @relation(fields: [clinicId], references: [id])
+  uploadedByType     String    @default("PATIENT") // PATIENT, DOCTOR, STAFF
+  category           String
+  title              String
+  fileUrl            String
+  fileType           String
+  fileSize           Int?
+  reportDate         DateTime?
+  notes              String?
+  verificationStatus String    @default("PENDING_REVIEW") // PENDING_REVIEW, VERIFIED, REJECTED
+  rejectionReason    String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model PatientMedicalTimelineEvent {
+  id                 Int      @id @default(autoincrement())
+  patientId          Int
+  patient            Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinicId           Int?
+  clinic             Clinic?  @relation(fields: [clinicId], references: [id])
+  type               String // FILE_UPLOAD, VISIT, LAB, etc.
+  title              String
+  description        String?
+  source             String // PATIENT, CLINIC
+  verificationStatus String?
+  visibility         String // PATIENT_VISIBLE, INTERNAL
+  date               DateTime @default(now())
+  createdAt          DateTime @default(now())
+}
+
+model DrugSubstitutionLog {
+  id                       String   @id @default(cuid())
+  clinicId                 Int
+  patientId                Int
+  prescriptionId           Int
+  doctorId                 Int?
+
+  originalMedicineId       Int?
+  originalMedicineName     String
+
+  alternativeMedicineId    Int?
+  alternativeMedicineName  String
+
+  reason                   String
+  doctorNotes              String?
+  safetyWarningsShown      String? // JSON string
+
+  createdAt                DateTime @default(now())
+
+  @@index([clinicId])
+  @@index([patientId])
+  @@index([prescriptionId])
 }

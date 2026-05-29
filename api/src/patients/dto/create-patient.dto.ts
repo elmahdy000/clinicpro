@@ -27,7 +27,15 @@ export class CreatePatientDto {
 
   @IsOptional()
   @IsString()
+  governorateId?: string;
+
+  @IsOptional()
+  @IsString()
   city?: string;
+
+  @IsOptional()
+  @IsString()
+  cityId?: string;
 
   @IsOptional()
   dateOfBirth?: Date;

@@ -149,7 +149,7 @@ export class RemindersService {
                   <p>Thank you,<br/>ClinicPro Team</p>
                 </div>
               `;
-              await this.mailService.sendMail(rx.patient.email, 'Medication Refill Reminder', html).catch(() => {});
+              await this.mailService.sendMail(rx.patient.email, 'Medication Refill Reminder', html).catch((e) => this.logger.warn(`Refill reminder email failed: ${(e as Error).message}`));
             }
           }
         }

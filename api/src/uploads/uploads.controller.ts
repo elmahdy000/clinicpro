@@ -14,7 +14,6 @@ import {
   NotFoundException,
   MaxFileSizeValidator,
   ParseFilePipe,
-  FileTypeValidator,
   Body,
 } from '@nestjs/common';
 import * as fs from 'fs';
@@ -36,6 +35,12 @@ const ALLOWED_MIMETYPES = [
   'text/plain',
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/dicom',
+  'application/x-dicom',
+  'application/x-zip-compressed',
+  'application/zip',
+  'text/csv',
+  'application/octet-stream',
 ];
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -43,13 +48,13 @@ const ALLOWED_MIMETYPES = [
 export class UploadsController {
   constructor(private readonly uploadsService: UploadsService) {}
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER)
   @Get()
   findAll() {
     return this.uploadsService.findAll();
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER)
   @Post('medical-document')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -75,7 +80,6 @@ export class UploadsController {
       new ParseFilePipe({
         validators: [
           new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }),
-          new FileTypeValidator({ fileType: new RegExp(ALLOWED_MIMETYPES.join('|')) }),
         ],
       }),
     )
@@ -92,7 +96,7 @@ export class UploadsController {
     );
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER)
   @Get(':id/download')
   async download(@Param('id', ParseIntPipe) id: number, @Res() res: any) {
     const fileRecord = await this.uploadsService.findOne(id);
@@ -103,7 +107,7 @@ export class UploadsController {
     }
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER)
   @Delete('files/:id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.uploadsService.remove(id);

@@ -69,7 +69,7 @@ export default function NotificationsPage() {
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white leading-none">{n.title}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white leading-normal">{n.title}</p>
                       {!n.isRead && (
                         <span className="h-1.5 w-1.5 rounded-full bg-teal-500 animate-pulse" />
                       )}

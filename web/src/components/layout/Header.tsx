@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useAuth } from '@/stores/auth';
 import { useSidebar } from '@/stores/sidebar';
 import { getInitials } from '@/lib/utils';
-import { Bell, Plus, Menu } from 'lucide-react';
+import { Bell, Plus, Menu, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { SearchBox } from '@/components/common/SearchBox';
@@ -37,8 +37,19 @@ export function Header() {
   const router = useRouter();
   const t = useTranslations();
   const locale = useLocale();
-  const { user } = useAuth();
+  const { user, activeBranchId, setActiveBranchId } = useAuth();
   const { setMobileOpen } = useSidebar();
+
+  const { data: clinicSettings } = useQuery({
+    queryKey: ['clinic-settings', user?.clinicId],
+    queryFn: () => api.get(`/clinics/${user?.clinicId}/settings`).then((r) => r.data),
+    enabled: !!user?.clinicId && user?.role !== 'PLATFORM_OWNER',
+  });
+
+  const branches = clinicSettings?.branches 
+    ? (typeof clinicSettings.branches === 'string' ? JSON.parse(clinicSettings.branches) : clinicSettings.branches)
+    : [];
+  const hasMultipleBranches = branches.length > 0;
 
   const { data: notificationsData } = useQuery({
     queryKey: ['notifications'],
@@ -47,7 +58,7 @@ export function Header() {
   });
 
   const notifications = notificationsData?.data || [];
-  const unreadCount = notifications.filter((n: any) => !n.isRead).length;
+  const unreadCount = notifications.filter((n: { isRead: boolean }) => !n.isRead).length;
 
   const segments = pathname.split('/').slice(2);
   const rawBasePath = '/' + segments.join('/') || '/dashboard';
@@ -65,9 +76,13 @@ export function Header() {
     const q = searchQuery.trim();
     router.push(`/${locale}/patients${q ? `?search=${encodeURIComponent(q)}` : ''}`);
   };
+  const subscriptionStatus = clinicSettings?.subscriptionStatus;
+  const billingStatus = clinicSettings?.billingStatus;
+  const trialEndsAt = clinicSettings?.trialEndsAt;
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/90 dark:border-slate-800/90 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm">
+    <>
+      <header className="sticky top-0 z-20 border-b border-slate-200/90 dark:border-slate-800/90 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm">
       <div className="h-14 md:h-16 px-3 md:px-5 grid grid-cols-3 items-center gap-2 md:gap-4">
 
         {/* Right zone: hamburger + page title */}
@@ -79,6 +94,20 @@ export function Header() {
             <h1 className="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 truncate">
               {title}
             </h1>
+          )}
+          {user?.role !== 'PLATFORM_OWNER' && (
+            <div className="flex items-center gap-1 ms-2 px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
+              <select
+                value={activeBranchId || 'main'}
+                onChange={(e) => setActiveBranchId(e.target.value)}
+                className="bg-transparent text-xs font-medium text-slate-700 dark:text-slate-200 border-none outline-none focus:ring-0 cursor-pointer"
+              >
+                <option value="main">{locale === 'ar' ? 'الفرع الرئيسي' : 'Main Branch'}</option>
+                {branches.map((b: any) => (
+                  <option key={b.id} value={b.id}>{b.name || 'فرع إضافي'}</option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
 
@@ -140,5 +169,32 @@ export function Header() {
 
       </div>
     </header>
+    {user?.role !== 'PLATFORM_OWNER' && (
+      <div className="z-10">
+        {subscriptionStatus === 'SUSPENDED' && (
+          <div className="bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-900/50 px-4 py-2 flex flex-wrap items-center justify-center gap-1.5 text-red-700 dark:text-red-400 text-xs font-bold text-center">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{locale === 'ar' ? 'تم تعليق الاشتراك. يرجى تجديد اشتراكك للاستمرار في استخدام النظام.' : 'Subscription suspended. Please renew your subscription to continue using the system.'}</span>
+          </div>
+        )}
+        {subscriptionStatus === 'TRIAL' && trialEndsAt && (
+          <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900/50 px-4 py-2 flex flex-wrap items-center justify-center gap-1.5 text-amber-700 dark:text-amber-400 text-xs font-bold text-center">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>
+              {locale === 'ar' 
+                ? `أنت تستخدم النظام في الفترة التجريبية. تنتهي الفترة في ${new Date(trialEndsAt).toLocaleDateString('ar-EG')}.` 
+                : `You are in the trial period. Your trial ends on ${new Date(trialEndsAt).toLocaleDateString('en-US')}.`}
+            </span>
+          </div>
+        )}
+        {subscriptionStatus === 'ACTIVE' && billingStatus === 'OVERDUE' && (
+          <div className="bg-orange-50 dark:bg-orange-950/30 border-b border-orange-200 dark:border-orange-900/50 px-4 py-2 flex flex-wrap items-center justify-center gap-1.5 text-orange-700 dark:text-orange-400 text-xs font-bold text-center">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{locale === 'ar' ? 'يوجد فواتير متأخرة السداد. يرجى سدادها لتجنب تعليق الخدمة.' : 'You have overdue invoices. Please pay them to avoid service suspension.'}</span>
+          </div>
+        )}
+      </div>
+    )}
+    </>
   );
 }

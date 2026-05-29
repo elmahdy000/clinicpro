@@ -19,8 +19,9 @@ import { Plus, Search, Eye, Calendar, Stethoscope } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 const genderBadge = (gender: string) => {
-  if (gender === 'Male') return 'ذكر';
-  if (gender === 'Female') return 'أنثى';
+  const g = gender?.toLowerCase();
+  if (g === 'male' || g === 'ذكر') return 'ذكر';
+  if (g === 'female' || g === 'أنثى') return 'أنثى';
   return '-';
 };
 
@@ -42,7 +43,7 @@ export default function PatientsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1240px] space-y-5 animate-fade-in" dir={isRtl ? 'rtl' : 'ltr'}>
-      <Card className="rounded-2xl border-slate-200/80 dark:border-slate-800/80 shadow-sm">
+      <Card className="bg-white/50 dark:bg-slate-900/30 backdrop-blur-sm border-slate-200/60 dark:border-slate-800/60 shadow-sm transition-all duration-200">
         <CardContent className="p-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="text-right">
@@ -69,7 +70,7 @@ export default function PatientsPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-slate-200/80 dark:border-slate-800/80 shadow-sm overflow-hidden">
+      <Card className="bg-white/50 dark:bg-slate-900/30 backdrop-blur-sm border-slate-200/60 dark:border-slate-800/60 shadow-sm overflow-hidden">
         <CardContent className="p-0 overflow-x-auto">
           {isLoading ? (
             <div className="p-4 space-y-3">
@@ -83,15 +84,15 @@ export default function PatientsPage() {
           ) : (
             <Table className="min-w-[1000px] table-fixed">
               <TableHeader>
-                <TableRow className="bg-slate-50 dark:bg-slate-900/60">
-                  <TableHead className="w-[90px] text-center">{t('patientCode')}</TableHead>
-                  <TableHead className="w-[260px] text-right">{t('name')}</TableHead>
-                  <TableHead className="w-[150px] text-center">{tc('phone')}</TableHead>
-                  <TableHead className="w-[130px] text-center">{t('age')}</TableHead>
-                  <TableHead className="w-[110px] text-center">{t('gender')}</TableHead>
-                  <TableHead className="w-[110px] text-center">{t('bloodGroup')}</TableHead>
-                  <TableHead className="w-[130px] text-center">{t('lastVisit')}</TableHead>
-                  <TableHead className="w-[160px] text-center">{tc('actions')}</TableHead>
+                <TableRow className="bg-slate-50/50 dark:bg-slate-800/50">
+                  <TableHead className="w-[90px] text-center text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">{t('patientCode')}</TableHead>
+                  <TableHead className="w-[260px] text-right text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">{t('name')}</TableHead>
+                  <TableHead className="w-[150px] text-center text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">{tc('phone')}</TableHead>
+                  <TableHead className="w-[130px] text-center text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">{t('age')}</TableHead>
+                  <TableHead className="w-[110px] text-center text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">{t('gender')}</TableHead>
+                  <TableHead className="w-[110px] text-center text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">{t('bloodGroup')}</TableHead>
+                  <TableHead className="w-[130px] text-center text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">{t('lastVisit')}</TableHead>
+                  <TableHead className="w-[160px] text-center text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold">{tc('actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

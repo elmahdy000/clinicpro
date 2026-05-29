@@ -290,7 +290,7 @@
   },
   "medications": {
     "title": "Medications",
-    "subtitle": "Manage clinic dictionary",
+    "subtitle": "Manage clinic drug registry",
     "searchMedications": "Search medications...",
     "addNew": "Add Medication",
     "noMedicationsFound": "No medications found",
@@ -300,6 +300,21 @@
     "category": "Category",
     "page": "Page",
     "of": "of"
+  },
+  "patientSettings": {
+    "title": "Settings",
+    "subtitle": "Manage account settings and system preferences",
+    "loginInfo": "Update Login Info",
+    "nameOptional": "Name (Optional)",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "saveChanges": "Save Changes",
+    "saving": "Saving...",
+    "successUpdate": "Login info updated successfully",
+    "errorUpdate": "Failed to update login info",
+    "language": "Language",
+    "english": "English",
+    "arabic": "Arabic"
   }
 }
 

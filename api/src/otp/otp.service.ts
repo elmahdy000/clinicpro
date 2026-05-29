@@ -2,7 +2,6 @@ import { Injectable, BadRequestException, NotFoundException, Logger } from '@nes
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationHelperService } from '../common/services/notification-helper.service';
-import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class OtpService {

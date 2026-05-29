@@ -11,17 +11,17 @@ export class CreateMedicalRecordDto {
   @IsNumber()
   appointmentId?: number;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  chiefComplaint: string;
+  chiefComplaint?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  diagnosis: string;
+  diagnosis?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  treatmentPlan: string;
+  treatmentPlan?: string;
 
   @IsOptional()
   @IsObject()
@@ -30,4 +30,12 @@ export class CreateMedicalRecordDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  branchId?: string;
+
+  @IsOptional()
+  @IsString()
+  branchName?: string;
 }

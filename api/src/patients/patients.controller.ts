@@ -18,7 +18,7 @@ export class PatientsController {
     return this.patientsService.findAll(query);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DOCTOR, UserRole.NURSE)
   @Post()
   create(@Body() dto: CreatePatientDto) {
     return this.patientsService.create(dto);
@@ -36,7 +36,7 @@ export class PatientsController {
     return this.patientsService.findOne(id);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DOCTOR, UserRole.NURSE)
   @Put(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdatePatientDto) {
     return this.patientsService.update(id, dto);
@@ -60,7 +60,25 @@ export class PatientsController {
     return this.patientsService.getTimeline(id);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
+  @Get(':id/medical-history')
+  getMedicalHistory(@Param('id', ParseIntPipe) id: number) {
+    return this.patientsService.getUnifiedMedicalHistory(id);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
+  @Get(':id/medical-history/timeline')
+  getMedicalHistoryTimeline(@Param('id', ParseIntPipe) id: number) {
+    return this.patientsService.getUnifiedMedicalTimeline(id);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PATIENT)
+  @Get(':id/medical-history/summary')
+  getMedicalHistorySummary(@Param('id', ParseIntPipe) id: number) {
+    return this.patientsService.getUnifiedMedicalSummary(id);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DOCTOR, UserRole.NURSE)
   @Post(':id/link')
   linkPatient(@Param('id', ParseIntPipe) id: number) {
     return this.patientsService.linkPatient(id);

@@ -287,7 +287,7 @@
   },
   "medications": {
     "title": "الأدوية",
-    "subtitle": "إدارة قاموس العيادة",
+    "subtitle": "إدارة سجل أدوية العيادة",
     "searchMedications": "البحث في الأدوية...",
     "addNew": "إضافة دواء",
     "noMedicationsFound": "لا توجد أدوية",
@@ -297,5 +297,20 @@
     "category": "التصنيف",
     "page": "صفحة",
     "of": "من"
+  },
+  "patientSettings": {
+    "title": "الإعدادات",
+    "subtitle": "إدارة إعدادات الحساب وتفضيلات النظام",
+    "loginInfo": "تحديث بيانات الدخول",
+    "nameOptional": "الاسم (اختياري)",
+    "currentPassword": "كلمة المرور الحالية",
+    "newPassword": "كلمة المرور الجديدة",
+    "saveChanges": "حفظ التغييرات",
+    "saving": "جارٍ الحفظ...",
+    "successUpdate": "تم تحديث بيانات الدخول بنجاح",
+    "errorUpdate": "تعذر تحديث بيانات الدخول",
+    "language": "اللغة",
+    "english": "English",
+    "arabic": "العربية"
   }
 }

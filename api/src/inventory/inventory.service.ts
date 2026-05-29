@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantStorage } from '../prisma/tenant-context';
 import { PaginationDto } from '../common/dto/pagination.dto';
@@ -7,6 +7,8 @@ import { NotificationHelperService } from '../common/services/notification-helpe
 
 @Injectable()
 export class InventoryService {
+  private readonly logger = new Logger(InventoryService.name);
+
   constructor(
     private prisma: PrismaService,
     private notificationHelper: NotificationHelperService,
@@ -143,7 +145,7 @@ export class InventoryService {
         where: { clinicId: item.clinicId, role: 'CLINIC_ADMIN' },
       });
       if (admin) {
-        await this.notificationHelper.sendMedicationLowStock(admin.id, item.medication.name, updated.quantityOnHand).catch(() => {});
+        await this.notificationHelper.sendMedicationLowStock(admin.id, item.medication.name, updated.quantityOnHand).catch((e) => this.logger.warn(`Low stock notification failed: ${(e as Error).message}`));
       }
     }
 
@@ -173,7 +175,7 @@ export class InventoryService {
         where: { clinicId: item.clinicId, role: 'CLINIC_ADMIN' },
       });
       if (admin) {
-        await this.notificationHelper.sendMedicationLowStock(admin.id, item.medication.name, updated.quantityOnHand).catch(() => {});
+        await this.notificationHelper.sendMedicationLowStock(admin.id, item.medication.name, updated.quantityOnHand).catch((e) => this.logger.warn(`Low stock notification failed: ${(e as Error).message}`));
       }
     }
 

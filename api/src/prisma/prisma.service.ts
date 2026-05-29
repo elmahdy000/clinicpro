@@ -3,10 +3,10 @@ import { PrismaClient } from '@prisma/client';
 import { tenantStorage } from './tenant-context';
 
 const tenantModels = [
-  'ClinicSettings', 'User', 'Doctor', 'DoctorAvailability', 'DoctorTimeOff',
+  'ClinicSettings', 'User', 'Doctor',
   'Appointment', 'MedicalRecord', 'Prescription', 'Invoice',
   'FileUpload', 'AuditLog', 'ClinicPatient',
-  'MedicationStock', 'StockMovement'
+  'MedicationStock', 'DoctorMedicine'
 ];
 
 @Injectable()

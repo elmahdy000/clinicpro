@@ -10,6 +10,41 @@ import { UserRole } from '../users/user-role.enum';
 export class PatientPortalController {
   constructor(private readonly service: PatientPortalService) {}
 
+  @Get('patient/me')
+  getMe(@Req() req: any) {
+    return this.service.getMe(req.user.id);
+  }
+
+  @Get('patient/dashboard/overview')
+  getOverview(@Req() req: any) {
+    return this.service.getOverview(req.user.id);
+  }
+
+  @Get('patient/dashboard/appointments')
+  getDashboardAppointments(@Req() req: any) {
+    return this.service.getDashboardAppointments(req.user.id);
+  }
+
+  @Get('patient/dashboard/prescriptions')
+  getDashboardPrescriptions(@Req() req: any) {
+    return this.service.getDashboardPrescriptions(req.user.id);
+  }
+
+  @Get('patient/dashboard/visits')
+  getDashboardVisits(@Req() req: any) {
+    return this.service.getDashboardVisits(req.user.id);
+  }
+
+  @Get('patient/dashboard/notifications')
+  getDashboardNotifications(@Req() req: any) {
+    return this.service.getDashboardNotifications(req.user.id);
+  }
+
+  @Get('patient/dashboard/clinics')
+  getDashboardClinics(@Req() req: any) {
+    return this.service.getDashboardClinics(req.user.id);
+  }
+
   @Get('dashboard')
   getDashboard(@Req() req: any) {
     return this.service.getDashboard(req.user.id);

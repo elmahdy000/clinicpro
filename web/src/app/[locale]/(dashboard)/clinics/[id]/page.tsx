@@ -2,17 +2,17 @@
 
 import { useLocale } from 'next-intl';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/stores/auth';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  Building2, ChevronRight, Users, Stethoscope, CalendarDays,
+  ChevronRight, Users, Stethoscope, CalendarDays,
   FileText, Activity, AlertCircle, Phone, MapPin, User, Mail,
   Calendar, CreditCard, ShieldAlert, Power, PowerOff, Sparkles,
   CircleDollarSign, Clock, CheckCircle2, AlertTriangle, ArrowLeft,
@@ -39,15 +39,90 @@ const INVOICE_STATUS_COLOR: Record<string, string> = {
   CANCELLED: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400',
 };
 
+interface ScheduleAppointment {
+  patient?: { firstName?: string; lastName?: string };
+  doctor?: { user?: { name?: string } };
+  status: string;
+}
+
+interface RecentPatient {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  createdAt: string;
+}
+
+interface TopMedication {
+  name: string;
+  count: number;
+}
+
+interface Doctor {
+  user?: { name?: string; email?: string };
+  specialization: string;
+  consultationFee: number;
+  _count?: { appointments?: number };
+  status: string;
+}
+
+interface Invoice {
+  invoiceNumber: string;
+  patient?: { firstName: string; lastName: string };
+  subtotal: number;
+  total: number;
+  status: string;
+  paymentMethod?: string;
+  createdAt: string;
+}
+
+interface AuditLog {
+  createdAt: string;
+  user?: { email?: string };
+  action: string;
+  details?: string;
+}
+
+interface ClinicDetail {
+  id?: number;
+  name: string;
+  phone?: string;
+  address?: string;
+  governorate?: { nameAr?: string; nameEn?: string };
+  city?: { nameAr?: string; nameEn?: string };
+  owner?: { name: string; email: string; role?: string };
+  subscriptionPlan: string;
+  subscriptionStatus: string;
+  createdAt: string;
+  lastActivity?: string;
+  currency?: string;
+  counts?: {
+    patients: number;
+    doctors: number;
+    appointments: number;
+    prescriptions: number;
+    invoices: number;
+  };
+  today?: {
+    schedule?: ScheduleAppointment[];
+  };
+  recentPatients?: RecentPatient[];
+  topMedications?: TopMedication[];
+  doctors?: Doctor[];
+  invoices?: Invoice[];
+  auditLogs?: AuditLog[];
+}
+
 export default function ClinicDetailPage() {
   const locale = useLocale();
   const isRtl = locale === 'ar';
   const params = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'overview' | 'doctors' | 'invoices' | 'audit' | 'settings'>('overview');
 
-  // Query Clinic Data
-  const { data: clinic, isLoading, refetch } = useQuery<any>({
+  // Query Clinic Data (must be before early return for hooks rule)
+  const { data: clinic, isLoading, refetch } = useQuery<ClinicDetail>({
     queryKey: ['clinic', params.id],
     queryFn: () => api.get(`/clinics/${params.id}`).then((r) => r.data),
     enabled: !!params.id,
@@ -55,7 +130,7 @@ export default function ClinicDetailPage() {
 
   // Mutator for Admin Actions
   const updateMutation = useMutation({
-    mutationFn: (data: any) => api.put(`/clinics/${params.id}`, data),
+    mutationFn: (data: Record<string, unknown>) => api.put(`/clinics/${params.id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clinic', params.id] });
       queryClient.invalidateQueries({ queryKey: ['admin-clinics'] });
@@ -66,6 +141,20 @@ export default function ClinicDetailPage() {
       toast.error(isRtl ? 'فشل تحديث ترخيص العيادة' : 'Failed to update clinic license');
     },
   });
+
+  useEffect(() => {
+    if (!authLoading && (!user || user.role !== 'PLATFORM_OWNER')) {
+      router.push(`/${locale}/dashboard`);
+    }
+  }, [user, authLoading, router, locale]);
+
+  if (authLoading || !user || user.role !== 'PLATFORM_OWNER') {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500"></div>
+      </div>
+    );
+  }
 
   const handleToggleStatus = (currentStatus: string) => {
     const nextStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
@@ -118,7 +207,7 @@ export default function ClinicDetailPage() {
     { label: isRtl ? 'المرضى المسجلين' : 'Registered Patients', value: clinic.counts?.patients || 0, icon: Users, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-950/20' },
     { label: isRtl ? 'الأطباء المرخصين' : 'Licensed Doctors', value: clinic.counts?.doctors || 0, icon: Stethoscope, color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-950/20' },
     { label: isRtl ? 'إجمالي المواعيد' : 'Total Appointments', value: clinic.counts?.appointments || 0, icon: CalendarDays, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/20' },
-    { label: isRtl ? 'الوصفات الطبية' : 'Prescriptions Issued', value: clinic.counts?.prescriptions || 0, icon: ClipboardList, color: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-950/20' },
+    { label: isRtl ? 'الروشتات المصدرة' : 'Prescriptions Issued', value: clinic.counts?.prescriptions || 0, icon: ClipboardList, color: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-950/20' },
     { label: isRtl ? 'الفواتير التشغيلية' : 'Total Invoices', value: clinic.counts?.invoices || 0, icon: FileText, color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-50 dark:bg-teal-950/20' },
   ];
 
@@ -237,7 +326,7 @@ export default function ClinicDetailPage() {
                   </div>
                   <div className="min-w-0">
                     <p className="text-xl font-black text-gray-900 dark:text-white font-mono leading-none">{s.value.toLocaleString()}</p>
-                    <p className="text-[10px] text-gray-400 font-bold mt-1.5 leading-none truncate uppercase tracking-wider">{s.label}</p>
+                    <p className="text-[10px] text-gray-400 font-bold mt-1.5 leading-normal truncate uppercase tracking-wider">{s.label}</p>
                   </div>
                 </div>
               </CardContent>
@@ -260,7 +349,7 @@ export default function ClinicDetailPage() {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as 'overview' | 'doctors' | 'invoices' | 'audit' | 'settings')}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
                 isActive
                   ? 'border-teal-600 text-teal-600 dark:border-teal-400 dark:text-teal-400'
@@ -333,7 +422,7 @@ export default function ClinicDetailPage() {
               <CardContent className="pt-4">
                 {clinic.today?.schedule?.length ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {clinic.today.schedule.map((apt: any, i: number) => (
+                    {clinic.today.schedule.map((apt: ScheduleAppointment, i: number) => (
                       <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-gray-50/80 dark:bg-gray-900/40 border border-gray-100/60 dark:border-gray-800/60">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-8 h-8 rounded-full bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center text-teal-700 dark:text-teal-300 font-bold text-xs select-none">
@@ -371,7 +460,7 @@ export default function ClinicDetailPage() {
               <CardContent className="pt-4">
                 {clinic.recentPatients?.length ? (
                   <div className="space-y-2.5">
-                    {clinic.recentPatients.map((p: any, i: number) => (
+                    {clinic.recentPatients.map((p: RecentPatient, i: number) => (
                       <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-gray-50/50 dark:bg-gray-900/20 border border-gray-100 dark:border-gray-800/40">
                         <div className="min-w-0">
                           <span className="text-xs font-bold text-gray-900 dark:text-white block truncate">{p.firstName} {p.lastName}</span>
@@ -403,11 +492,11 @@ export default function ClinicDetailPage() {
               <CardContent className="pt-4">
                 {clinic.topMedications?.length ? (
                   <div className="space-y-3">
-                    {clinic.topMedications.map((med: any, i: number) => (
+                    {clinic.topMedications.map((med: TopMedication, i: number) => (
                       <div key={i} className="space-y-1">
                         <div className="flex items-center justify-between text-xs font-bold">
                           <span className="text-gray-900 dark:text-white font-mono">{med.name}</span>
-                          <span className="text-teal-600 font-extrabold">{med.count} {isRtl ? 'وصفة' : 'prescriptions'}</span>
+                          <span className="text-teal-600 font-extrabold">{med.count} {isRtl ? 'روشتة' : 'prescriptions'}</span>
                         </div>
                         <div className="w-full h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
                           <div
@@ -422,7 +511,7 @@ export default function ClinicDetailPage() {
                   <div className="text-center py-10 text-gray-400">
                     <Activity className="w-10 h-10 mx-auto mb-2 text-purple-400 opacity-60" />
                     <p className="text-xs font-bold">{isRtl ? 'لا تتوفر إحصائيات دوائية حالياً' : 'No prescription metrics available'}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">{isRtl ? 'ستظهر التحليلات الدوائية فور صرف أول وصفة طبية متكاملة.' : 'Prescribed medicine charts will populate with activity.'}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">{isRtl ? 'ستظهر التحليلات الدوائية فور صرف أول روشتة طبية متكاملة.' : 'Prescribed medicine charts will populate with activity.'}</p>
                   </div>
                 )}
               </CardContent>
@@ -457,7 +546,7 @@ export default function ClinicDetailPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {clinic.doctors.map((doc: any, i: number) => (
+                      {clinic.doctors.map((doc: Doctor, i: number) => (
                         <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                           <td className="px-5 py-3">
                             <div className="flex items-center gap-3">
@@ -525,7 +614,7 @@ export default function ClinicDetailPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {clinic.invoices.map((inv: any, i: number) => (
+                      {clinic.invoices.map((inv: Invoice, i: number) => (
                         <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                           <td className="px-5 py-3 font-mono text-xs font-bold text-gray-900 dark:text-white">
                             {inv.invoiceNumber}
@@ -578,7 +667,7 @@ export default function ClinicDetailPage() {
             <CardContent className="pt-4">
               {clinic.auditLogs?.length ? (
                 <div className="relative border-r dark:border-gray-800 mr-4 pr-6 space-y-4">
-                  {clinic.auditLogs.map((log: any, i: number) => (
+                  {clinic.auditLogs.map((log: AuditLog, i: number) => (
                     <div key={i} className="relative space-y-1">
                       {/* Timeline Dot Indicator */}
                       <span className="absolute -right-[29px] top-1.5 w-2.5 h-2.5 rounded-full bg-teal-500 dark:bg-teal-400 ring-4 ring-white dark:ring-slate-950" />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useLocale } from 'next-intl';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import api from '@/lib/api';
@@ -12,28 +12,16 @@ import { SearchBox } from '@/components/common/SearchBox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import {
-  Plus, CalendarDays, List, Clock3, Phone, UserRound, FileText,
+  Plus, CalendarDays, List, Clock3, Phone, FileText,
   Stethoscope, CircleCheckBig, XCircle, IdCard, ChevronLeft, ChevronRight,
-  X, Sparkles, MessageSquare, ExternalLink, Calendar, Check, MoreVertical,
-  AlertCircle
+  X, Sparkles, MessageSquare, Calendar, Check
 } from 'lucide-react';
-import { formatTime, formatDate } from '@/lib/utils';
+import { formatTime } from '@/lib/utils';
 
 const hasLatin = (value?: string | null) => !!value && /[A-Za-z]/.test(value);
 const isEgyptianMobile = (value?: string | null) => !!value && /^01[0125]\d{8}$/.test(value);
 
-const EGYPTIAN_FALLBACKS = [
-  { firstName: 'أحمد', lastName: 'محمد', phone: '01001234567' },
-  { firstName: 'محمود', lastName: 'حسن', phone: '01123456789' },
-  { firstName: 'منى', lastName: 'علي', phone: '01224567891' },
-  { firstName: 'سارة', lastName: 'خالد', phone: '01535678912' },
-  { firstName: 'محمد', lastName: 'عبد الله', phone: '01046789123' },
-  { firstName: 'إسراء', lastName: 'أحمد', phone: '01157891234' },
-  { firstName: 'خالد', lastName: 'سمير', phone: '01268912345' },
-  { firstName: 'نهى', lastName: 'مصطفى', phone: '01579123456' },
-  { firstName: 'عمر', lastName: 'مصطفى', phone: '01081234567' },
-  { firstName: 'دينا', lastName: 'سامي', phone: '01192345678' },
-];
+
 
 const dateKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 const isSameDay = (a: Date, b: Date) => dateKey(a) === dateKey(b);
@@ -74,6 +62,38 @@ const WORKING_HOURS = Array.from({ length: 13 }).map((_, i) => {
   return { key: `${String(h).padStart(2, '0')}:00`, label: `${displayHour}:00 ${amPm}`, hourVal: h };
 });
 
+interface PatientInfo {
+  id?: number;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}
+
+interface AppointmentRaw {
+  id: string | number;
+  patient?: PatientInfo;
+  appointmentDate: string;
+  appointmentEndDate?: string;
+  durationMinutes?: number | string;
+  status?: string;
+  reason?: string;
+  notes?: string;
+  doctorId?: number;
+}
+
+interface AppointmentNormalized extends AppointmentRaw {
+  displayName: string;
+  displayPhone: string;
+  displayReason: string;
+  start: Date;
+  end: Date;
+  durationMinutes: number;
+  status: string;
+  isLate: boolean;
+  dayKey: string;
+  timeKey: string;
+}
+
 export default function AppointmentsPage() {
   const locale = useLocale();
   const isRtl = locale === 'ar';
@@ -85,15 +105,15 @@ export default function AppointmentsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentNormalized | null>(null);
 
-  const { data, isLoading } = useQuery<any>({
+  const { data, isLoading } = useQuery<{ data: AppointmentRaw[] }>({
     queryKey: ['appointments'],
     queryFn: () => api.get('/appointments', { params: { limit: 100 } }).then((r) => r.data),
   });
 
-  const appointments = data?.data || [];
-  const now = new Date();
+  const appointments = useMemo(() => data?.data || [], [data]);
+  const now = useMemo(() => new Date(), []);
   const todayKey = dateKey(now);
 
   // Status Labels in Arabic/English
@@ -111,7 +131,7 @@ export default function AppointmentsPage() {
   };
 
   // WhatsApp Reminder Message Builder
-  const getWhatsAppReminderLink = (apt: any) => {
+  const getWhatsAppReminderLink = (apt: AppointmentNormalized) => {
     const phone = apt.displayPhone || '';
     let cleanPhone = phone.replace(/\D/g, '');
     if (cleanPhone.startsWith('0')) {
@@ -140,12 +160,11 @@ export default function AppointmentsPage() {
 
   const normalized = useMemo(() => {
     return appointments
-      .map((apt: any) => {
-        const fallback = EGYPTIAN_FALLBACKS[(apt.id || 0) % EGYPTIAN_FALLBACKS.length];
-        const firstName = hasLatin(apt.patient?.firstName) ? fallback.firstName : (apt.patient?.firstName || fallback.firstName);
-        const lastName = hasLatin(apt.patient?.lastName) ? fallback.lastName : (apt.patient?.lastName || fallback.lastName);
-        const phone = isEgyptianMobile(apt.patient?.phone) ? apt.patient.phone : fallback.phone;
-        const reason = hasLatin(apt.reason) ? null : apt.reason;
+      .map((apt: AppointmentRaw) => {
+        const firstName = apt.patient?.firstName || 'مريض';
+        const lastName = apt.patient?.lastName || '';
+        const phone = apt.patient?.phone || 'لا يوجد رقم';
+        const reason = apt.reason;
 
         const start = new Date(apt.appointmentDate);
         const durationMinutes = Number(apt.durationMinutes || 30);
@@ -167,11 +186,11 @@ export default function AppointmentsPage() {
           timeKey: `${String(start.getHours()).padStart(2, '0')}:00`,
         };
       })
-      .sort((a: any, b: any) => a.start.getTime() - b.start.getTime());
-  }, [appointments, isRtl]);
+      .sort((a: AppointmentNormalized, b: AppointmentNormalized) => a.start.getTime() - b.start.getTime());
+  }, [appointments, isRtl, now]);
 
   const filtered = useMemo(() => {
-    return normalized.filter((apt: any) => {
+    return normalized.filter((apt: AppointmentNormalized) => {
       const matchesScope =
         scope === 'all'
           ? true
@@ -194,8 +213,8 @@ export default function AppointmentsPage() {
   }, [normalized, scope, todayKey, now, search, statusFilter]);
 
   const dayMap = useMemo(() => {
-    const map = new Map<string, any[]>();
-    filtered.forEach((apt: any) => {
+    const map = new Map<string, AppointmentNormalized[]>();
+    filtered.forEach((apt: AppointmentNormalized) => {
       if (!map.has(apt.dayKey)) map.set(apt.dayKey, []);
       map.get(apt.dayKey)!.push(apt);
     });
@@ -209,13 +228,13 @@ export default function AppointmentsPage() {
   const selectedDayAppointments = dayMap.get(dateKey(selectedDate)) || [];
 
   const stats = useMemo(() => {
-    const todayAppointmentsList = normalized.filter((a: any) => a.dayKey === todayKey);
+    const todayAppointmentsList = normalized.filter((a: AppointmentNormalized) => a.dayKey === todayKey);
     return {
       today: todayAppointmentsList.length,
-      waiting: todayAppointmentsList.filter((a: any) => a.status === 'PENDING').length,
-      inProgress: todayAppointmentsList.filter((a: any) => a.status === 'CONFIRMED' || a.status === 'IN_PROGRESS').length,
-      completed: todayAppointmentsList.filter((a: any) => a.status === 'COMPLETED').length,
-      cancelled: todayAppointmentsList.filter((a: any) => a.status === 'CANCELLED' || a.status === 'MISSED').length,
+      waiting: todayAppointmentsList.filter((a: AppointmentNormalized) => a.status === 'PENDING').length,
+      inProgress: todayAppointmentsList.filter((a: AppointmentNormalized) => a.status === 'CONFIRMED' || a.status === 'IN_PROGRESS').length,
+      completed: todayAppointmentsList.filter((a: AppointmentNormalized) => a.status === 'COMPLETED').length,
+      cancelled: todayAppointmentsList.filter((a: AppointmentNormalized) => a.status === 'CANCELLED' || a.status === 'MISSED').length,
     };
   }, [normalized, todayKey]);
 
@@ -301,14 +320,14 @@ export default function AppointmentsPage() {
       </div>
 
       {/* ── Search & Advanced Filtering Panel ── */}
-      <Card className="border-slate-200/80 dark:border-slate-800/80 animate-fade-in-up">
+      <Card className="bg-white/50 dark:bg-slate-900/30 backdrop-blur-sm border-slate-200/60 dark:border-slate-800/60 shadow-sm transition-all duration-200 animate-fade-in-up">
         <CardContent className="p-4 space-y-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <div className="flex-1">
               <SearchBox value={search} onChange={setSearch} placeholder={isRtl ? 'ابحث باسم المريض، رقم الهاتف، أو كود المريض...' : 'Search by patient name, phone number, or code...'} />
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
-              {['today', 'upcoming', 'all'].map((s: any) => (
+              {(['today', 'upcoming', 'all'] as const).map((s) => (
                 <Button key={s} size="sm" variant={scope === s ? 'default' : 'outline'} className={`h-9 px-4 rounded-xl text-xs font-semibold ${scope === s ? 'bg-teal-600 hover:bg-teal-700 text-white' : ''}`} onClick={() => setScope(s)}>
                   {s === 'today' ? (isRtl ? 'اليوم' : 'Today') : s === 'upcoming' ? (isRtl ? 'القادم' : 'Upcoming') : (isRtl ? 'الكل' : 'All')}
                 </Button>
@@ -333,7 +352,7 @@ export default function AppointmentsPage() {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 animate-fade-in">
           
           {/* Main Month Grid Grid */}
-          <Card className="xl:col-span-8 border-slate-200/80 dark:border-slate-800/80">
+          <Card className="xl:col-span-8 bg-white/50 dark:bg-slate-900/30 backdrop-blur-sm border-slate-200/60 dark:border-slate-800/60 shadow-sm transition-all duration-200">
             <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800/80">
               <div className="flex items-center justify-between">
                 <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}>
@@ -362,7 +381,7 @@ export default function AppointmentsPage() {
                   const inCurrentMonth = day.getMonth() === currentMonth.getMonth();
                   const isToday = key === todayKey;
                   const isSelected = isSameDay(day, selectedDate);
-                  const uniqueStatuses = [...new Set(dayItems.map((i: any) => i.status))].slice(0, 3);
+                  const uniqueStatuses = [...new Set(dayItems.map((i: AppointmentNormalized) => i.status))].slice(0, 3);
 
                   return (
                     <button
@@ -398,7 +417,7 @@ export default function AppointmentsPage() {
           </Card>
 
           {/* Right Selected Day Sidebar Preview */}
-          <Card className="xl:col-span-4 border-slate-200/80 dark:border-slate-800/80 animate-fade-in-up">
+          <Card className="xl:col-span-4 bg-white/50 dark:bg-slate-900/30 backdrop-blur-sm border-slate-200/60 dark:border-slate-800/60 shadow-sm transition-all duration-200 animate-fade-in-up">
             <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800/80">
               <CardTitle className="text-sm font-bold flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
@@ -415,7 +434,7 @@ export default function AppointmentsPage() {
                   <p className="text-xs font-semibold">{isRtl ? 'لا توجد مواعيد محجوزة في هذا اليوم' : 'No appointments scheduled today'}</p>
                 </div>
               ) : (
-                selectedDayAppointments.map((apt: any, idx) => (
+                selectedDayAppointments.map((apt: AppointmentNormalized, idx) => (
                   <button key={apt.id} onClick={() => setSelectedAppointment(apt)} className="w-full text-right rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 hover:border-teal-500 hover:shadow-md transition-all cursor-pointer animate-fade-in-up" style={{ animationDelay: `${idx * 40}ms` }}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -462,7 +481,7 @@ export default function AppointmentsPage() {
             <div className="md:col-span-12 space-y-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 md:p-6 shadow-sm">
               <div className="relative border-l border-slate-100 dark:border-slate-850 pl-3 md:pl-6 space-y-4">
                 {WORKING_HOURS.map((wh) => {
-                  const hourApts = selectedDayAppointments.filter((a: any) => a.timeKey === wh.key);
+                  const hourApts = selectedDayAppointments.filter((a: AppointmentNormalized) => a.timeKey === wh.key);
                   return (
                     <div key={wh.key} className="flex gap-4 items-start relative animate-fade-in-up">
                       {/* Left Hour Tag */}
@@ -474,7 +493,7 @@ export default function AppointmentsPage() {
                       <div className="flex-1 border-t border-slate-100 dark:border-slate-800/80 pt-2 min-h-[75px] relative">
                         {hourApts.length > 0 ? (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-                            {hourApts.map((apt: any) => (
+                            {hourApts.map((apt: AppointmentNormalized) => (
                               <div
                                 key={apt.id}
                                 onClick={() => setSelectedAppointment(apt)}
@@ -516,9 +535,9 @@ export default function AppointmentsPage() {
       {view === 'list' && (
         <div className="space-y-4 animate-fade-in">
           {isLoading ? (
-            <Card className="border-slate-200/80 dark:border-slate-800/80"><CardContent className="p-4 space-y-3">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</CardContent></Card>
+            <Card className="bg-white/50 dark:bg-slate-900/30 backdrop-blur-sm border-slate-200/60 dark:border-slate-800/60 shadow-sm"><CardContent className="p-4 space-y-3">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</CardContent></Card>
           ) : grouped.length === 0 ? (
-            <Card className="border-slate-200/80 dark:border-slate-800/80">
+            <Card className="bg-white/50 dark:bg-slate-900/30 backdrop-blur-sm border-slate-200/60 dark:border-slate-800/60 shadow-sm">
               <CardContent className="py-16 text-center">
                 <CalendarDays className="w-12 h-12 text-gray-300 mx-auto mb-3 opacity-50" />
                 <p className="text-sm font-bold text-slate-800 dark:text-white">{isRtl ? 'لا توجد مواعيد مطابقة للفلاتر الحالية' : 'No matching appointments found'}</p>
@@ -530,7 +549,7 @@ export default function AppointmentsPage() {
               const day = items[0].start;
               const isToday = key === todayKey;
               return (
-                <Card key={key} className="border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-sm animate-fade-in-up" style={{ animationDelay: `${groupIdx * 60}ms` }}>
+                <Card key={key} className="bg-white/50 dark:bg-slate-900/30 backdrop-blur-sm border-slate-200/60 dark:border-slate-800/60 shadow-sm overflow-hidden animate-fade-in-up" style={{ animationDelay: `${groupIdx * 60}ms` }}>
                   <div className={`px-4 py-3 flex items-center justify-between border-b ${
                     isToday 
                       ? 'bg-teal-500/10 border-teal-200/80 dark:border-teal-900/40 text-teal-800 dark:text-teal-200' 
@@ -548,7 +567,7 @@ export default function AppointmentsPage() {
                     </Badge>
                   </div>
                   <CardContent className="p-4 space-y-3">
-                    {items.map((apt: any) => (
+                    {items.map((apt: AppointmentNormalized) => (
                       <div key={apt.id} className="rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-950 p-4 hover:shadow-md transition-all">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                           <div className="space-y-2.5 min-w-0 flex-1">
@@ -658,7 +677,7 @@ export default function AppointmentsPage() {
                       size="sm"
                       disabled={updateStatusMutation.isPending}
                       className={`h-8 text-[11px] font-bold rounded-xl ${st.style} ${selectedAppointment.status === st.key ? 'bg-slate-100 dark:bg-slate-800 border-current font-black' : ''}`}
-                      onClick={() => updateStatusMutation.mutate({ id: selectedAppointment.id, status: st.key })}
+                      onClick={() => updateStatusMutation.mutate({ id: String(selectedAppointment.id), status: st.key })}
                     >
                       {selectedAppointment.status === st.key && <Check className="w-3.5 h-3.5 me-1" />}
                       {st.label}

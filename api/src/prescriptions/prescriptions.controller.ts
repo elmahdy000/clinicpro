@@ -34,7 +34,22 @@ export class PrescriptionsController {
     return this.prescriptionsService.update(id, dto);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
+  @Post(':id/medicines/:lineId/substitute')
+  substituteMedicine(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('lineId', ParseIntPipe) lineId: number,
+    @Body() dto: any
+  ) {
+    return this.prescriptionsService.substituteMedicine(id, lineId, dto);
+  }
+
+  @Get(':id/substitution-logs')
+  getSubstitutionLogs(@Param('id', ParseIntPipe) id: number) {
+    return this.prescriptionsService.getSubstitutionLogs(id);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.PLATFORM_OWNER)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.prescriptionsService.remove(id);

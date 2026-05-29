@@ -61,6 +61,10 @@ export class MedicalRecordsService {
     const record = await this.prisma.medicalRecord.create({
       data: {
         ...dto,
+        chiefComplaint: dto.chiefComplaint || '',
+        diagnosis: dto.diagnosis || '',
+        treatmentPlan: dto.treatmentPlan || '',
+        notes: dto.notes || '',
         vitalSigns: dto.vitalSigns ? JSON.stringify(dto.vitalSigns) : '{}',
         clinicId: store?.clinicId ?? 0,
       },

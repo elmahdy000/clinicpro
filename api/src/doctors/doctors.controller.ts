@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe, UseGuards, Query, Req } from '@nestjs/common';
 import { DoctorsService } from './doctors.service';
 import { CreateDoctorDto } from './dto/create-doctor.dto';
 import { UpdateDoctorDto } from './dto/update-doctor.dto';
@@ -59,8 +59,9 @@ export class DoctorsController {
   upsertAvailability(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateAvailabilityDto,
+    @Req() req: any,
   ) {
-    return this.doctorsService.upsertAvailability(id, dto);
+    return this.doctorsService.upsertAvailability(id, dto, req.user);
   }
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR)
@@ -68,8 +69,9 @@ export class DoctorsController {
   removeAvailability(
     @Param('id', ParseIntPipe) id: number,
     @Param('dayOfWeek', ParseIntPipe) dayOfWeek: number,
+    @Req() req: any,
   ) {
-    return this.doctorsService.removeAvailability(id, dayOfWeek);
+    return this.doctorsService.removeAvailability(id, dayOfWeek, req.user);
   }
 
   @Get(':id/time-off')
@@ -82,14 +84,15 @@ export class DoctorsController {
   addTimeOff(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CreateTimeOffDto,
+    @Req() req: any,
   ) {
-    return this.doctorsService.addTimeOff(id, dto);
+    return this.doctorsService.addTimeOff(id, dto, req.user);
   }
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR)
   @Delete('time-off/:timeOffId')
-  removeTimeOff(@Param('timeOffId', ParseIntPipe) timeOffId: number) {
-    return this.doctorsService.removeTimeOff(timeOffId);
+  removeTimeOff(@Param('timeOffId', ParseIntPipe) timeOffId: number, @Req() req: any) {
+    return this.doctorsService.removeTimeOff(timeOffId, req.user);
   }
 
   @Get(':id/available-slots')

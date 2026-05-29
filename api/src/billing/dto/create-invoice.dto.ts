@@ -7,11 +7,7 @@ class InvoiceItemDto {
 
   @IsNumber()
   @Min(0)
-  quantity: number;
-
-  @IsNumber()
-  @Min(0)
-  unitPrice: number;
+  price: number;
 }
 
 export class CreateInvoiceDto {
@@ -34,11 +30,6 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  tax?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
   discount?: number;
 
   @IsOptional()
@@ -49,4 +40,12 @@ export class CreateInvoiceDto {
   @IsString()
   @MaxLength(500)
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  branchId?: string;
+
+  @IsOptional()
+  @IsString()
+  branchName?: string;
 }

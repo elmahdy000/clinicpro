@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantStorage } from '../prisma/tenant-context';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
@@ -9,6 +9,7 @@ import { NotificationHelperService } from '../common/services/notification-helpe
 
 @Injectable()
 export class BillingService {
+  private readonly logger = new Logger(BillingService.name);
   private selectUser = { id: true, email: true, name: true, role: true };
   private invoiceInclude = {
     patient: true,
@@ -38,11 +39,12 @@ export class BillingService {
     return `INV-${year}-${String(count + 1).padStart(5, '0')}`;
   }
 
-  async findAll(query: PaginationDto): Promise<PaginatedResult<any>> {
-    const { page = 1, limit = 10, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+  async findAll(query: PaginationDto & { patientId?: number }): Promise<PaginatedResult<any>> {
+    const { page = 1, limit = 10, search, sortBy = 'createdAt', sortOrder = 'desc', patientId } = query;
     const store = tenantStorage.getStore();
     const where: any = {};
     if (store?.clinicId) where.clinicId = store.clinicId;
+    if (patientId) where.patientId = Number(patientId);
     if (search) {
       where.OR = [
         { invoiceNumber: { contains: search } },
@@ -74,10 +76,10 @@ export class BillingService {
   }
 
   async create(dto: CreateInvoiceDto) {
-    const subtotal = dto.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    const tax = dto.tax ?? 0;
+    const subtotal = dto.items.reduce((sum, item) => sum + item.price, 0);
+    const tax = 0;
     const discount = dto.discount ?? 0;
-    const total = subtotal + tax - discount;
+    const total = subtotal - discount;
     const invoiceNumber = await this.generateInvoiceNumber();
     const store = tenantStorage.getStore();
 
@@ -100,7 +102,7 @@ export class BillingService {
     });
 
     const clinic = await this.prisma.clinic.findUnique({ where: { id: store?.clinicId ?? 0 } });
-    await this.notificationHelper.sendInvoiceCreated(invoice, invoice.patient, clinic?.name || 'ClinicPro').catch(() => {});
+    await this.notificationHelper.sendInvoiceCreated(invoice, invoice.patient, clinic?.name || 'ClinicPro').catch((e) => this.logger.warn(`Invoice created notification failed: ${(e as Error).message}`));
 
     return this.parseInvoice(invoice);
   }
@@ -118,7 +120,7 @@ export class BillingService {
 
     if (invoice.status === 'PAID' && old.status !== 'PAID') {
       const clinic = await this.prisma.clinic.findUnique({ where: { id: invoice.clinicId } });
-      await this.notificationHelper.sendInvoicePaid(invoice, invoice.patient, clinic?.name || 'ClinicPro').catch(() => {});
+      await this.notificationHelper.sendInvoicePaid(invoice, invoice.patient, clinic?.name || 'ClinicPro').catch((e) => this.logger.warn(`Invoice paid notification failed: ${(e as Error).message}`));
     }
 
     return this.parseInvoice(invoice);

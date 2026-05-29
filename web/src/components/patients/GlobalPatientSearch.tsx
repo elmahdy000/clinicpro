@@ -17,11 +17,21 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatDate } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import Link from 'next/link';
 import { toast } from 'sonner';
+
+interface GlobalPatient {
+  id: number;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  gender: string;
+  medicalHistory?: string;
+  nationalId?: string;
+  clinics?: Array<{ clinic: { id: number; name: string } }>;
+}
 
 export function GlobalPatientSearch() {
   const t = useTranslations('patients');
@@ -33,6 +43,7 @@ export function GlobalPatientSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [searchTrigger, setSearchTrigger] = useState('');
+  const [importingId, setImportingId] = useState<number | null>(null);
 
   const { data: results, isLoading } = useQuery({
     queryKey: ['global-search', searchTrigger],
@@ -90,7 +101,7 @@ export function GlobalPatientSearch() {
             </div>
           ) : results?.length > 0 ? (
             <div className="space-y-4">
-              {results.map((patient: any) => (
+              {results.map((patient: GlobalPatient) => (
                 <div key={patient.id} className="p-4 border rounded-xl bg-white dark:bg-slate-900 shadow-sm flex flex-col gap-3">
                   <div className="flex justify-between items-start">
                     <div>
@@ -99,26 +110,34 @@ export function GlobalPatientSearch() {
                     </div>
                     <Button 
                       size="sm" 
-                      variant="secondary" 
-                      className="gap-2"
+                      className="gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-md shadow-teal-200 dark:shadow-teal-900 transition-all duration-300 hover:scale-105 active:scale-95"
+                      disabled={importingId === patient.id}
                       onClick={async () => {
+                        setImportingId(patient.id);
                         try {
                           await api.post(`/patients/${patient.id}/link`);
+                          toast.success(isRtl ? 'تم استيراد المريض بنجاح!' : 'Patient imported successfully!');
                           setOpen(false);
                           router.push(`/${locale}/patients/${patient.id}`);
-                        } catch (err) {
+                        } catch {
                           toast.error(isRtl ? 'حدث خطأ أثناء ربط المريض' : 'Failed to link patient');
+                        } finally {
+                          setImportingId(null);
                         }
                       }}
                     >
-                      <FileText className="w-4 h-4" />
-                      {isRtl ? 'استيراد وعرض' : 'Import & View'}
+                      {importingId === patient.id ? (
+                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <FileText className="w-4 h-4" />
+                      )}
+                      {isRtl ? 'استيراد وعرض السجل' : 'Import & View'}
                     </Button>
                   </div>
                   
-                  {patient.clinics?.length > 0 && (
+                  {patient.clinics && patient.clinics.length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      {patient.clinics.map((c: any) => (
+                      {patient.clinics.map((c: { clinic: { id: number; name: string } }) => (
                         <Badge key={c.clinic.id} variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                           {c.clinic.name}
                         </Badge>

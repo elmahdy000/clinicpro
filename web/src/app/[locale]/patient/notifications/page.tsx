@@ -1,14 +1,16 @@
+'use client';
+
 import { useLocale } from 'next-intl';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Bell, ChevronLeft, ChevronRight, Info, CalendarCheck, FileText, Stethoscope, CheckCheck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, CalendarCheck, FileText, Stethoscope, CheckCheck } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import Link from 'next/link';
 
-const TYPE_ICONS: Record<string, any> = {
+const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   INFO: Info,
   APPOINTMENT: CalendarCheck,
   PRESCRIPTION: FileText,
@@ -21,6 +23,15 @@ const TYPE_COLORS: Record<string, string> = {
   PRESCRIPTION: 'text-purple-600 bg-purple-50 dark:bg-purple-950/30',
   MEDICAL_RECORD: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30',
 };
+
+interface Notification {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
 
 export default function PatientNotifications() {
   const locale = useLocale();
@@ -62,7 +73,7 @@ export default function PatientNotifications() {
           </h1>
         </div>
         
-        {notifications?.some((n: any) => !n.isRead) && (
+        {notifications?.some((n: Notification) => !n.isRead) && (
           <Button
             variant="outline"
             size="sm"
@@ -84,7 +95,7 @@ export default function PatientNotifications() {
         </div>
       ) : notifications?.length > 0 ? (
         <div className="space-y-2">
-          {notifications.map((n: any) => {
+          {notifications.map((n: Notification) => {
             const Icon = TYPE_ICONS[n.type] || Info;
             const colorClass = TYPE_COLORS[n.type] || TYPE_COLORS.INFO;
             return (
@@ -103,7 +114,7 @@ export default function PatientNotifications() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 leading-none">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 leading-normal">
                         {n.title}
                       </p>
                       {!n.isRead && (

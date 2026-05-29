@@ -9,6 +9,17 @@ import { FileText, User, CalendarDays, ChevronLeft } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import Link from 'next/link';
 
+interface Prescription {
+  id: number;
+  prescribedDate: string;
+  doctor?: { user?: { name: string } };
+  clinic?: { name: string };
+  medicalRecord?: { diagnosis?: string };
+  medications?: Array<{ name: string; dosage: string; frequency: string }>;
+  items?: Array<{ medication?: { name: string }; dosage: string; frequency: string; duration: string }>;
+  instructions?: string;
+}
+
 export default function PatientPrescriptions() {
   const locale = useLocale();
   const isRtl = locale === 'ar';
@@ -28,7 +39,7 @@ export default function PatientPrescriptions() {
         <div className="space-y-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
       ) : prescriptions?.length > 0 ? (
         <div className="space-y-3">
-          {prescriptions.map((rx: any) => (
+          {prescriptions.map((rx: Prescription) => (
             <Card key={rx.id} className="border-slate-200/60 dark:border-slate-800/60 shadow-sm">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between">
@@ -57,7 +68,7 @@ export default function PatientPrescriptions() {
                   <div>
                     <p className="text-xs text-slate-500 mb-1.5">{isRtl ? 'الأدوية' : 'Medications'}</p>
                     <div className="space-y-1">
-                      {rx.medications.slice(0, 5).map((med: any, i: number) => (
+                      {rx.medications.slice(0, 5).map((med: { name: string; dosage: string; frequency: string }, i: number) => (
                         <div key={i} className="flex items-center justify-between text-sm bg-white dark:bg-slate-900 rounded-lg px-3 py-1.5 border border-slate-100 dark:border-slate-800">
                           <span className="font-medium text-slate-700 dark:text-slate-300">{med.name}</span>
                           <span className="text-xs text-slate-400">{med.dosage} - {med.frequency}</span>
@@ -66,11 +77,11 @@ export default function PatientPrescriptions() {
                     </div>
                   </div>
                 )}
-                {rx.items?.length > 0 && (
+                {rx.items && rx.items.length > 0 && (
                   <div>
                     <p className="text-xs text-slate-500 mb-1.5">{isRtl ? 'الأدوية (مسجلة)' : 'Medications (structured)'}</p>
                     <div className="space-y-1">
-                      {rx.items.map((item: any, i: number) => (
+                      {rx.items.map((item: { medication?: { name: string }; dosage: string; frequency: string; duration: string }, i: number) => (
                         <div key={i} className="flex items-center justify-between text-sm bg-white dark:bg-slate-900 rounded-lg px-3 py-1.5 border border-slate-100 dark:border-slate-800">
                           <span className="font-medium text-slate-700 dark:text-slate-300">{item.medication?.name}</span>
                           <span className="text-xs text-slate-400">{item.dosage} - {item.frequency} - {item.duration}</span>

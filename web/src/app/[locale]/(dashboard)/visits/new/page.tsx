@@ -35,16 +35,12 @@ import {
   History,
   IdCard,
   Phone,
+  ArrowLeftRight,
+  Globe,
 } from 'lucide-react';
+import { DrugAlternativesModal } from '@/components/prescriptions/DrugAlternativesModal';
 
 const isEgyptianMobile = (value?: string | null) => !!value && /^01[0125]\d{8}$/.test(value);
-
-const EGYPTIAN_FALLBACKS = [
-  { firstName: 'أحمد', lastName: 'محمد', phone: '01001234567' },
-  { firstName: 'محمود', lastName: 'حسن', phone: '01123456789' },
-  { firstName: 'منى', lastName: 'علي', phone: '01224567891' },
-  { firstName: 'سارة', lastName: 'خالد', phone: '01535678912' },
-];
 
 const COMMON_COMPLAINTS = ['صداع', 'ألم في البطن', 'ارتفاع حرارة', 'كحة', 'ألم في المفاصل', 'دوار', 'إمساك', 'إسهال'];
 
@@ -111,7 +107,8 @@ export default function NewVisitPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, activeBranchId } = useAuth();
+  const isRtl = locale === 'ar';
   
   const patientIdFromQuery = searchParams.get('patientId');
   const appointmentId = searchParams.get('appointmentId');
@@ -123,6 +120,26 @@ export default function NewVisitPage() {
   const [vitalsOpen, setVitalsOpen] = useState(false);
   const [medSearch, setMedSearch] = useState('');
   const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(activeBranchId || 'main');
+
+  const [altModalOpen, setAltModalOpen] = useState(false);
+  const [currentMedIndex, setCurrentMedIndex] = useState<number | null>(null);
+
+  const { data: clinicSettings } = useQuery({
+    queryKey: ['clinic-settings', user?.clinicId],
+    queryFn: () => api.get(`/clinics/${user?.clinicId}/settings`).then(r => r.data),
+    enabled: !!user?.clinicId
+  });
+
+  const branches = useMemo(() => {
+    let b = [];
+    if (clinicSettings?.branches) {
+      try {
+        b = typeof clinicSettings.branches === 'string' ? JSON.parse(clinicSettings.branches) : clinicSettings.branches;
+      } catch {}
+    }
+    return [{ id: 'main', name: 'الفرع الرئيسي' }, ...b];
+  }, [clinicSettings?.branches]);
 
   const { data: patient } = useQuery({
     queryKey: ['patient', selectedPatientId],
@@ -149,11 +166,44 @@ export default function NewVisitPage() {
     retry: 1,
   });
 
-  const { data: searchResults, isLoading: searchingMeds } = useQuery({
+  const { data: globalResults, isLoading: searchingGlobal } = useQuery({
     queryKey: ['medications-search', medSearch],
     queryFn: () => api.get('/medications', { params: { q: medSearch } }).then((r) => r.data),
     enabled: !!medSearch,
   });
+
+  const { data: privateResults, isLoading: searchingPrivate } = useQuery({
+    queryKey: ['my-medicines-search', medSearch],
+    queryFn: () => api.get('/my-medicines/search', { params: { q: medSearch } }).then((r) => r.data),
+    enabled: !!medSearch && !['PLATFORM_OWNER'].includes(user?.role || ''),
+  });
+
+  const searchingMeds = searchingGlobal || searchingPrivate;
+  const searchResults = useMemo(() => {
+    const pMeds = (privateResults || []).map((m: any) => ({
+      id: `private_${m.id}`,
+      medicationId: m.medicineId || undefined,
+      name: m.tradeName,
+      activeIngredient: m.activeIngredient,
+      strength: m.strength,
+      defaultDose: m.defaultDose,
+      defaultFrequency: m.defaultFrequency,
+      defaultDuration: m.defaultDuration,
+      __section: 'private' as const,
+      __sectionLabel: isRtl ? 'أدويتي الخاصة' : 'My Medicines',
+    }));
+    const clinicMeds = (globalResults || []).filter((m: any) => !m.isGlobal).map((m: any) => ({
+      ...m,
+      __section: 'clinic' as const,
+      __sectionLabel: isRtl ? 'أدوية العيادة' : 'Clinic Medicines',
+    }));
+    const globalMeds = (globalResults || []).filter((m: any) => m.isGlobal).map((m: any) => ({
+      ...m,
+      __section: 'global' as const,
+      __sectionLabel: isRtl ? 'سجل الأدوية العام' : 'Global Drug Registry',
+    }));
+    return [...pMeds, ...clinicMeds, ...globalMeds];
+  }, [privateResults, globalResults, isRtl]);
 
   const form = useForm({
     defaultValues: {
@@ -167,6 +217,7 @@ export default function NewVisitPage() {
       height: '',
       pulse: '',
       oxygenSaturation: '',
+      prescriptionInstructions: '',
     },
   });
 
@@ -175,18 +226,25 @@ export default function NewVisitPage() {
       const recordPayload = { ...data };
       const createRx = recordPayload.createPrescription;
       const medicationsPayload = Array.isArray(data.medications) ? data.medications : [];
+      const substitutionsPayload = Array.isArray(data.substitutions) ? data.substitutions : [];
       delete recordPayload.medications;
+      delete recordPayload.substitutions;
       delete recordPayload.createPrescription;
+      delete recordPayload.prescriptionInstructions;
 
       const recordRes = await api.post('/medical-records', recordPayload);
       if (createRx && medicationsPayload.length > 0) {
+        const branchDetails = branches.find(b => b.id === data.branchId);
         await api.post('/prescriptions', {
           patientId: data.patientId,
           doctorId: data.doctorId,
           medicalRecordId: recordRes.data?.id,
           medications: medicationsPayload,
-          instructions: data.notes || '',
+          substitutions: data.substitutions || [],
+          instructions: data.prescriptionInstructions || '',
           prescribedDate: new Date().toISOString(),
+          branchId: data.branchId || undefined,
+          branchName: data.branchName || undefined,
         });
       }
       return recordRes;
@@ -197,7 +255,10 @@ export default function NewVisitPage() {
       toast.success('تم حفظ الكشف بنجاح');
       router.push(`/${locale}/patients/${selectedPatientId}`);
     },
-    onError: () => toast.error('حدث خطأ أثناء الحفظ'),
+    onError: (e: any) => {
+      console.error(e);
+      toast.error(e?.response?.data?.message || 'حدث خطأ أثناء حفظ الكشف. يرجى المحاولة مرة أخرى.');
+    },
   });
 
   const addMedicine = (med?: MedicineRow) => {
@@ -214,6 +275,37 @@ export default function NewVisitPage() {
 
   const removeMedicine = (i: number) => {
     setMedicines((prev) => prev.filter((_, idx) => idx !== i));
+  };
+
+  const [substitutions, setSubstitutions] = useState<any[]>([]);
+
+  const openAlternatives = (index: number) => {
+    setCurrentMedIndex(index);
+    setAltModalOpen(true);
+  };
+
+  const handleSubstitute = (newMed: any, reason: string) => {
+    if (currentMedIndex !== null) {
+      const original = medicines[currentMedIndex];
+      const newSub = {
+        originalMedicineId: original.medicationId,
+        originalMedicineName: original.name || 'Unknown',
+        alternativeMedicineId: newMed.medicineId,
+        alternativeMedicineName: newMed.tradeName,
+        reason,
+        safetyWarningsShown: newMed.warnings || [],
+      };
+      setSubstitutions((prev) => [...prev, newSub]);
+
+      const updated = [...medicines];
+      updated[currentMedIndex] = {
+        ...updated[currentMedIndex],
+        medicationId: newMed.medicineId,
+        name: newMed.tradeName,
+      };
+      setMedicines(updated);
+      toast.success(`تم تغيير الدواء إلى ${newMed.tradeName}`);
+    }
   };
 
   const doSave = (createRx: boolean) => {
@@ -243,18 +335,21 @@ export default function NewVisitPage() {
           oxygenSat: data.oxygenSaturation,
         },
         medications: medicines,
+        substitutions,
         createPrescription: createRx,
+        prescriptionInstructions: data.prescriptionInstructions,
+        branchId: selectedBranchId === 'main' ? undefined : selectedBranchId,
+        branchName: selectedBranchId === 'main' ? undefined : branches.find((b: any) => b.id === selectedBranchId)?.name,
       });
     })();
   };
 
   const p = patient;
 
-  const fallback = EGYPTIAN_FALLBACKS[(Number(p?.id) || 0) % EGYPTIAN_FALLBACKS.length];
-  const firstName = p?.firstName || fallback.firstName;
-  const lastName = p?.lastName || fallback.lastName;
-  const fullName = p ? `${firstName} ${lastName}` : '';
-  const phone = p?.phone && isEgyptianMobile(p?.phone) ? p.phone : fallback.phone;
+  const firstName = p?.firstName || 'مريض';
+  const lastName = p?.lastName || '';
+  const fullName = p ? `${firstName} ${lastName}`.trim() : '';
+  const phone = p?.phone || 'لا يوجد رقم';
   const allergies = p?.allergies || null;
   const age = p?.dateOfBirth ? Math.floor((Date.now() - new Date(p.dateOfBirth).getTime()) / 31557600000) : null;
   const genderLabel = p?.gender === 'Male' ? 'ذكر' : p?.gender === 'Female' ? 'أنثى' : null;
@@ -365,6 +460,12 @@ export default function NewVisitPage() {
                         <IdCard className="w-3 h-3" />
                         P-{String(p.id).padStart(4, '0')}
                       </Badge>
+                      {p.isImported && (
+                        <Badge className="bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300 gap-1 text-[11px] px-2.5 py-0.5 font-medium shadow-sm">
+                          <Globe className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                          سجل مستورد (EMR)
+                        </Badge>
+                      )}
                       <Button
                         type="button"
                         variant="ghost"
@@ -510,19 +611,39 @@ export default function NewVisitPage() {
                       <p className="text-xs text-slate-400 text-center py-2">جاري البحث...</p>
                     ) : (
                       <>
-                        {searchResults?.map((m: any) => (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => { addMedicine({ medicationId: m.id, name: m.name, dosage: '', frequency: '', duration: '' }); setMedSearch(''); }}
-                            className="w-full text-right px-2.5 py-1.5 text-sm rounded-md hover:bg-teal-50 dark:hover:bg-teal-950/30 text-slate-700 dark:text-slate-300 transition-colors"
-                          >
-                            <span className="font-medium">{m.name}</span>
-                            {m.activeIngredient && <span className="text-[10px] text-slate-400 mr-2 truncate max-w-[200px] inline-block align-bottom">({m.activeIngredient})</span>}
-                          </button>
-                        ))}
-                        {searchResults?.length === 0 && (
+                        {searchResults?.length === 0 ? (
                           <p className="text-xs text-slate-400 text-center py-2">لا توجد أدوية تطابق البحث</p>
+                        ) : (
+                          (() => {
+                            const sections = new Map<string, { label: string; items: any[] }>();
+                            searchResults?.forEach((m: any) => {
+                              const key = m.__section || 'global';
+                              if (!sections.has(key)) sections.set(key, { label: m.__sectionLabel || '', items: [] });
+                              sections.get(key)!.items.push(m);
+                            });
+                            return Array.from(sections.entries()).map(([key, section]) => (
+                              <div key={key}>
+                                <p className="text-[9px] text-teal-600 dark:text-teal-400 font-bold px-2 py-1 uppercase tracking-wider">
+                                  {section.label}
+                                </p>
+                                {section.items.map((m: any) => (
+                                  <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() => { addMedicine({ medicationId: m.medicationId, name: m.name, dosage: m.defaultDose || '', frequency: m.defaultFrequency || '', duration: m.defaultDuration || '' }); setMedSearch(''); }}
+                                    className="w-full text-right px-2.5 py-1.5 text-sm rounded-md hover:bg-teal-50 dark:hover:bg-teal-950/30 text-slate-700 dark:text-slate-300 transition-colors flex items-center gap-2"
+                                  >
+                                    {key === 'private' && (
+                                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 font-bold">خاص</span>
+                                    )}
+                                    <span className="font-medium">{m.name}</span>
+                                    {m.activeIngredient && <span className="text-[10px] text-slate-400 truncate max-w-[180px]">({m.activeIngredient})</span>}
+                                    {m.strength && <span className="text-[10px] text-slate-400">{m.strength}</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            ));
+                          })()
                         )}
                       </>
                     )}
@@ -535,23 +656,37 @@ export default function NewVisitPage() {
                 )}
                 {medicines.map((med, i) => (
                   <div key={i} className="grid grid-cols-12 gap-1.5 items-center p-2.5 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800">
-                    <div className="col-span-4 space-y-0.5">
-                      <Label className="text-[10px] text-slate-500">الدواء</Label>
+                    <div className="col-span-12 md:col-span-4 space-y-0.5 relative group">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-[10px] text-slate-500">الدواء</Label>
+                        {med.medicationId && (
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-4 text-[9px] px-1 py-0 text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 rounded"
+                            onClick={() => openAlternatives(i)}
+                          >
+                            <ArrowLeftRight className="w-2.5 h-2.5 ml-1" />
+                            عرض البدائل
+                          </Button>
+                        )}
+                      </div>
                       <Input value={med.name} list="med-names" onChange={(e) => updateMedicine(i, 'name', e.target.value)} className="h-8 text-xs rounded-lg border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950" placeholder="اسم الدواء" />
                     </div>
-                    <div className="col-span-2 space-y-0.5">
+                    <div className="col-span-4 md:col-span-2 space-y-0.5 mt-2 md:mt-0">
                       <Label className="text-[10px] text-slate-500">الجرعة</Label>
                       <Input value={med.dosage} list="med-dosages" onChange={(e) => updateMedicine(i, 'dosage', e.target.value)} className="h-8 text-xs rounded-lg border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950" placeholder="500mg" />
                     </div>
-                    <div className="col-span-3 space-y-0.5">
+                    <div className="col-span-5 md:col-span-3 space-y-0.5 mt-2 md:mt-0">
                       <Label className="text-[10px] text-slate-500">التكرار</Label>
                       <Input value={med.frequency} list="med-frequencies" onChange={(e) => updateMedicine(i, 'frequency', e.target.value)} className="h-8 text-xs rounded-lg border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950" placeholder="3 مرات يومياً" />
                     </div>
-                    <div className="col-span-2 space-y-0.5">
+                    <div className="col-span-3 md:col-span-2 space-y-0.5 mt-2 md:mt-0">
                       <Label className="text-[10px] text-slate-500">المدة</Label>
                       <Input value={med.duration} list="med-durations" onChange={(e) => updateMedicine(i, 'duration', e.target.value)} className="h-8 text-xs rounded-lg border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950" placeholder="أيام" />
                     </div>
-                    <div className="col-span-1 pt-4">
+                    <div className="col-span-12 md:col-span-1 pt-0 md:pt-4 flex justify-end">
                       <Button type="button" variant="ghost" size="sm" onClick={() => removeMedicine(i)} className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 h-8 w-8 p-0">
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
@@ -562,6 +697,20 @@ export default function NewVisitPage() {
                   <Plus className="w-3.5 h-3.5" />
                   إضافة دواء يدوياً
                 </Button>
+
+                {/* Prescription Instructions (Doctor custom) */}
+                <div className="mt-6 space-y-2 border-t border-slate-100 dark:border-slate-800 pt-4">
+                  <Label className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-teal-600" />
+                    تعليمات الروشتة للمريض
+                  </Label>
+                  <Textarea
+                    {...form.register('prescriptionInstructions')}
+                    rows={3}
+                    className="bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 rounded-xl text-sm"
+                    placeholder="اكتب التعليمات التي ستظهر أسفل الروشتة (كل سطر يمثل نقطة مستقلة). اتركها فارغة لاستخدام التعليمات الافتراضية."
+                  />
+                </div>
 
                 {/* Autocomplete Datalists */}
                 <datalist id="med-names">
@@ -751,6 +900,17 @@ export default function NewVisitPage() {
         </div>
       </div>
         </>
+      )}
+
+      {selectedPatientId && (
+        <DrugAlternativesModal
+          open={altModalOpen}
+          onOpenChange={setAltModalOpen}
+          medicationId={currentMedIndex !== null ? medicines[currentMedIndex]?.medicationId ?? null : null}
+          patientId={selectedPatientId}
+          currentName={currentMedIndex !== null ? medicines[currentMedIndex]?.name ?? '' : ''}
+          onSubstitute={handleSubstitute}
+        />
       )}
     </div>
   );

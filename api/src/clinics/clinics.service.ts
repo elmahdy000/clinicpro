@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import * as fs from 'fs';
@@ -6,13 +6,55 @@ import { NotificationHelperService } from '../common/services/notification-helpe
 
 @Injectable()
 export class ClinicsService {
+  private readonly logger = new Logger(ClinicsService.name);
+
   constructor(
     private prisma: PrismaService,
     private notificationHelper: NotificationHelperService,
   ) {}
 
-  async findAll() {
+  async findAll(query?: any) {
+    const q = query?.q;
+    const governorateId = query?.governorateId;
+    const cityId = query?.cityId;
+    const plan = query?.plan;
+    const subscriptionStatus = query?.subscriptionStatus;
+    const specialty = query?.specialty;
+
+    const where: any = {};
+
+    if (q) {
+      where.OR = [
+        { name: { contains: q } },
+        { address: { contains: q } },
+        { phone: { contains: q } },
+        { users: { some: { name: { contains: q } } } },
+        { users: { some: { email: { contains: q } } } },
+      ];
+    }
+
+    if (governorateId && governorateId !== 'ALL' && governorateId !== 'all') {
+      where.governorateId = governorateId;
+    }
+    if (cityId && cityId !== 'ALL' && cityId !== 'all') {
+      where.cityId = cityId;
+    }
+    if (plan && plan !== 'ALL' && plan !== 'all') {
+      where.subscriptionPlan = plan;
+    }
+    if (subscriptionStatus && subscriptionStatus !== 'ALL' && subscriptionStatus !== 'all') {
+      where.subscriptionStatus = subscriptionStatus;
+    }
+    if (specialty && specialty !== 'ALL' && specialty !== 'all') {
+      where.doctors = {
+        some: {
+          specialization: { contains: specialty },
+        },
+      };
+    }
+
     const clinics = await this.prisma.clinic.findMany({
+      where,
       include: {
         _count: {
           select: {
@@ -53,6 +95,10 @@ export class ClinicsService {
             specialization: true,
           },
         },
+        subscriptionInvoices: {
+          orderBy: { dueDate: 'desc' },
+          take: 1,
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -64,6 +110,39 @@ export class ClinicsService {
       const pendingInvoicesCount = c.invoices.filter((inv) => inv.status === 'PENDING').length;
       const lastActivity = c.appointments[0]?.appointmentDate ?? c.createdAt;
 
+      let billingStatus = 'PENDING';
+      let derivedSubscriptionStatus = c.subscriptionStatus;
+      let trialEndsAt: Date | null = null;
+      
+      const cAny = c as any;
+      if (c.subscriptionPlan === 'FREE') {
+        billingStatus = 'PAID';
+      } else if (cAny.subscriptionInvoices && cAny.subscriptionInvoices.length > 0) {
+        const latestInvoice = cAny.subscriptionInvoices[0];
+        if (latestInvoice.status === 'PAID') billingStatus = 'PAID';
+        else if (latestInvoice.status === 'PENDING') {
+          if (new Date(latestInvoice.dueDate) < new Date()) {
+            billingStatus = 'OVERDUE';
+          } else {
+            billingStatus = 'PENDING';
+          }
+        } else {
+          billingStatus = latestInvoice.status;
+        }
+      } else {
+        if (c.subscriptionStatus === 'ACTIVE') billingStatus = 'PAID';
+        else if (c.subscriptionStatus === 'TRIAL') {
+          trialEndsAt = new Date(c.createdAt.getTime() + 14 * 24 * 60 * 60 * 1000);
+          if (trialEndsAt < new Date()) {
+            billingStatus = 'OVERDUE';
+            derivedSubscriptionStatus = 'SUSPENDED'; // Dynamically suspend expired trials
+          } else {
+            billingStatus = 'PENDING';
+          }
+        }
+        else if (c.subscriptionStatus === 'SUSPENDED') billingStatus = 'OVERDUE';
+      }
+
       return {
         id: c.id,
         name: c.name,
@@ -71,7 +150,9 @@ export class ClinicsService {
         phone: c.phone,
         logoUrl: c.logoUrl,
         subscriptionPlan: c.subscriptionPlan,
-        subscriptionStatus: c.subscriptionStatus,
+        subscriptionStatus: derivedSubscriptionStatus,
+        billingStatus,
+        trialEndsAt,
         governorate: (c as any).governorate,
         city: (c as any).city,
         currency: c.settings?.currency ?? 'EGP',
@@ -276,46 +357,52 @@ export class ClinicsService {
       if (existing) throw new ConflictException('Email already in use');
     }
 
-    const clinic = await this.prisma.clinic.create({
-      data: {
-        name: data.name,
-        address: data.address,
-        phone: data.phone,
-        subscriptionPlan: data.subscriptionPlan || 'FREE',
-        subscriptionStatus: data.subscriptionStatus || 'ACTIVE',
-        settings: {
-          create: {
-            currency: 'EGP',
-            timezone: 'Africa/Cairo',
+    return this.prisma.$transaction(async (tx) => {
+      const clinic = await tx.clinic.create({
+        data: {
+          name: data.name,
+          address: data.address,
+          phone: data.phone,
+          subscriptionPlan: data.subscriptionPlan || 'FREE',
+          subscriptionStatus: data.subscriptionStatus || 'ACTIVE',
+          governorateId: data.governorateId || undefined,
+          cityId: data.cityId || undefined,
+          settings: {
+            create: {
+              currency: 'EGP',
+              timezone: 'Africa/Cairo',
+              workingDays: '["Sat","Sun","Mon","Tue","Wed","Thu"]',
+              branches: '[]'
+            },
           },
         },
-      },
+      });
+
+      if (data.email) {
+        const hashedPassword = await bcrypt.hash(data.password || '123456', 10);
+        const user = await tx.user.create({
+          data: {
+            email: data.email,
+            name: data.ownerName || data.name,
+            password: hashedPassword,
+            role: 'DOCTOR',
+            clinicId: clinic.id,
+          },
+        });
+
+        await tx.doctor.create({
+          data: {
+            userId: user.id,
+            clinicId: clinic.id,
+            specialization: data.specialization || 'General Medicine',
+            consultationFee: 200,
+            status: 'ACTIVE',
+          },
+        });
+      }
+
+      return clinic;
     });
-
-    if (data.email) {
-      const hashedPassword = await bcrypt.hash(data.password || '123456', 10);
-      const user = await this.prisma.user.create({
-        data: {
-          email: data.email,
-          name: data.ownerName || data.name,
-          password: hashedPassword,
-          role: 'DOCTOR',
-          clinicId: clinic.id,
-        },
-      });
-
-      await this.prisma.doctor.create({
-        data: {
-          userId: user.id,
-          clinicId: clinic.id,
-          specialization: data.specialization || 'General Medicine',
-          consultationFee: 200,
-          status: 'ACTIVE',
-        },
-      });
-    }
-
-    return clinic;
   }
 
   async update(id: number, data: any, user?: any) {
@@ -333,6 +420,8 @@ export class ClinicsService {
         phone: data.phone,
         subscriptionPlan: data.subscriptionPlan,
         subscriptionStatus: data.subscriptionStatus,
+        governorateId: data.governorateId !== undefined ? data.governorateId : undefined,
+        cityId: data.cityId !== undefined ? data.cityId : undefined,
       },
     });
 
@@ -345,7 +434,7 @@ export class ClinicsService {
           platformOwner.id,
           updated.name,
           updated.subscriptionPlan
-        ).catch(() => {});
+        ).catch((e) => this.logger.warn(`Subscription upgrade notification failed: ${(e as Error).message}`));
       }
     }
 
@@ -372,16 +461,152 @@ export class ClinicsService {
   }
 
   async delete(id: number) {
-    // Delete settings first
-    await this.prisma.clinicSettings.deleteMany({
-      where: { clinicId: id }
-    });
-    // Delete other related records if necessary, or let cascade happen if defined.
-    // In this app, SQLite has simple relation cascades or we can delete dependencies
-    await this.prisma.clinicPatient.deleteMany({ where: { clinicId: id } });
-    
-    return this.prisma.clinic.delete({
-      where: { id },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.appointmentStatusChange.deleteMany({ where: { appointment: { clinicId: id } } });
+      await tx.stockMovement.deleteMany({ where: { medicationStock: { clinicId: id } } });
+      await tx.prescriptionItem.deleteMany({ where: { prescription: { clinicId: id } } });
+      await tx.doctorTimeOff.deleteMany({ where: { doctor: { clinicId: id } } });
+      await tx.doctorAvailability.deleteMany({ where: { doctor: { clinicId: id } } });
+      await tx.medicalRecord.deleteMany({ where: { clinicId: id } });
+      await tx.prescription.deleteMany({ where: { clinicId: id } });
+      await tx.invoice.deleteMany({ where: { clinicId: id } });
+      await tx.appointment.deleteMany({ where: { clinicId: id } });
+      await tx.doctor.deleteMany({ where: { clinicId: id } });
+      await tx.fileUpload.deleteMany({ where: { clinicId: id } });
+      await tx.auditLog.deleteMany({ where: { clinicId: id } });
+      await tx.notification.deleteMany({ where: { user: { clinicId: id } } });
+      await tx.user.deleteMany({ where: { clinicId: id } });
+      await tx.medicationStock.deleteMany({ where: { clinicId: id } });
+      await tx.clinicPatient.deleteMany({ where: { clinicId: id } });
+      await tx.clinicSettings.deleteMany({ where: { clinicId: id } });
+
+      return tx.clinic.delete({ where: { id } });
     });
   }
+
+  // Lightweight settings for the clinic settings page (doctor-accessible)
+  async getClinicSettings(clinicId: number) {
+    const clinic = await this.prisma.clinic.findUnique({
+      where: { id: clinicId },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+        phone: true,
+        logoUrl: true,
+        settings: {
+          select: {
+            currency: true,
+            timezone: true,
+            workingHoursFrom: true,
+            workingHoursTo: true,
+            workingDays: true,
+            branches: true,
+          },
+        },
+        subscriptionPlan: true,
+        subscriptionStatus: true,
+        createdAt: true,
+        subscriptionInvoices: {
+          orderBy: { dueDate: 'desc' },
+          take: 1,
+        },
+      },
+    });
+    if (!clinic) throw new NotFoundException(`Clinic #${clinicId} not found`);
+
+    let billingStatus = 'PENDING';
+    let derivedSubscriptionStatus = clinic.subscriptionStatus;
+    let trialEndsAt: Date | null = null;
+    const cAny = clinic as any;
+
+    if (clinic.subscriptionPlan === 'FREE') {
+      billingStatus = 'PAID';
+    } else if (cAny.subscriptionInvoices && cAny.subscriptionInvoices.length > 0) {
+      const latestInvoice = cAny.subscriptionInvoices[0];
+      if (latestInvoice.status === 'PAID') billingStatus = 'PAID';
+      else if (latestInvoice.status === 'PENDING') {
+        if (new Date(latestInvoice.dueDate) < new Date()) {
+          billingStatus = 'OVERDUE';
+        } else {
+          billingStatus = 'PENDING';
+        }
+      } else {
+        billingStatus = latestInvoice.status;
+      }
+    } else {
+      if (clinic.subscriptionStatus === 'ACTIVE') billingStatus = 'PAID';
+      else if (clinic.subscriptionStatus === 'TRIAL') {
+        trialEndsAt = new Date(clinic.createdAt.getTime() + 14 * 24 * 60 * 60 * 1000);
+        if (trialEndsAt < new Date()) {
+          billingStatus = 'OVERDUE';
+          derivedSubscriptionStatus = 'SUSPENDED';
+        } else {
+          billingStatus = 'PENDING';
+        }
+      }
+      else if (clinic.subscriptionStatus === 'SUSPENDED') billingStatus = 'OVERDUE';
+    }
+
+    return {
+      id: clinic.id,
+      name: clinic.name,
+      address: clinic.address,
+      phone: clinic.phone,
+      logoUrl: clinic.logoUrl,
+      currency: clinic.settings?.currency ?? 'EGP',
+      timezone: clinic.settings?.timezone ?? 'Africa/Cairo',
+      workingHoursFrom: clinic.settings?.workingHoursFrom ?? '09:00 AM',
+      workingHoursTo: clinic.settings?.workingHoursTo ?? '05:00 PM',
+      workingDays: clinic.settings?.workingDays ?? '["Sat","Sun","Mon","Tue","Wed","Thu"]',
+      branches: clinic.settings?.branches ?? '[]',
+      subscriptionPlan: clinic.subscriptionPlan,
+      subscriptionStatus: derivedSubscriptionStatus,
+      billingStatus,
+      trialEndsAt,
+    };
+  }
+
+  async updateClinicSettings(clinicId: number, data: any) {
+    const clinic = await this.prisma.clinic.findUnique({ where: { id: clinicId } });
+    if (!clinic) throw new NotFoundException(`Clinic #${clinicId} not found`);
+
+    // Update clinic core fields
+    const clinicUpdate: any = {};
+    if (data.name !== undefined) clinicUpdate.name = data.name;
+    if (data.address !== undefined) clinicUpdate.address = data.address;
+    if (data.phone !== undefined) clinicUpdate.phone = data.phone;
+
+    if (Object.keys(clinicUpdate).length > 0) {
+      await this.prisma.clinic.update({ where: { id: clinicId }, data: clinicUpdate });
+    }
+
+    // Upsert settings (create if not exists)
+    const settingsUpdate: any = {};
+    if (data.currency !== undefined) settingsUpdate.currency = data.currency;
+    if (data.timezone !== undefined) settingsUpdate.timezone = data.timezone;
+    if (data.workingHoursFrom !== undefined) settingsUpdate.workingHoursFrom = data.workingHoursFrom;
+    if (data.workingHoursTo !== undefined) settingsUpdate.workingHoursTo = data.workingHoursTo;
+    if (data.workingDays !== undefined) settingsUpdate.workingDays = data.workingDays;
+    if (data.branches !== undefined) settingsUpdate.branches = data.branches;
+
+    if (Object.keys(settingsUpdate).length > 0) {
+      await this.prisma.clinicSettings.upsert({
+        where: { clinicId },
+        create: {
+          clinicId,
+          currency: settingsUpdate.currency ?? 'EGP',
+          timezone: settingsUpdate.timezone ?? 'Africa/Cairo',
+          workingHoursFrom: settingsUpdate.workingHoursFrom ?? '09:00 AM',
+          workingHoursTo: settingsUpdate.workingHoursTo ?? '05:00 PM',
+          workingDays: settingsUpdate.workingDays ?? '["Sat","Sun","Mon","Tue","Wed","Thu"]',
+          branches: settingsUpdate.branches ?? '[]',
+        },
+        update: settingsUpdate,
+      });
+    }
+
+    return this.getClinicSettings(clinicId);
+  }
 }
+

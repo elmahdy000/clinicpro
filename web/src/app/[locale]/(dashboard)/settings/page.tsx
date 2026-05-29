@@ -30,13 +30,96 @@ export default function SettingsPage() {
 
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [clinicName, setClinicName] = useState('');
+  const [clinicPhone, setClinicPhone] = useState('');
+  const [clinicAddress, setClinicAddress] = useState('');
+  const [doctorName, setDoctorName] = useState(user?.name || '');
+  const [workingHoursFrom, setWorkingHoursFrom] = useState('09:00 AM');
+  const [workingHoursTo, setWorkingHoursTo] = useState('05:00 PM');
+  const [workingDays, setWorkingDays] = useState<string[]>(['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu']);
+  const [branches, setBranches] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const ALL_DAYS = [
+    { id: 'Sat', en: 'Sat', ar: 'السبت' },
+    { id: 'Sun', en: 'Sun', ar: 'الأحد' },
+    { id: 'Mon', en: 'Mon', ar: 'الاثنين' },
+    { id: 'Tue', en: 'Tue', ar: 'الثلاثاء' },
+    { id: 'Wed', en: 'Wed', ar: 'الأربعاء' },
+    { id: 'Thu', en: 'Thu', ar: 'الخميس' },
+    { id: 'Fri', en: 'Fri', ar: 'الجمعة' },
+  ];
+
+  const toggleDay = (dayId: string) => {
+    setWorkingDays(prev => 
+      prev.includes(dayId) ? prev.filter(d => d !== dayId) : [...prev, dayId]
+    );
+  };
+
+  const addBranch = () => {
+    setBranches([...branches, { id: Date.now().toString(), name: '', address: '', phone: '', workingDays: ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu'], workingHoursFrom: '09:00 AM', workingHoursTo: '05:00 PM' }]);
+  };
+  
+  const updateBranch = (id: string, field: string, value: any) => {
+    setBranches(branches.map(b => b.id === id ? { ...b, [field]: value } : b));
+  };
+  
+  const removeBranch = (id: string) => {
+    setBranches(branches.filter(b => b.id !== id));
+  };
+
+  const timeOptions: string[] = [];
+  for (let h = 1; h <= 12; h++) {
+    for (let m of ['00', '30']) {
+      const formattedH = h.toString().padStart(2, '0');
+      timeOptions.push(`${formattedH}:${m} AM`);
+      timeOptions.push(`${formattedH}:${m} PM`);
+    }
+  }
+  // Sort them intuitively
+  timeOptions.sort((a, b) => {
+    const isPm1 = a.includes('PM');
+    const isPm2 = b.includes('PM');
+    if (isPm1 && !isPm2) return 1;
+    if (!isPm1 && isPm2) return -1;
+    let [h1, m1] = a.split(' ')[0].split(':');
+    let [h2, m2] = b.split(' ')[0].split(':');
+    if (h1 === '12') h1 = '00';
+    if (h2 === '12') h2 = '00';
+    return Number(h1) * 60 + Number(m1) - (Number(h2) * 60 + Number(m2));
+  });
 
   useEffect(() => {
     if (!user?.clinicId) return;
     api.get(`/clinics/${user.clinicId}`).then((r) => {
-      if (r.data?.logoUrl) {
-        setLogoPreview(`${API_BASE.replace('/api', '')}${r.data.logoUrl}`);
+      if (r.data) {
+        setClinicName(r.data.name || '');
+        setClinicPhone(r.data.phone || '');
+        setClinicAddress(r.data.address || '');
+        if (r.data.logoUrl) {
+          setLogoPreview(`${API_BASE.replace('/api', '')}${r.data.logoUrl}`);
+        }
+      }
+    }).catch(() => {});
+    
+    api.get(`/clinics/${user.clinicId}/settings`).then((r) => {
+      if (r.data) {
+        setWorkingHoursFrom(r.data.workingHoursFrom || '09:00 AM');
+        setWorkingHoursTo(r.data.workingHoursTo || '05:00 PM');
+        if (r.data.workingDays) {
+          try {
+            setWorkingDays(typeof r.data.workingDays === 'string' ? JSON.parse(r.data.workingDays) : r.data.workingDays);
+          } catch {
+            setWorkingDays(r.data.workingDays.split(','));
+          }
+        }
+        if (r.data.branches) {
+          try {
+            setBranches(typeof r.data.branches === 'string' ? JSON.parse(r.data.branches) : r.data.branches);
+          } catch {
+            setBranches([]);
+          }
+        }
       }
     }).catch(() => {});
   }, [user?.clinicId]);
@@ -56,11 +139,18 @@ export default function SettingsPage() {
       } else {
         // Clinic settings - save via API
         const payload: any = {};
-        const clinicName = (document.querySelector('[name="clinicName"]') as HTMLInputElement)?.value;
-        const doctorName = (document.querySelector('[name="doctorName"]') as HTMLInputElement)?.value;
         if (clinicName) payload.name = clinicName;
+        if (clinicPhone !== undefined) payload.phone = clinicPhone;
+        if (clinicAddress !== undefined) payload.address = clinicAddress;
+
         if (user?.clinicId) {
           await api.put(`/clinics/${user.clinicId}`, payload);
+          await api.put(`/clinics/${user.clinicId}/settings`, {
+            workingHoursFrom,
+            workingHoursTo,
+            workingDays: JSON.stringify(workingDays),
+            branches: JSON.stringify(branches),
+          });
         }
         if (doctorName) {
           await api.put('/auth/me', { name: doctorName });
@@ -243,11 +333,11 @@ export default function SettingsPage() {
       <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm animate-fade-in-up delay-1">
         <CardHeader><CardTitle className="text-base">{t('clinicInfo')}</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2"><Label>{t('clinicName')}</Label><Input name="clinicName" defaultValue="ClinicPro" className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" /></div>
-          <div className="space-y-2"><Label>{t('doctorName')}</Label><Input name="doctorName" defaultValue={user?.name || 'Dr. Sarah Chen'} className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" /></div>
+          <div className="space-y-2"><Label>{t('clinicName')}</Label><Input value={clinicName} onChange={(e) => setClinicName(e.target.value)} className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" /></div>
+          <div className="space-y-2"><Label>{t('doctorName')}</Label><Input value={doctorName} onChange={(e) => setDoctorName(e.target.value)} className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" /></div>
           <div className="space-y-2"><Label>{t('specialty')}</Label><Input defaultValue="Cardiology" className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" /></div>
-          <div className="space-y-2"><Label>{t('phone')}</Label><Input defaultValue="+1 555-0100" className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" /></div>
-          <div className="space-y-2 md:col-span-2"><Label>{t('address')}</Label><Textarea defaultValue="123 Medical Center Dr" rows={2} className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" /></div>
+          <div className="space-y-2"><Label>{t('phone')}</Label><Input value={clinicPhone} onChange={(e) => setClinicPhone(e.target.value)} className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" /></div>
+          <div className="space-y-2 md:col-span-2"><Label>{t('address')}</Label><Textarea value={clinicAddress} onChange={(e) => setClinicAddress(e.target.value)} rows={2} className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" /></div>
           <div className="space-y-2 md:col-span-2">
             <Label>{t('logo')}</Label>
             <div className="flex items-center gap-4">
@@ -285,8 +375,137 @@ export default function SettingsPage() {
         <CardHeader><CardTitle className="text-base">{t('appointmentSettings')}</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2"><Label>{t('defaultDuration')}</Label><Input type="number" defaultValue={30} className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" /></div>
-          <div className="space-y-2"><Label>{t('workingDays')}</Label><Input defaultValue="Mon - Sat" className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" /></div>
-          <div className="space-y-2"><Label>{t('workingHours')}</Label><Input defaultValue="09:00 - 17:00" className="transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20" /></div>
+          <div className="space-y-2 md:col-span-2">
+            <Label>{isRtl ? 'أيام العمل' : 'Working Days'}</Label>
+            <div className="flex flex-wrap gap-2 mt-1.5">
+              {ALL_DAYS.map(day => {
+                const isSelected = workingDays.includes(day.id);
+                return (
+                  <button
+                    key={day.id}
+                    type="button"
+                    onClick={() => toggleDay(day.id)}
+                    className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-200 border ${
+                      isSelected 
+                        ? 'bg-teal-500 text-white border-teal-500 shadow-md shadow-teal-500/20 dark:bg-teal-600 dark:border-teal-600' 
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {isRtl ? day.ar : day.en}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>{isRtl ? 'من الساعة' : 'From'}</Label>
+            <select
+              value={workingHoursFrom}
+              onChange={(e) => setWorkingHoursFrom(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {timeOptions.map((t) => (
+                <option key={`from-${t}`} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label>{isRtl ? 'إلى الساعة' : 'To'}</Label>
+            <select
+              value={workingHoursTo}
+              onChange={(e) => setWorkingHoursTo(e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {timeOptions.map((t) => (
+                <option key={`to-${t}`} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm animate-fade-in-up delay-2">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-4">
+          <CardTitle className="text-base">{isRtl ? 'الفروع الإضافية' : 'Additional Branches'}</CardTitle>
+          <Button type="button" onClick={addBranch} variant="outline" size="sm" className="gap-2 text-teal-600 border-teal-200 hover:bg-teal-50 dark:border-teal-800 dark:hover:bg-teal-900/30">
+            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            {isRtl ? 'إضافة فرع' : 'Add Branch'}
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-6 pt-4">
+          {branches.length === 0 ? (
+            <p className="text-sm text-gray-500 text-center py-4">{isRtl ? 'لا يوجد فروع إضافية' : 'No additional branches'}</p>
+          ) : (
+            branches.map((b, idx) => (
+              <div key={b.id} className="relative p-4 rounded-xl border border-gray-100 bg-gray-50/50 dark:border-gray-800 dark:bg-gray-900/50 space-y-4">
+                <div className="absolute top-4 right-4">
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeBranch(b.id)} className="w-8 h-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-10">
+                  <div className="space-y-2">
+                    <Label>{isRtl ? 'اسم الفرع' : 'Branch Name'}</Label>
+                    <Input value={b.name} onChange={(e) => updateBranch(b.id, 'name', e.target.value)} placeholder={isRtl ? 'مثال: فرع المعادي' : 'e.g. Maadi Branch'} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{isRtl ? 'رقم الهاتف' : 'Phone Number'}</Label>
+                    <Input value={b.phone} onChange={(e) => updateBranch(b.id, 'phone', e.target.value)} />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>{isRtl ? 'العنوان' : 'Address'}</Label>
+                    <Input value={b.address} onChange={(e) => updateBranch(b.id, 'address', e.target.value)} />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>{isRtl ? 'أيام العمل' : 'Working Days'}</Label>
+                    <div className="flex flex-wrap gap-2 mt-1.5">
+                      {ALL_DAYS.map(day => {
+                        const isSelected = b.workingDays?.includes(day.id);
+                        return (
+                          <button
+                            key={day.id}
+                            type="button"
+                            onClick={() => {
+                              const currentDays = b.workingDays || [];
+                              const newDays = isSelected ? currentDays.filter((d: string) => d !== day.id) : [...currentDays, day.id];
+                              updateBranch(b.id, 'workingDays', newDays);
+                            }}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 border ${
+                              isSelected 
+                                ? 'bg-teal-500 text-white border-teal-500 shadow-sm dark:bg-teal-600 dark:border-teal-600' 
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-950 dark:text-slate-400 dark:border-slate-800 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            {isRtl ? day.ar : day.en}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{isRtl ? 'من الساعة' : 'From'}</Label>
+                    <select
+                      value={b.workingHoursFrom}
+                      onChange={(e) => updateBranch(b.id, 'workingHoursFrom', e.target.value)}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      {timeOptions.map((t) => <option key={`from-${t}`} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{isRtl ? 'إلى الساعة' : 'To'}</Label>
+                    <select
+                      value={b.workingHoursTo}
+                      onChange={(e) => updateBranch(b.id, 'workingHoursTo', e.target.value)}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      {timeOptions.map((t) => <option key={`to-${t}`} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 

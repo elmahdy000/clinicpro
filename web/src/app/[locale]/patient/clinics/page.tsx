@@ -8,6 +8,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Building2, Phone, MapPin, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
+interface Clinic {
+  id: number;
+  name: string;
+  address?: string;
+  phone?: string;
+}
+
 export default function PatientClinics() {
   const locale = useLocale();
   const isRtl = locale === 'ar';
@@ -27,7 +34,7 @@ export default function PatientClinics() {
         <div className="space-y-3">{[1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
       ) : clinics?.length > 0 ? (
         <div className="space-y-3">
-          {clinics.map((clinic: any) => (
+          {clinics.map((clinic: Clinic) => (
             <Card key={clinic.id} className="border-slate-200/60 dark:border-slate-800/60 shadow-sm">
               <CardContent className="p-4 space-y-2.5">
                 <div className="flex items-center gap-2">

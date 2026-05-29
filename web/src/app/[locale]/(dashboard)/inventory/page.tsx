@@ -11,12 +11,11 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchBox } from '@/components/common/SearchBox';
+import { PremiumModal } from '@/components/ui/PremiumModal';
+
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Package, Plus, AlertTriangle, Clock, Search, RefreshCw,
-  TrendingDown, Pill, Calendar, Trash2, Eye,
+  Package, Plus, AlertTriangle, Clock,
+  TrendingDown, Pill, Calendar,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -63,7 +62,7 @@ export default function InventoryPage() {
       setBatchNumber('');
       setExpiryDate('');
     },
-    onError: () => toast.error(isRtl ? 'فشل الإضافة' : 'Failed to add'),
+    onError: (e) => console.error(e),
   });
 
   const restockMutation = useMutation({
@@ -92,70 +91,87 @@ export default function InventoryPage() {
             {isRtl ? 'إدارة مخزون الأدوية وتتبع الكميات وتواريخ الصلاحية' : 'Manage medication stock, track quantities and expiry dates'}
           </p>
         </div>
-        <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogTrigger>
-            <Button className="bg-teal-600 hover:bg-teal-700 gap-1.5">
-              <Plus className="w-4 h-4" />
-              {isRtl ? 'إضافة مخزون' : 'Add Stock'}
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{isRtl ? 'إضافة مخزون جديد' : 'Add New Stock'}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-3">
+        <Button className="bg-teal-600 hover:bg-teal-700 gap-1.5" onClick={() => setAddOpen(true)}>
+            <Plus className="w-4 h-4" />
+            {isRtl ? 'إضافة مخزون' : 'Add Stock'}
+          </Button>
+
+          <PremiumModal
+            open={addOpen}
+            onClose={() => setAddOpen(false)}
+            title={isRtl ? 'إضافة مخزون جديد' : 'Add New Stock'}
+            description={isRtl ? 'أضف دواءً جديداً إلى مخزون عيادتك' : 'Add a new medication to your clinic inventory'}
+            icon={<Package className="w-5 h-5 text-white" />}
+            headerColor="teal"
+            size="sm"
+            footer={
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setAddOpen(false)}
+                  className="rounded-xl border-slate-200 dark:border-slate-700">
+                  {isRtl ? 'إلغاء' : 'Cancel'}
+                </Button>
+                <Button
+                  className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-700 text-white"
+                  onClick={() => {
+                    if (!medName || !quantity) { toast.error(isRtl ? 'اختر دواء وأدخل الكمية' : 'Select medication and enter quantity'); return; }
+                    const med = meds?.find((m: any) => m.name === medName);
+                    if (!med) { toast.error(isRtl ? 'اختر دواء من القائمة' : 'Select a medication from the list'); return; }
+                    addMutation.mutate({ medicationId: med.id, quantityOnHand: parseInt(quantity, 10), batchNumber, expiryDate: expiryDate || undefined });
+                  }}
+                  disabled={addMutation.isPending}
+                >
+                  {isRtl ? 'حفظ المخزون' : 'Save Stock'}
+                </Button>
+              </div>
+            }
+          >
+            <div className="p-5 space-y-4">
               <div className="space-y-2">
-                <Label>{isRtl ? 'الدواء' : 'Medication'}</Label>
+                <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">{isRtl ? 'الدواء' : 'Medication'}</Label>
                 <Input
                   value={medSearch}
                   onChange={(e) => setMedSearch(e.target.value)}
                   placeholder={isRtl ? 'ابحث عن دواء...' : 'Search medication...'}
+                  className="rounded-xl border-slate-200 dark:border-slate-700 h-10"
                 />
                 {medSearch && meds && (
-                  <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 max-h-40 overflow-y-auto mt-1">
+                  <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 max-h-40 overflow-y-auto">
                     {meds.map((m: any) => (
-                      <button
-                        key={m.id}
-                        type="button"
+                      <button key={m.id} type="button"
                         onClick={() => { setMedName(m.name); setMedSearch(''); }}
-                        className={`w-full text-right px-3 py-2 text-sm rounded-md hover:bg-teal-50 dark:hover:bg-teal-950/30 ${medName === m.name ? 'bg-teal-50 font-semibold' : ''}`}
-                      >
+                        className={`w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-teal-50 dark:hover:bg-teal-950/30 transition-colors ${medName === m.name ? 'bg-teal-50 font-semibold text-teal-700' : ''}`}>
                         {m.name}
                         {m.activeIngredient && <span className="text-xs text-slate-400 mr-2">({m.activeIngredient})</span>}
                       </button>
                     ))}
                   </div>
                 )}
+                {medName && (
+                  <p className="text-xs text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-3 py-1.5 font-medium">
+                    ✓ {medName}
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>{isRtl ? 'الكمية' : 'Quantity'}</Label>
-                  <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="0" />
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">{isRtl ? 'الكمية' : 'Quantity'}</Label>
+                  <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="0"
+                    className="rounded-xl border-slate-200 dark:border-slate-700 h-10" />
                 </div>
-                <div className="space-y-2">
-                  <Label>{isRtl ? 'رقم التشغيلة' : 'Batch #'}</Label>
-                  <Input value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} placeholder={isRtl ? 'اختياري' : 'Optional'} />
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">{isRtl ? 'رقم التشغيلة' : 'Batch #'}</Label>
+                  <Input value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)}
+                    placeholder={isRtl ? 'اختياري' : 'Optional'}
+                    className="rounded-xl border-slate-200 dark:border-slate-700 h-10" />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>{isRtl ? 'تاريخ الصلاحية' : 'Expiry Date'}</Label>
-                <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
+              <div className="space-y-1.5">
+                <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">{isRtl ? 'تاريخ الصلاحية' : 'Expiry Date'}</Label>
+                <Input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)}
+                  className="rounded-xl border-slate-200 dark:border-slate-700 h-10" />
               </div>
-              <Button
-                className="w-full bg-teal-600 hover:bg-teal-700"
-                onClick={() => {
-                  if (!medName || !quantity) { toast.error(isRtl ? 'اختر دواء وأدخل الكمية' : 'Select medication and enter quantity'); return; }
-                  const med = meds?.find((m: any) => m.name === medName);
-                  if (!med) { toast.error(isRtl ? 'اختر دواء من القائمة' : 'Select a medication from the list'); return; }
-                  addMutation.mutate({ medicationId: med.id, quantityOnHand: parseInt(quantity, 10), batchNumber, expiryDate: expiryDate || undefined });
-                }}
-                disabled={addMutation.isPending}
-              >
-                {isRtl ? 'حفظ' : 'Save'}
-              </Button>
             </div>
-          </DialogContent>
-        </Dialog>
+          </PremiumModal>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

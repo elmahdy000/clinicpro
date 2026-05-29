@@ -12,36 +12,9 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { HeartPulse, Eye, EyeOff, Building2, User, Phone, MapPin, Stethoscope, ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
-
-// Egypt Governorates & Cities for Registration
-const EGYPT_GOVERNORATES = [
-  { id: 'cairo', nameAr: 'القاهرة', nameEn: 'Cairo', cities: ['مدينة نصر', 'مصر الجديدة', 'المعادي', 'التجمع الخامس', 'وسط البلد', 'حلوان', 'شبرا', 'الزيتون', 'حدائق القبة', 'مصر القديمة'] },
-  { id: 'giza', nameAr: 'الجيزة', nameEn: 'Giza', cities: ['الدقي', 'المهندسين', 'الهرم', 'فيصل', '6 أكتوبر', 'الشيخ زايد', 'العمرانية', 'الوراق', 'العجوزة', 'البدرشين'] },
-  { id: 'alexandria', nameAr: 'الإسكندرية', nameEn: 'Alexandria', cities: ['سموحة', 'ميامي', 'سيدي بشر', 'العجمي', 'المنشية', 'المنتزة', 'لوران', 'جليم', 'العصافرة', 'باكوس'] },
-  { id: 'qalyubia', nameAr: 'القليوبية', nameEn: 'Qalyubia', cities: ['بنها', 'شبرا الخيمة', 'العبور', 'قليوب', 'طوخ', 'القناطر الخيرية', 'الخانكة', 'شبين القناطر'] },
-  { id: 'dakahlia', nameAr: 'الدقهلية', nameEn: 'Dakahlia', cities: ['المنصورة', 'ميت غمر', 'السنبلاوين', 'طلخا', 'دكرنس', 'بلقاس', 'شربين', 'الجمالية'] },
-  { id: 'sharqia', nameAr: 'الشرقية', nameEn: 'Sharqia', cities: ['الزقازيق', 'العاشر من رمضان', 'بلبيس', 'منيا القمح', 'أبو حماد', 'فاقوس', 'ديرب نجم', 'مشتول السوق'] },
-  { id: 'gharbia', nameAr: 'الغربية', nameEn: 'Gharbia', cities: ['طنطا', 'المحلة الكبرى', 'كفر الزيات', 'زفتى', 'بسيون', 'السنطة', 'قطور', 'سمنود'] },
-  { id: 'beheira', nameAr: 'البحيرة', nameEn: 'Beheira', cities: ['دمنهور', 'كفر الدوار', 'كوم حمادة', 'رشيد', 'إيتاي البارود', 'أبو المطامير', 'أبو حمص', 'حوش عيسى'] },
-  { id: 'monufia', nameAr: 'المنوفية', nameEn: 'Monufia', cities: ['شبين الكوم', 'مدينة السادات', 'منوف', 'أشمون', 'تلا', 'قويسنا', 'الشهداء', 'بركة السبع'] },
-  { id: 'damietta', nameAr: 'دمياط', nameEn: 'Damietta', cities: ['دمياط القديمة', 'رأس البر', 'دمياط الجديدة', 'فارسكور', 'الزرقا', 'كفر البطيخ'] },
-  { id: 'ismailia', nameAr: 'الإسماعيلية', nameEn: 'Ismailia', cities: ['الإسماعيلية', 'التل الكبير', 'فايد', 'القنطرة شرق', 'القنطرة غرب', 'القصاصين'] },
-  { id: 'port_said', nameAr: 'بورسعيد', nameEn: 'Port Said', cities: ['بورسعيد', 'بورفؤاد'] },
-  { id: 'suez', nameAr: 'السويس', nameEn: 'Suez', cities: ['السويس', 'حي الأربعين', 'حي الجناين', 'حي فيصل', 'حي عتاقة'] },
-  { id: 'fayoum', nameAr: 'الفيوم', nameEn: 'Fayoum', cities: ['الفيوم', 'سنورس', 'إبشواي', 'إطسا', 'طامية', 'يوسف الصديق'] },
-  { id: 'beni_suef', nameAr: 'بني سويف', nameEn: 'Beni Suef', cities: ['بني سويف', 'ناصر', 'ببا', 'سمسطا', 'الفشن', 'اهناسيا', 'الواسطى'] },
-  { id: 'minya', nameAr: 'المنيا', nameEn: 'Minya', cities: ['المنيا', 'ملوي', 'مغاغة', 'بني مزار', 'أبو قرقاص', 'سمالوط', 'دير مواس', 'مطاي'] },
-  { id: 'asyut', nameAr: 'أسيوط', nameEn: 'Asyut', cities: ['أسيوط', 'ديروط', 'منفلوط', 'أبو تيج', 'صدفا', 'القوصية', 'ساحل سليم', 'أبنوب'] },
-  { id: 'sohag', nameAr: 'سوهاج', nameEn: 'Sohag', cities: ['سوهاج', 'طهطا', 'جرجا', 'البلينا', 'أخميم', 'المراغة', 'المنشأة', 'ساقلتة'] },
-  { id: 'qena', nameAr: 'قنا', nameEn: 'Qena', cities: ['قنا', 'نجع حمادي', 'دشنا', 'قوص', 'أبو تشت', 'قفط', 'نقادة', 'فرشوط'] },
-  { id: 'luxor', nameAr: 'الأقصر', nameEn: 'Luxor', cities: ['الأقصر', 'إسنا', 'أرمنت', 'القرنة', 'البياضية', 'الطود'] },
-  { id: 'aswan', nameAr: 'أسوان', nameEn: 'Aswan', cities: ['أسوان', 'كوم أمبو', 'إدفو', 'نصر النوبة', 'دراو'] },
-  { id: 'red_sea', nameAr: 'البحر الأحمر', nameEn: 'Red Sea', cities: ['الغردقة', 'سفاجا', 'القصير', 'مرسى علم', 'شلاتين', 'حلايب', 'رأس غارب'] },
-  { id: 'new_valley', nameAr: 'الوادي الجديد', nameEn: 'New Valley', cities: ['الخارجة', 'الداخلة', 'الفرافرة', 'باريس', 'بلاط'] },
-  { id: 'matrouh', nameAr: 'مطروح', nameEn: 'Matrouh', cities: ['مرسى مطروح', 'السلوم', 'سيوة', 'الضبعة', 'العلمين', 'الحمام', 'النجيلة'] },
-  { id: 'north_sinai', nameAr: 'شمال سيناء', nameEn: 'North Sinai', cities: ['العريش', 'بئر العبد', 'الشيخ زويد', 'رفح', 'الحسنة'] },
-  { id: 'south_sinai', nameAr: 'جنوب سيناء', nameEn: 'South Sinai', cities: ['شرم الشيخ', 'دهب', 'طور سيناء', 'نويبع', 'طابا', 'سانت كاترين', 'أبو رديس', 'أبو زنيمة'] }
-];
+import { LocationFields } from '@/components/common/location/LocationFields';
+import { useGovernorates } from '@/hooks/useGovernorates';
+import { useCities } from '@/hooks/useCities';
 
 
 export default function LoginPage() {
@@ -71,6 +44,10 @@ export default function LoginPage() {
   const [selectedGov, setSelectedGov] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [streetAddress, setStreetAddress] = useState('');
+
+  // Load dynamic locations from DB
+  const { data: dbGovernorates } = useGovernorates();
+  const { data: dbCities } = useCities(selectedGov);
 
   useEffect(() => {
     if (user) {
@@ -114,9 +91,11 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    const govObj = EGYPT_GOVERNORATES.find(g => g.id === selectedGov);
-    const govName = isRtl ? govObj?.nameAr : govObj?.nameEn;
-    const fullAddress = `${streetAddress || ''}، ${selectedCity || ''}، محافظة ${govName || ''}`;
+    const govObj = dbGovernorates?.find((g: { id: string; nameAr: string; nameEn?: string }) => g.id === selectedGov);
+    const govName = govObj ? (isRtl ? govObj.nameAr : govObj.nameEn || govObj.nameAr) : '';
+    const cityObj = dbCities?.find((c: { id: string; nameAr: string; nameEn?: string }) => c.id === selectedCity);
+    const cityName = cityObj ? (isRtl ? cityObj.nameAr : cityObj.nameEn || cityObj.nameAr) : '';
+    const fullAddress = `${streetAddress || ''}، ${cityName}، محافظة ${govName}`;
 
     const payload = {
       name: doctorName,
@@ -125,6 +104,8 @@ export default function LoginPage() {
       clinicName,
       clinicPhone,
       clinicAddress: fullAddress,
+      governorateId: selectedGov || undefined,
+      cityId: selectedCity || undefined,
       specialization,
     };
 
@@ -135,8 +116,8 @@ export default function LoginPage() {
       
       // Auto login on success
       await login(email, password);
-    } catch (error: any) {
-      const errMsg = error.response?.data?.message || '';
+    } catch (error: unknown) {
+      const errMsg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || '';
       if (errMsg.includes('already in use')) {
         toast.error(isRtl ? 'هذا البريد الإلكتروني مسجل بالفعل لمستخدم آخر.' : 'This email is already registered.');
       } else {
@@ -146,10 +127,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
-  // Dynamic cities based on governorate
-  const activeGov = EGYPT_GOVERNORATES.find(g => g.id === selectedGov);
-  const citiesList = activeGov ? activeGov.cities : [];
 
   return (
     <div
@@ -395,43 +372,16 @@ export default function LoginPage() {
                   </select>
                 </div>
 
-                {/* Egypt Governorate Dropdown */}
-                <div className="space-y-1.5">
-                  <Label className="flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-teal-600" />
-                    {isRtl ? 'المحافظة بمصر *' : 'Governorate *'}
-                  </Label>
-                  <select
-                    required
-                    value={selectedGov}
-                    onChange={(e) => {
-                      setSelectedGov(e.target.value);
-                      setSelectedCity('');
-                    }}
-                    className="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-white"
-                  >
-                    <option value="">{isRtl ? '-- اختر المحافظة --' : '-- Select Gov --'}</option>
-                    {EGYPT_GOVERNORATES.map(g => (
-                      <option key={g.id} value={g.id}>{isRtl ? g.nameAr : g.nameEn}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Egypt City Dropdown */}
-                <div className="space-y-1.5">
-                  <Label>{isRtl ? 'المدينة / المنطقة *' : 'City / Area *'}</Label>
-                  <select
-                    required
-                    disabled={!selectedGov}
-                    value={selectedCity}
-                    onChange={(e) => setSelectedCity(e.target.value)}
-                    className="w-full h-10 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500 text-gray-900 dark:text-white disabled:opacity-50"
-                  >
-                    <option value="">{isRtl ? '-- اختر المدينة --' : '-- Select City --'}</option>
-                    {citiesList.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                {/* Egypt Governorate & City Dropdowns */}
+                <div className="col-span-2">
+                  <LocationFields
+                    governorateId={selectedGov}
+                    cityId={selectedCity}
+                    onGovernorateChange={(govId) => setSelectedGov(govId || '')}
+                    onCityChange={(cityId) => setSelectedCity(cityId || '')}
+                    showLabels={true}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-slate-700 dark:text-slate-350 font-semibold"
+                  />
                 </div>
 
                 {/* Street Address */}
@@ -497,9 +447,9 @@ function PatientPortalForm({
 }: {
   locale: string;
   isRtl: boolean;
-  api: any;
-  router: any;
-  tc: any;
+  api: typeof import('@/lib/api').default;
+  router: ReturnType<typeof import('next/navigation').useRouter>;
+  tc: ReturnType<typeof import('next-intl').useTranslations>;
 }) {
   const { login } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -513,11 +463,11 @@ function PatientPortalForm({
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await axiosApi.post('/auth/patient-login', { phone, password });
+      const { data } = await axiosApi.post('/auth/patient-login', { identifier: phone, password });
       localStorage.setItem('access_token', data.access_token);
       window.location.href = `/${locale}/patient`;
-    } catch (error: any) {
-      const msg = error.response?.data?.message || '';
+    } catch (error: unknown) {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || '';
       if (msg.includes('غير مسجل') || msg.includes('غير موجود') || msg.includes('not registered') || msg.includes('not found')) {
         toast.error(isRtl ? 'رقم الهاتف غير مسجل. الرجاء التسجيل أولاً.' : 'Phone not registered. Please register first.');
         setMode('register');
@@ -543,16 +493,14 @@ function PatientPortalForm({
     }
     setLoading(true);
     try {
-      const { data } = await axiosApi.post('/auth/patient-register', { phone, password, name });
+      const { data } = await axiosApi.post('/auth/patient-register', { phone, password, fullName: name });
       localStorage.setItem('access_token', data.access_token);
       window.location.href = `/${locale}/patient`;
-    } catch (error: any) {
-      const msg = error.response?.data?.message || '';
+    } catch (error: unknown) {
+      const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || '';
       if (msg.includes('مسجل') || msg.includes('already')) {
         toast.error(isRtl ? 'هذا الرقم مسجل بالفعل. الرجاء تسجيل الدخول.' : 'Already registered. Please login.');
         setMode('login');
-      } else if (msg.includes('غير مسجل') || msg.includes('added by') || msg.includes('not registered') || msg.includes('added by')) {
-        toast.error(isRtl ? 'رقم الهاتف غير مسجل في أي عيادة. يجب أن يتم إضافتك بواسطة العيادة أولاً.' : 'Phone not found at any clinic. Please visit the clinic first.');
       } else {
         toast.error(isRtl ? 'فشل التسجيل' : 'Registration failed');
       }
@@ -590,7 +538,11 @@ function PatientPortalForm({
           <div className="space-y-2 text-right">
             <Label>{isRtl ? 'رقم الهاتف' : 'Phone Number'}</Label>
             <Input
-              type="tel"
+              id="patientLoginPhone"
+              name="patientLoginPhone"
+              type="text"
+              inputMode="numeric"
+              autoComplete="tel"
               required
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -602,7 +554,10 @@ function PatientPortalForm({
             <Label>{isRtl ? 'كلمة المرور' : 'Password'}</Label>
             <div className="relative">
               <Input
+                id="patientLoginPassword"
+                name="patientLoginPassword"
                 type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -627,6 +582,9 @@ function PatientPortalForm({
           <div className="space-y-2 text-right">
             <Label>{isRtl ? 'الاسم بالكامل' : 'Full Name'}</Label>
             <Input
+              id="patientRegisterName"
+              name="patientRegisterName"
+              autoComplete="name"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -636,9 +594,12 @@ function PatientPortalForm({
           </div>
           <div className="space-y-2 text-right">
             <Label>{isRtl ? 'رقم الهاتف' : 'Phone Number'}</Label>
-            <p className="text-[10px] text-slate-400">{isRtl ? 'نفس رقم الهاتف المسجل في العيادة' : 'Must match your clinic record'}</p>
             <Input
-              type="tel"
+              id="patientRegisterPhone"
+              name="patientRegisterPhone"
+              type="text"
+              inputMode="numeric"
+              autoComplete="tel"
               required
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -650,7 +611,10 @@ function PatientPortalForm({
             <Label>{isRtl ? 'كلمة المرور' : 'Password'}</Label>
             <div className="relative">
               <Input
+                id="patientRegisterPassword"
+                name="patientRegisterPassword"
                 type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

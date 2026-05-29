@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, UseInterceptors, UploadedFile, BadRequestException, Req, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, UseInterceptors, UploadedFile, BadRequestException, Req, ParseIntPipe } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -15,14 +15,39 @@ export class ClinicsController {
 
   @Get()
   @Roles(UserRole.PLATFORM_OWNER)
-  findAll() {
-    return this.clinicsService.findAll();
+  findAll(@Query() query: any) {
+    return this.clinicsService.findAll(query);
   }
 
+  // Doctors, Admins & Staff can read their own clinic details (for settings/header)
   @Get(':id')
-  @Roles(UserRole.PLATFORM_OWNER)
-  findOne(@Param('id') id: string) {
-    return this.clinicsService.findOne(+id);
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
+  findOne(@Param('id') id: string, @Req() req: any) {
+    const numId = +id;
+    // Non-platform-owners can only access their own clinic
+    if (req.user.role !== 'PLATFORM_OWNER' && req.user.clinicId !== numId) {
+      throw new BadRequestException('Access denied to this clinic');
+    }
+    return this.clinicsService.findOne(numId);
+  }
+
+  // Dedicated lightweight settings endpoint for clinic doctors, admins & staff
+  @Get(':id/settings')
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
+  getSettings(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    if (req.user.role !== 'PLATFORM_OWNER' && req.user.clinicId !== id) {
+      throw new BadRequestException('Access denied');
+    }
+    return this.clinicsService.getClinicSettings(id);
+  }
+
+  @Put(':id/settings')
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.PLATFORM_OWNER)
+  updateSettings(@Param('id', ParseIntPipe) id: number, @Body() body: any, @Req() req: any) {
+    if (req.user.role !== 'PLATFORM_OWNER' && req.user.clinicId !== id) {
+      throw new BadRequestException('Access denied');
+    }
+    return this.clinicsService.updateClinicSettings(id, body);
   }
 
   @Post()
@@ -32,13 +57,13 @@ export class ClinicsController {
   }
 
   @Put(':id')
-  @Roles(UserRole.PLATFORM_OWNER, UserRole.ADMIN)
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.ADMIN, UserRole.DOCTOR)
   update(@Param('id', ParseIntPipe) id: number, @Body() body: any, @Req() req: any) {
     return this.clinicsService.update(id, body, req.user);
   }
 
   @Put(':id/logo')
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.PLATFORM_OWNER)
   @UseInterceptors(
     FileInterceptor('logo', {
       storage: diskStorage({

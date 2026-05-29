@@ -1,0 +1,86 @@
+{
+  "name": "ClinicPro — نظام إدارة العيادة",
+  "short_name": "ClinicPro",
+  "description": "نظام إدارة العيادات الطبية المتكامل للأطباء والمرضى",
+  "start_url": "/ar/dashboard",
+  "id": "/ar/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#0d9488",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["medical", "health", "productivity"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "لوحة التحكم",
+      "short_name": "Dashboard",
+      "description": "افتح لوحة التحكم الرئيسية",
+      "url": "/ar/dashboard",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "المواعيد",
+      "short_name": "Appointments",
+      "description": "إدارة المواعيد",
+      "url": "/ar/appointments",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "الروشتات",
+      "short_name": "Prescriptions",
+      "description": "إدارة الروشتات الطبية",
+      "url": "/ar/prescriptions",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "المرضى",
+      "short_name": "Patients",
+      "description": "سجل المرضى",
+      "url": "/ar/patients",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

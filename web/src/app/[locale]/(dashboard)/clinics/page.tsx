@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocale } from 'next-intl';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/stores/auth';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import api from '@/lib/api';
@@ -27,12 +29,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   Building2, Search, Plus, RefreshCw, Eye, Power, PowerOff,
-  User, Mail, Phone, MapPin, CreditCard, ShieldAlert,
-  Users, Stethoscope, CalendarDays, FileText, ChevronRight,
-  TrendingUp, CircleDollarSign, Activity, Calendar, LayoutGrid, LayoutList,
-  MoreHorizontal, Sparkles, SlidersHorizontal, AlertCircle, FileWarning, Trash2
+  User, Mail, Phone, MapPin,
+  Users, CalendarDays, CircleDollarSign, LayoutGrid, LayoutList,
+  MoreHorizontal, SlidersHorizontal, AlertCircle, Trash2
 } from 'lucide-react';
 import { formatDate, getInitials } from '@/lib/utils';
+import { GovernorateSelect } from '@/components/common/location/GovernorateSelect';
+import { CitySelect } from '@/components/common/location/CitySelect';
+import { LocationFields } from '@/components/common/location/LocationFields';
+import { useGovernorates } from '@/hooks/useGovernorates';
+import { useCities } from '@/hooks/useCities';
 
 const PLAN_COLOR: Record<string, string> = {
   FREE: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
@@ -60,39 +66,77 @@ const PLAN_MAP_AR: Record<string, string> = {
   ENTERPRISE: 'باقة مؤسسات',
 };
 
-// Egypt Governorates & Cities for Relational Geolocation Filtering
-const EGYPT_GOVERNORATES = [
-  { id: 'cairo', nameAr: 'القاهرة', nameEn: 'Cairo', cities: ['مدينة نصر', 'مصر الجديدة', 'المعادي', 'التجمع الخامس', 'وسط البلد', 'حلوان', 'شبرا', 'الزيتون', 'حدائق القبة', 'مصر القديمة'] },
-  { id: 'giza', nameAr: 'الجيزة', nameEn: 'Giza', cities: ['الدقي', 'المهندسين', 'الهرم', 'فيصل', '6 أكتوبر', 'الشيخ زايد', 'العمرانية', 'الوراق', 'العجوزة', 'البدرشين'] },
-  { id: 'alexandria', nameAr: 'الإسكندرية', nameEn: 'Alexandria', cities: ['سموحة', 'ميامي', 'سيدي بشر', 'العجمي', 'المنشية', 'المنتزة', 'لوران', 'جليم', 'العصافرة', 'باكوس'] },
-  { id: 'qalyubia', nameAr: 'القليوبية', nameEn: 'Qalyubia', cities: ['بنها', 'شبرا الخيمة', 'العبور', 'قليوب', 'طوخ', 'القناطر الخيرية', 'الخانكة', 'شبين القناطر'] },
-  { id: 'dakahlia', nameAr: 'الدقهلية', nameEn: 'Dakahlia', cities: ['المنصورة', 'ميت غمر', 'السنبلاوين', 'طلخا', 'دكرنس', 'بلقاس', 'شربين', 'الجمالية'] },
-  { id: 'sharqia', nameAr: 'الشرقية', nameEn: 'Sharqia', cities: ['الزقازيق', 'العاشر من رمضان', 'بلبيس', 'منيا القمح', 'أبو حماد', 'فاقوس', 'ديرب نجم', 'مشتول السوق'] },
-  { id: 'gharbia', nameAr: 'الغربية', nameEn: 'Gharbia', cities: ['طنطا', 'المحلة الكبرى', 'كفر الزيات', 'زفتى', 'بسيون', 'السنطة', 'قطور', 'سمنود'] },
-  { id: 'beheira', nameAr: 'البحيرة', nameEn: 'Beheira', cities: ['دمنهور', 'كفر الدوار', 'كوم حمادة', 'رشيد', 'إيتاي البارود', 'أبو المطامير', 'أبو حمص', 'حوش عيسى'] },
-  { id: 'monufia', nameAr: 'المنوفية', nameEn: 'Monufia', cities: ['شبين الكوم', 'مدينة السادات', 'منوف', 'أشمون', 'تلا', 'قويسنا', 'الشهداء', 'بركة السبع'] },
-  { id: 'damietta', nameAr: 'دمياط', nameEn: 'Damietta', cities: ['دمياط القديمة', 'رأس البر', 'دمياط الجديدة', 'فارسكور', 'الزرقا', 'كفر البطيخ'] },
-  { id: 'ismailia', nameAr: 'الإسماعيلية', nameEn: 'Ismailia', cities: ['الإسماعيلية', 'التل الكبير', 'فايد', 'القنطرة شرق', 'القنطرة غرب', 'القصاصين'] },
-  { id: 'port_said', nameAr: 'بورسعيد', nameEn: 'Port Said', cities: ['بورسعيد', 'بورفؤاد'] },
-  { id: 'suez', nameAr: 'السويس', nameEn: 'Suez', cities: ['السويس', 'حي الأربعين', 'حي الجناين', 'حي فيصل', 'حي عتاقة'] },
-  { id: 'fayoum', nameAr: 'الفيوم', nameEn: 'Fayoum', cities: ['الفيوم', 'سنورس', 'إبشواي', 'إطسا', 'طامية', 'يوسف الصديق'] },
-  { id: 'beni_suef', nameAr: 'بني سويف', nameEn: 'Beni Suef', cities: ['بني سويف', 'ناصر', 'ببا', 'سمسطا', 'الفشن', 'اهناسيا', 'الواسطى'] },
-  { id: 'minya', nameAr: 'المنيا', nameEn: 'Minya', cities: ['المنيا', 'ملوي', 'مغاغة', 'بني مزار', 'أبو قرقاص', 'سمالوط', 'دير مواس', 'مطاي'] },
-  { id: 'asyut', nameAr: 'أسيوط', nameEn: 'Asyut', cities: ['أسيوط', 'ديروط', 'منفلوط', 'أبو تيج', 'صدفا', 'القوصية', 'ساحل سليم', 'أبنوب'] },
-  { id: 'sohag', nameAr: 'سوهاج', nameEn: 'Sohag', cities: ['سوهاج', 'طهطا', 'جرجا', 'البلينا', 'أخميم', 'المراغة', 'المنشأة', 'ساقلتة'] },
-  { id: 'qena', nameAr: 'قنا', nameEn: 'Qena', cities: ['قنا', 'نجع حمادي', 'دشنا', 'قوص', 'أبو تشت', 'قفط', 'نقادة', 'فرشوط'] },
-  { id: 'luxor', nameAr: 'الأقصر', nameEn: 'Luxor', cities: ['الأقصر', 'إسنا', 'أرمنت', 'القرنة', 'البياضية', 'الطود'] },
-  { id: 'aswan', nameAr: 'أسوان', nameEn: 'Aswan', cities: ['أسوان', 'كوم أمبو', 'إدفو', 'نصر النوبة', 'دراو'] },
-  { id: 'red_sea', nameAr: 'البحر الأحمر', nameEn: 'Red Sea', cities: ['الغردقة', 'سفاجا', 'القصير', 'مرسى علم', 'شلاتين', 'حلايب', 'رأس غارب'] },
-  { id: 'new_valley', nameAr: 'الوادي الجديد', nameEn: 'New Valley', cities: ['الخارجة', 'الداخلة', 'الفرافرة', 'باريس', 'بلاط'] },
-  { id: 'matrouh', nameAr: 'مطروح', nameEn: 'Matrouh', cities: ['مرسى مطروح', 'السلوم', 'سيوة', 'الضبعة', 'العلمين', 'الحمام', 'النجيلة'] },
-  { id: 'north_sinai', nameAr: 'شمال سيناء', nameEn: 'North Sinai', cities: ['العريش', 'بئر العبد', 'الشيخ زويد', 'رفح', 'الحسنة'] },
-  { id: 'south_sinai', nameAr: 'جنوب سيناء', nameEn: 'South Sinai', cities: ['شرم الشيخ', 'دهب', 'طور سيناء', 'نويبع', 'طابا', 'سانت كاترين', 'أبو رديس', 'أبو زنيمة'] }
-];
+interface GovObject {
+  id: string;
+  nameAr: string;
+  nameEn?: string;
+}
+
+interface CityObject {
+  id: string;
+  nameAr: string;
+  nameEn?: string;
+}
+
+interface ClinicOwner {
+  name: string;
+  email: string;
+}
+
+interface ClinicStats {
+  patients: number;
+  doctors: number;
+  appointments: number;
+}
+
+interface Clinic {
+  id: number;
+  name: string;
+  phone?: string;
+  address?: string;
+  governorateId?: string;
+  cityId?: string;
+  governorate?: GovObject;
+  city?: CityObject;
+  owner?: ClinicOwner;
+  subscriptionPlan: string;
+  subscriptionStatus: string;
+  specializations?: string[];
+  stats?: ClinicStats;
+  revenue?: number;
+  hasPendingInvoices?: boolean;
+  lastActivity?: string;
+  createdAt?: string;
+  currency?: string;
+  trialEndsAt?: string;
+  billingStatus?: string;
+}
+
+interface CreateClinicData {
+  name: string;
+  phone?: string;
+  address?: string;
+  governorateId?: string;
+  cityId?: string;
+  ownerName: string;
+  email: string;
+  password: string;
+  specialization?: string;
+  subscriptionPlan: string;
+  subscriptionStatus: string;
+}
+
+interface ErrorResponse {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
 
 // Address Parser: E.g., "طنطا، الغربية" -> City: "طنطا", Gov: "الغربية"
 const parseAddress = (address: string, isRtl: boolean) => {
-  if (!address) return { city: isRtl ? 'غير محدد' : 'N/A', gov: isRtl ? 'غير محدد' : 'N/A' };
+  if (!address) return { city: isRtl ? 'غير مححدد' : 'N/A', gov: isRtl ? 'غير محدد' : 'N/A' };
   const parts = address.split(/[,،]/).map(p => p.trim());
   if (parts.length >= 2) {
     return {
@@ -106,10 +150,25 @@ const parseAddress = (address: string, isRtl: boolean) => {
   };
 };
 
+const getLastActivityString = (dateStr: string, isRtl: boolean, locale: string) => {
+  if (!dateStr) return isRtl ? 'لا يوجد نشاط مؤخراً' : 'No recent activity';
+  const date = new Date(dateStr);
+  const diffMs = Date.now() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return isRtl ? 'نشط اليوم' : 'Active today';
+  if (diffDays === 1) return isRtl ? 'نشط بالأمس' : 'Active yesterday';
+  if (diffDays < 7) return isRtl ? `منذ ${diffDays} أيام` : `${diffDays} days ago`;
+  
+  return formatDate(dateStr, locale);
+};
+
 export default function ClinicsPage() {
   const locale = useLocale();
   const isRtl = locale === 'ar';
   const queryClient = useQueryClient();
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
 
   // Primary Search Box State
   const [search, setSearch] = useState('');
@@ -131,6 +190,20 @@ export default function ClinicsPage() {
   const [regDateFilter, setRegDateFilter] = useState('ALL');
   const [lastActivityFilter, setLastActivityFilter] = useState('ALL');
 
+  useEffect(() => {
+    if (!authLoading && (!user || user.role !== 'PLATFORM_OWNER')) {
+      router.push(`/${locale}/dashboard`);
+    }
+  }, [user, authLoading, router, locale]);
+
+  if (authLoading || !user || user.role !== 'PLATFORM_OWNER') {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500"></div>
+      </div>
+    );
+  }
+
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [addOpen, setAddOpen] = useState(false);
 
@@ -149,14 +222,18 @@ export default function ClinicsPage() {
   const [newStatus, setNewStatus] = useState('ACTIVE');
 
   // Fetch Clinics from Backend
-  const { data: clinics, isLoading, refetch } = useQuery<any[]>({
+  const { data: clinics, isLoading, refetch } = useQuery<Clinic[]>({
     queryKey: ['admin-clinics'],
     queryFn: () => api.get('/clinics').then((r) => r.data),
+    refetchInterval: 10_000,
   });
+
+  const { data: dbGovernorates } = useGovernorates();
+  const { data: dbCities } = useCities(selectedNewGov);
 
   // Mutators
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) => api.put(`/clinics/${id}`, data),
+    mutationFn: ({ id, data }: { id: number; data: Record<string, unknown> }) => api.put(`/clinics/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-clinics'] });
       toast.success(isRtl ? 'تم تحديث بيانات العيادة بنجاح' : 'Clinic settings updated successfully');
@@ -167,7 +244,7 @@ export default function ClinicsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => api.post('/clinics', data),
+    mutationFn: (data: CreateClinicData) => api.post('/clinics', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-clinics'] });
       toast.success(isRtl ? 'تم تسجيل العيادة بنجاح' : 'Clinic registered successfully');
@@ -186,7 +263,7 @@ export default function ClinicsPage() {
       setNewPlan('FREE');
       setNewStatus('ACTIVE');
     },
-    onError: (err: any) => {
+    onError: (err: ErrorResponse) => {
       const msg = err.response?.data?.message || '';
       if (msg.includes('Email')) {
         toast.error(isRtl ? 'البريد الإلكتروني مستخدم بالفعل' : 'Email address is already in use');
@@ -227,23 +304,11 @@ export default function ClinicsPage() {
 
   // Calculations & Dynamic lists for filtering
   const allSpecializations = Array.from(
-    new Set((clinics || []).flatMap((c: any) => c.specializations || []))
+    new Set((clinics || []).flatMap((c: Clinic) => c.specializations || []))
   ).filter(Boolean) as string[];
 
-  // Complete static lists of all 27 Egypt Governorates for robust regional filtering
-  const allGovernorates = EGYPT_GOVERNORATES.map((g) => isRtl ? g.nameAr : g.nameEn);
-
-  // Dynamic Cities Filter: dynamically displays corresponding cities based on the selected governorate
-  const selectedGovObj = EGYPT_GOVERNORATES.find(
-    (g) => (isRtl ? g.nameAr : g.nameEn) === govFilter
-  );
-  
-  const allCitiesFiltered = govFilter === 'ALL'
-    ? Array.from(new Set(EGYPT_GOVERNORATES.flatMap((g) => g.cities)))
-    : (selectedGovObj ? selectedGovObj.cities : []);
-
   // Filtering Logic
-  const filteredClinics = (clinics || []).filter((c: any) => {
+  const filteredClinics = (clinics || []).filter((c: Clinic) => {
     const query = search.toLowerCase();
     
     // 1. General Search (Clinic name, phone, address, owner name, owner email)
@@ -268,52 +333,29 @@ export default function ClinicsPage() {
       (c.specializations || []).includes(specializationFilter);
 
     // 5. Governorate & City (Egyptian Dynamic Address System)
-    const addressParsed = parseAddress(c.address, isRtl);
+    const addressParsed = parseAddress(c.address ?? '', isRtl);
     
     const cGovNameAr = c.governorate?.nameAr || '';
     const cGovNameEn = c.governorate?.nameEn || '';
-    const cGovCode = c.governorate?.code || '';
+    const cGovId = c.governorateId || c.governorate?.id || '';
     
     const cCityNameAr = c.city?.nameAr || '';
     const cCityNameEn = c.city?.nameEn || '';
-    const cCityCode = c.city?.code || '';
+    const cCityId = c.cityId || c.city?.id || '';
 
     let matchesGov = true;
-    if (govFilter !== 'ALL') {
-      const selectedGovObj = EGYPT_GOVERNORATES.find(
-        (g) => g.id === govFilter || g.nameAr === govFilter || g.nameEn === govFilter
-      );
-      if (selectedGovObj) {
-        // Relational DB match check
-        const matchesDbGov = (cGovNameAr && (cGovNameAr === selectedGovObj.nameAr || cGovNameEn === selectedGovObj.nameEn)) ||
-                             (cGovCode && (cGovCode.toLowerCase() === selectedGovObj.id.toLowerCase() || cGovNameEn.toLowerCase() === selectedGovObj.id.toLowerCase()));
-        
-        // Text parsing fallback check
-        const cGovText = (addressParsed.gov || '').trim();
-        const matchesTextGov = cGovText === selectedGovObj.id ||
-                               cGovText === selectedGovObj.nameAr ||
-                               cGovText === selectedGovObj.nameEn ||
-                               cGovText.includes(selectedGovObj.nameAr) ||
-                               cGovText.includes(selectedGovObj.nameEn) ||
-                               selectedGovObj.nameAr.includes(cGovText) ||
-                               selectedGovObj.nameEn.includes(cGovText);
-                               
-        matchesGov = matchesDbGov || matchesTextGov;
-      } else {
-        matchesGov = addressParsed.gov === govFilter || cGovNameAr === govFilter || cGovNameEn === govFilter;
-      }
+    if (govFilter !== 'ALL' && govFilter !== '') {
+      const matchesDbGov = cGovId === govFilter;
+      const cGovText = (addressParsed.gov || '').trim();
+      const matchesTextGov = cGovText === govFilter || cGovNameAr === govFilter || cGovNameEn === govFilter;
+      matchesGov = matchesDbGov || matchesTextGov;
     }
 
     let matchesCity = true;
-    if (cityFilter !== 'ALL') {
+    if (cityFilter !== 'ALL' && cityFilter !== '') {
+      const matchesDbCity = cCityId === cityFilter;
       const cCityText = (addressParsed.city || '').trim();
-      const matchesTextCity = cCityText === cityFilter ||
-                              cCityText.includes(cityFilter) ||
-                              cityFilter.includes(cCityText);
-                              
-      const matchesDbCity = (cCityNameAr && cCityNameAr === cityFilter) ||
-                            (cCityNameEn && cCityNameEn.toLowerCase() === cityFilter.toLowerCase());
-                            
+      const matchesTextCity = cCityText === cityFilter || cCityNameAr === cityFilter || cCityNameEn === cityFilter;
       matchesCity = matchesDbCity || matchesTextCity;
     }
 
@@ -376,7 +418,7 @@ export default function ClinicsPage() {
     let matchesLastActivity = true;
     if (lastActivityFilter !== 'ALL') {
       const now = new Date();
-      const cActivity = new Date(c.lastActivity || c.createdAt);
+      const cActivity = new Date(c.lastActivity ?? c.createdAt ?? Date.now());
       if (lastActivityFilter === 'TODAY') {
         const todayLimit = new Date(); todayLimit.setHours(0, 0, 0, 0);
         matchesLastActivity = cActivity >= todayLimit;
@@ -399,9 +441,9 @@ export default function ClinicsPage() {
   });
 
   const totalClinics = clinics?.length || 0;
-  const activeClinics = clinics?.filter((c: any) => c.subscriptionStatus === 'ACTIVE').length || 0;
-  const totalRevenue = clinics?.reduce((sum: number, c: any) => sum + (c.revenue || 0), 0) || 0;
-  const totalPatients = clinics?.reduce((sum: number, c: any) => sum + (c.stats?.patients || 0), 0) || 0;
+  const activeClinics = clinics?.filter((c: Clinic) => c.subscriptionStatus === 'ACTIVE').length || 0;
+  const totalRevenue = clinics?.reduce((sum: number, c: Clinic) => sum + (c.revenue || 0), 0) || 0;
+  const totalPatients = clinics?.reduce((sum: number, c: Clinic) => sum + (c.stats?.patients || 0), 0) || 0;
 
   // Active filters helper count
   const hasActiveFilters = search || ownerSearch || phoneSearch || emailSearch ||
@@ -416,7 +458,7 @@ export default function ClinicsPage() {
       {/* ── HEADER SECTION ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <Building2 className="w-6 h-6 text-teal-600" />
             {isRtl ? 'إدارة العيادات' : 'Clinics Management'}
           </h1>
@@ -489,36 +531,15 @@ export default function ClinicsPage() {
                   <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="01xxxxxxxxx" className="h-9" />
                 </div>
                 {/* Relational Egypt Geolocation Dropdowns for Consistent Seeding & Relational Integrity */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">{isRtl ? 'المحافظة بمصر *' : 'Governorate *'}</Label>
-                  <select
-                    value={selectedNewGov}
-                    onChange={(e) => {
-                      setSelectedNewGov(e.target.value);
-                      setSelectedNewCity('');
-                    }}
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    <option value="">{isRtl ? '-- اختر المحافظة --' : '-- Select Governorate --'}</option>
-                    {EGYPT_GOVERNORATES.map((g) => (
-                      <option key={g.id} value={g.id}>{isRtl ? g.nameAr : g.nameEn}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">{isRtl ? 'المدينة / المنطقة *' : 'City / Area *'}</Label>
-                  <select
-                    disabled={!selectedNewGov}
-                    value={selectedNewCity}
-                    onChange={(e) => setSelectedNewCity(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
-                  >
-                    <option value="">{isRtl ? '-- اختر المدينة --' : '-- Select City --'}</option>
-                    {(EGYPT_GOVERNORATES.find(g => g.id === selectedNewGov)?.cities || []).map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                <div className="md:col-span-2">
+                  <LocationFields
+                    governorateId={selectedNewGov}
+                    cityId={selectedNewCity}
+                    onGovernorateChange={(govId) => setSelectedNewGov(govId || '')}
+                    onCityChange={(cityId) => setSelectedNewCity(cityId || '')}
+                    showLabels={true}
+                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                  />
                 </div>
 
                 <div className="space-y-1.5 md:col-span-2">
@@ -583,16 +604,20 @@ export default function ClinicsPage() {
                   }
 
                   // Standardize address format for perfect parsing: streetAddress، city، محافظة governorate
-                  const govObj = EGYPT_GOVERNORATES.find((g) => g.id === selectedNewGov);
-                  const govName = isRtl ? govObj?.nameAr : govObj?.nameEn;
+                  const govObj = dbGovernorates?.find((g: GovObject) => g.id === selectedNewGov);
+                  const govName = govObj ? (isRtl ? govObj.nameAr : govObj.nameEn || govObj.nameAr) : '';
+                  const cityObj = dbCities?.find((c: CityObject) => c.id === selectedNewCity);
+                  const cityName = cityObj ? (isRtl ? cityObj.nameAr : cityObj.nameEn || cityObj.nameAr) : '';
                   const finalAddress = selectedNewGov
-                    ? `${newStreetAddress || ''}، ${selectedNewCity || ''}، محافظة ${govName || ''}`
+                    ? `${newStreetAddress || ''}، ${cityName}، محافظة ${govName}`
                     : newAddress;
 
                   createMutation.mutate({
                     name: newName,
                     phone: newPhone || undefined,
                     address: finalAddress || undefined,
+                    governorateId: selectedNewGov || undefined,
+                    cityId: selectedNewCity || undefined,
                     ownerName: newOwnerName,
                     email: newOwnerEmail,
                     password: newOwnerPassword || '123456',
@@ -638,7 +663,7 @@ export default function ClinicsPage() {
           },
           {
             title: isRtl ? 'المواعيد والزيارات المسجلة' : 'Platform Appointments',
-            value: (clinics?.reduce((sum: number, c: any) => sum + (c.stats?.appointments || 0), 0) || 0).toLocaleString(),
+            value: (clinics?.reduce((sum: number, c: Clinic) => sum + (c.stats?.appointments || 0), 0) || 0).toLocaleString(),
             sub: isRtl ? 'إجمالي الحجوزات الطبية' : 'Total medical engagements',
             icon: CalendarDays,
             gradient: 'border-l-4 border-l-purple-500',
@@ -651,7 +676,7 @@ export default function ClinicsPage() {
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="space-y-1">
                   <span className="text-xs text-gray-400 font-semibold block">{stat.title}</span>
-                  <span className="text-2xl font-black text-gray-900 dark:text-white block">{isLoading ? <Skeleton className="h-7 w-16" /> : stat.value}</span>
+                  <span className="text-2xl font-semibold font-mono text-gray-900 dark:text-white block">{isLoading ? <Skeleton className="h-7 w-16" /> : stat.value}</span>
                   <span className="text-[10px] text-gray-500 block font-bold">{stat.sub}</span>
                 </div>
                 <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-gray-800/60 flex items-center justify-center shadow-xs">
@@ -698,7 +723,7 @@ export default function ClinicsPage() {
               />
               <SheetContent side="right" className="w-full sm:max-w-[520px] md:max-w-[580px] lg:max-w-[640px] p-0 flex flex-col h-full bg-white dark:bg-slate-950 border-l border-slate-100 dark:border-slate-800">
                 <SheetHeader className="p-6 border-b border-gray-150/80 dark:border-gray-800/80 bg-slate-50/40 dark:bg-slate-900/10">
-                  <SheetTitle className="flex items-center gap-2 text-teal-700 dark:text-teal-400 font-heading text-lg font-black">
+                  <SheetTitle className="flex items-center gap-2 text-teal-700 dark:text-teal-400 font-heading text-lg font-bold">
                     <SlidersHorizontal className="w-5 h-5 text-teal-600" />
                     {isRtl ? 'تصفية وبحث متقدم للعيادات' : 'Advanced Search & Filter Suite'}
                   </SheetTitle>
@@ -713,7 +738,7 @@ export default function ClinicsPage() {
                   
                   {/* Category 1: Basic Identity Information */}
                   <div className="space-y-4 bg-slate-50/40 dark:bg-slate-900/10 border border-slate-100 dark:border-slate-800/50 rounded-2xl p-4.5">
-                    <span className="text-xs text-teal-700 dark:text-teal-400 font-black uppercase tracking-wider block border-b pb-2 mb-3 border-gray-100 dark:border-gray-850/60">
+                    <span className="text-xs text-teal-700 dark:text-teal-400 font-bold uppercase tracking-wider block border-b pb-2 mb-3 border-gray-100 dark:border-gray-850/60">
                       {isRtl ? '👤 بيانات المالك والاتصال' : '👤 Owner & Identity'}
                     </span>
                     
@@ -737,7 +762,7 @@ export default function ClinicsPage() {
 
                   {/* Category 2: Plan & Subscription limits */}
                   <div className="space-y-4 bg-slate-50/40 dark:bg-slate-900/10 border border-slate-100 dark:border-slate-800/50 rounded-2xl p-4.5">
-                    <span className="text-xs text-teal-700 dark:text-teal-400 font-black uppercase tracking-wider block border-b pb-2 mb-3 border-gray-100 dark:border-gray-850/60">
+                    <span className="text-xs text-teal-700 dark:text-teal-400 font-bold uppercase tracking-wider block border-b pb-2 mb-3 border-gray-100 dark:border-gray-850/60">
                       {isRtl ? '💼 باقة الاشتراك والترخيص' : '💼 SaaS Billing & License'}
                     </span>
 
@@ -787,7 +812,7 @@ export default function ClinicsPage() {
 
                   {/* Category 3: Region & Geography & Clinical Activity */}
                   <div className="space-y-4 bg-slate-50/40 dark:bg-slate-900/10 border border-slate-100 dark:border-slate-800/50 rounded-2xl p-4.5">
-                    <span className="text-xs text-teal-700 dark:text-teal-400 font-black uppercase tracking-wider block border-b pb-2 mb-3 border-gray-100 dark:border-gray-850/60">
+                    <span className="text-xs text-teal-700 dark:text-teal-400 font-bold uppercase tracking-wider block border-b pb-2 mb-3 border-gray-100 dark:border-gray-850/60">
                       {isRtl ? '📍 الموقع الجغرافي والتخصص' : '📍 Clinical Specialty & Location'}
                     </span>
 
@@ -805,26 +830,27 @@ export default function ClinicsPage() {
                       {/* Governorate Filter */}
                       <div className="space-y-1.5">
                         <Label className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1.5">{isRtl ? 'المحافظة:' : 'Governorate:'}</Label>
-                        <select value={govFilter} onChange={(e) => {
-                          setGovFilter(e.target.value);
-                          setCityFilter('ALL'); // Reset city when gov changes
-                        }} className="flex h-10 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs shadow-xs focus:ring-1 focus:ring-teal-500 focus:border-teal-500 outline-none text-gray-800 dark:text-gray-200 font-medium">
-                          <option value="ALL">{isRtl ? 'جميع المحافظات' : 'All Governorates'}</option>
-                          {allGovernorates.map((gov) => (
-                            <option key={gov} value={gov}>{gov}</option>
-                          ))}
-                        </select>
+                        <GovernorateSelect
+                          value={govFilter === 'ALL' ? '' : govFilter}
+                          onChange={(val) => {
+                            setGovFilter(val || 'ALL');
+                            setCityFilter('ALL');
+                          }}
+                          placeholder={isRtl ? 'جميع المحافظات' : 'All Governorates'}
+                          className="h-10 text-xs shadow-xs border-gray-250 dark:border-gray-800 focus:ring-1 focus:ring-teal-500 focus:border-teal-500 font-medium"
+                        />
                       </div>
 
                       {/* Dynamic Egyptian City Filter */}
                       <div className="space-y-1.5">
                         <Label className="text-xs font-bold text-gray-700 dark:text-gray-300 block mb-1.5">{isRtl ? 'المدينة:' : 'City:'}</Label>
-                        <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} className="flex h-10 w-full rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs shadow-xs focus:ring-1 focus:ring-teal-500 focus:border-teal-500 outline-none text-gray-800 dark:text-gray-200 font-medium">
-                          <option value="ALL">{isRtl ? 'جميع المدن' : 'All Cities'}</option>
-                          {allCitiesFiltered.map((city) => (
-                            <option key={city} value={city}>{city}</option>
-                          ))}
-                        </select>
+                        <CitySelect
+                          governorateId={govFilter === 'ALL' ? null : govFilter}
+                          value={cityFilter === 'ALL' ? '' : cityFilter}
+                          onChange={(val) => setCityFilter(val || 'ALL')}
+                          placeholder={isRtl ? 'جميع المدن' : 'All Cities'}
+                          className="h-10 text-xs shadow-xs border-gray-250 dark:border-gray-800 focus:ring-1 focus:ring-teal-500 focus:border-teal-500 font-medium"
+                        />
                       </div>
 
                       <div className="space-y-1.5">
@@ -840,7 +866,7 @@ export default function ClinicsPage() {
 
                   {/* Category 4: Performance, Registration and Timeline */}
                   <div className="space-y-4 bg-slate-50/40 dark:bg-slate-900/10 border border-slate-100 dark:border-slate-800/50 rounded-2xl p-4.5">
-                    <span className="text-xs text-teal-700 dark:text-teal-400 font-black uppercase tracking-wider block border-b pb-2 mb-3 border-gray-100 dark:border-gray-850/60">
+                    <span className="text-xs text-teal-700 dark:text-teal-400 font-bold uppercase tracking-wider block border-b pb-2 mb-3 border-gray-100 dark:border-gray-850/60">
                       {isRtl ? '📈 مؤشرات النمو والأداء والجدول الزمنـي' : '📈 Growth Performance & Timelines'}
                     </span>
                     
@@ -885,7 +911,7 @@ export default function ClinicsPage() {
                 <div className="sticky bottom-0 border-t border-gray-150 dark:border-gray-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md px-6 py-4 flex items-center justify-between z-10 shadow-lg">
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => setFilterModalOpen(false)} className="bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold px-5 h-9.5 shadow-sm">
-                      {isRtl ? 'تطبيق معايير الفرز' : 'Apply Multi-Filters'}
+                      {isRtl ? 'تم - إغلاق اللوحة' : 'Done - Close Panel'}
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => setFilterModalOpen(false)} className="rounded-xl text-xs h-9.5 px-4">{isRtl ? 'إلغاء' : 'Cancel'}</Button>
                   </div>
@@ -989,7 +1015,7 @@ export default function ClinicsPage() {
                 </Badge>
               )}
 
-              <Button variant="ghost" onClick={handleResetAll} className="h-7 px-2 text-[10px] text-rose-500 hover:text-rose-600 font-black gap-1 rounded-lg">
+              <Button variant="ghost" onClick={handleResetAll} className="h-7 px-2 text-[10px] text-rose-500 hover:text-rose-600 font-semibold gap-1 rounded-lg">
                 {isRtl ? 'مسح الكل' : 'Clear All'}
               </Button>
             </div>
@@ -1014,176 +1040,190 @@ export default function ClinicsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-right text-xs">
                   <thead>
-                    <tr className="border-b bg-gray-50/80 dark:bg-gray-900/60 text-gray-500 font-black tracking-wider uppercase select-none">
-                      <th className="px-5 py-3 text-right">{isRtl ? 'معلومات الهوية والاتصال للعيادة' : 'Clinic Identity & Contact'}</th>
-                      <th className="px-5 py-3 text-right">{isRtl ? 'المالك الطبي المسؤول' : 'Primary Owner / Administrator'}</th>
-                      <th className="px-5 py-3 text-right">{isRtl ? 'باقة الاشتراك والحالة' : 'SaaS Plan & License Status'}</th>
-                      <th className="px-5 py-3 text-right">{isRtl ? 'أحجام الاستخدام' : 'Tenant Utilization'}</th>
-                      <th className="px-5 py-3 text-right">{isRtl ? 'المدفوعات' : 'Paid Revenue'}</th>
-                      <th className="px-5 py-3 text-right">{isRtl ? 'آخر نشاط' : 'Last Activity'}</th>
-                      <th className="px-5 py-3 text-center">{isRtl ? 'إجراءات لوحة التحكم' : 'Administrative Actions'}</th>
+                    <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-900/60 text-gray-500 font-bold tracking-wider uppercase select-none">
+                      <th className="px-6 py-4 text-right">{isRtl ? 'معلومات العيادة' : 'Clinic Info'}</th>
+                      <th className="px-6 py-4 text-right">{isRtl ? 'المالك المسؤول' : 'Responsible Owner'}</th>
+                      <th className="px-6 py-4 text-right">{isRtl ? 'الخطة والحالة' : 'Plan & Status'}</th>
+                      <th className="px-6 py-4 text-right">{isRtl ? 'الاستخدام' : 'Usage'}</th>
+                      <th className="px-6 py-4 text-right">{isRtl ? 'اشتراكات المنصة' : 'Platform Subscriptions'}</th>
+                      <th className="px-6 py-4 text-right">{isRtl ? 'آخر نشاط' : 'Last Activity'}</th>
+                      <th className="px-6 py-4 text-center">{isRtl ? 'الإجراءات' : 'Actions'}</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800 font-semibold text-gray-700 dark:text-gray-300">
-                    {filteredClinics.map((c: any) => {
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-800 font-semibold text-slate-700 dark:text-slate-350">
+                    {filteredClinics.map((c: Clinic) => {
                       const isSuspended = c.subscriptionStatus === 'SUSPENDED';
                       return (
-                        <tr key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
+                        <tr key={c.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-900/10 transition-colors">
                           
-                          {/* Column 1: Clinic Name & Info */}
-                          <td className="px-5 py-3.5">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-sm flex-shrink-0">
+                          {/* Column 1: Clinic Info (Clinic Name, Spec & Location) */}
+                          <td className="px-6 py-4.5">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 font-bold text-xs shadow-3xs flex-shrink-0">
                                 {c.name ? getInitials(c.name) : 'C'}
                               </div>
-                              <div className="min-w-0">
+                              <div className="min-w-0 space-y-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold text-gray-950 dark:text-white block truncate">{c.name}</span>
-                                  {c.hasPendingInvoices && (
-                                    <Badge variant="outline" className="bg-rose-50 text-rose-600 border-rose-200 text-[8px] px-1 py-0 font-bold flex items-center gap-0.5 shadow-3xs shrink-0 select-none">
-                                      <FileWarning className="w-2.5 h-2.5" />
-                                      {isRtl ? 'متأخرات مالية' : 'Pending Invoices'}
-                                    </Badge>
-                                  )}
+                                  <span className="text-xs font-semibold text-slate-950 dark:text-white block truncate">{c.name}</span>
                                 </div>
-                                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-400 font-medium">
-                                  {c.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {c.phone}</span>}
-                                  {(c.city || c.governorate) ? (
-                                    <span className="flex items-center gap-1 font-mono text-[9px] truncate max-w-[150px]" title={isRtl ? `${c.city?.nameAr}، ${c.governorate?.nameAr}` : `${c.city?.nameEn}, ${c.governorate?.nameEn}`}>
-                                      <MapPin className="w-3 h-3 text-teal-600 shrink-0" />
-                                      {c.city ? (isRtl ? c.city.nameAr : c.city.nameEn) : ''}
-                                      {c.city && c.governorate ? '، ' : ''}
-                                      {c.governorate ? (isRtl ? c.governorate.nameAr : c.governorate.nameEn) : ''}
-                                    </span>
-                                  ) : c.address ? (
-                                    <span className="flex items-center gap-1 font-mono text-[9px] truncate max-w-[150px]" title={c.address}>
-                                      <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                                      {c.address}
-                                    </span>
-                                  ) : null}
+                                <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 font-semibold">
+                                  <span className="bg-slate-100 dark:bg-slate-800/60 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-600 dark:text-slate-300 uppercase shrink-0">
+                                    {c.specializations?.[0] || (isRtl ? 'طب عام' : 'General')}
+                                  </span>
+                                  <span className="flex items-center gap-0.5 text-slate-400 dark:text-slate-500 truncate max-w-[150px]">
+                                    <MapPin className="w-3 h-3 text-slate-450 shrink-0" />
+                                    {c.city ? (isRtl ? c.city.nameAr : c.city.nameEn) : ''}
+                                    {c.city && c.governorate ? '، ' : ''}
+                                    {c.governorate ? (isRtl ? c.governorate.nameAr : c.governorate.nameEn) : ''}
+                                  </span>
                                 </div>
                               </div>
                             </div>
                           </td>
 
-                          {/* Column 2: Owner/Contact */}
-                          <td className="px-5 py-3.5">
+                          {/* Column 2: Responsible Owner */}
+                          <td className="px-6 py-4.5">
                             {c.owner ? (
                               <div className="space-y-0.5">
-                                <span className="text-xs font-bold text-gray-950 dark:text-white flex items-center gap-1">
-                                  <User className="w-3 h-3 text-teal-600 shrink-0" />
+                                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                  <User className="w-3.5 h-3.5 text-slate-450 shrink-0" />
                                   {c.owner.name}
                                 </span>
-                                <span className="text-[10px] text-gray-400 font-mono flex items-center gap-1 truncate max-w-[160px]">
-                                  <Mail className="w-3 h-3 text-gray-400 shrink-0" />
+                                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono flex items-center gap-1.5 truncate max-w-[160px]">
+                                  <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                   {c.owner.email}
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-xs text-gray-400 font-semibold">{isRtl ? 'غير محدد' : 'Not assigned'}</span>
+                              <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold">{isRtl ? 'غير محدد' : 'Not assigned'}</span>
                             )}
                           </td>
 
-                          {/* Column 3: Plan & Subscription status */}
-                          <td className="px-5 py-3.5">
-                            <div className="flex flex-col gap-1 items-start">
-                              {/* Plan Switcher */}
-                              <select
-                                value={c.subscriptionPlan}
-                                onChange={(e) => handleChangePlan(c.id, c.subscriptionPlan, e.target.value)}
-                                className="h-7 w-28 rounded-md border border-gray-200 dark:border-gray-800 bg-background px-1 py-0.5 text-[10px] font-black shadow-2xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-teal-500"
-                              >
-                                <option value="FREE">{isRtl ? 'باقة مجانية' : 'FREE'}</option>
-                                <option value="BASIC">{isRtl ? 'باقة أساسية' : 'BASIC'}</option>
-                                <option value="PRO">{isRtl ? 'باقة احترافية' : 'PRO'}</option>
-                                <option value="ENTERPRISE">{isRtl ? 'باقة مؤسسات' : 'ENTERPRISE'}</option>
-                              </select>
-                              
-                              <Badge variant="outline" className={`text-[9px] px-1.5 py-0 font-bold border rounded-sm select-none ${STATUS_COLOR[c.subscriptionStatus] || ''}`}>
+                          {/* Column 3: Plan & Status */}
+                          <td className="px-6 py-4.5">
+                            <div className="flex flex-col gap-1.5 items-start">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${PLAN_COLOR[c.subscriptionPlan]}`}>
+                                {isRtl ? (PLAN_MAP_AR[c.subscriptionPlan] || c.subscriptionPlan) : c.subscriptionPlan}
+                              </span>
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border gap-1 w-max ${STATUS_COLOR[c.subscriptionStatus]}`}>
                                 {isRtl ? (STATUS_MAP_AR[c.subscriptionStatus] || c.subscriptionStatus) : c.subscriptionStatus}
-                              </Badge>
-                            </div>
-                          </td>
-
-                          {/* Column 4: Usage Metrics */}
-                          <td className="px-5 py-3.5">
-                            <div className="flex items-center gap-3 text-gray-500 font-bold">
-                              <span className="flex items-center gap-1.5" title={isRtl ? 'المرضى' : 'Patients'}>
-                                <Users className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                                <strong className="text-gray-950 dark:text-white font-mono">{c.stats?.patients || 0}</strong>
-                              </span>
-                              <span className="flex items-center gap-1.5" title={isRtl ? 'الأطباء' : 'Doctors'}>
-                                <Stethoscope className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                                <strong className="text-gray-950 dark:text-white font-mono">{c.stats?.doctors || 0}</strong>
-                              </span>
-                              <span className="flex items-center gap-1.5" title={isRtl ? 'المواعيد' : 'Appointments'}>
-                                <CalendarDays className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                                <strong className="text-gray-950 dark:text-white font-mono">{c.stats?.appointments || 0}</strong>
+                                {c.subscriptionStatus === 'TRIAL' && c.trialEndsAt && (() => {
+                                  const daysLeft = Math.ceil((new Date(c.trialEndsAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                                  if (daysLeft > 0) return <span className="opacity-80 ms-0.5 font-mono">({daysLeft} {isRtl ? 'يوم' : 'd'})</span>;
+                                  return null;
+                                })()}
                               </span>
                             </div>
                           </td>
 
-                          {/* Column 5: Payments/Revenue */}
-                          <td className="px-5 py-3.5">
-                            <span className="text-xs font-black text-emerald-600 font-mono">
-                              {(c.revenue || 0).toLocaleString()} {isRtl ? 'ج.م' : (c.currency || 'EGP')}
-                            </span>
+                          {/* Column 4: Usage (Clean High-Density Numbers) */}
+                          <td className="px-6 py-4.5">
+                            <div className="space-y-1 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                              <div className="flex items-center gap-3 justify-between max-w-[110px]">
+                                <span>{isRtl ? 'المرضى:' : 'Patients:'}</span>
+                                <span className="text-slate-900 dark:text-white font-mono">{c.stats?.patients || 0}</span>
+                              </div>
+                              <div className="flex items-center gap-3 justify-between max-w-[110px]">
+                                <span>{isRtl ? 'الأطباء:' : 'Doctors:'}</span>
+                                <span className="text-slate-900 dark:text-white font-mono">{c.stats?.doctors || 0}</span>
+                              </div>
+                              <div className="flex items-center gap-3 justify-between max-w-[110px]">
+                                <span>{isRtl ? 'المواعيد:' : 'Appts:'}</span>
+                                <span className="text-slate-900 dark:text-white font-mono">{c.stats?.appointments || 0}</span>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Column 5: Platform Subscription Payments */}
+                          <td className="px-6 py-4.5">
+                            <div className="space-y-1">
+                              <div className="text-xs font-semibold text-slate-900 dark:text-white font-mono">
+                                {(c.revenue || 0).toLocaleString()} {isRtl ? 'ج.م' : 'EGP'}
+                              </div>
+                              <div className="text-[9px] text-slate-400 dark:text-slate-500 font-bold leading-normal">
+                                {isRtl ? 'إجمالي الاشتراكات المحصلة' : 'SaaS Fees Collected'}
+                              </div>
+                              {c.hasPendingInvoices && (
+                                <div className="pt-1 select-none">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50 text-[9px] font-bold">
+                                    <AlertCircle className="w-2.5 h-2.5 shrink-0" />
+                                    {isRtl ? 'متأخرات مالية' : 'Overdue Invoices'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </td>
 
                           {/* Column 6: Last Activity */}
-                          <td className="px-5 py-3.5 font-mono text-gray-400 font-bold">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3 text-gray-400 shrink-0" />
-                              {c.lastActivity ? formatDate(c.lastActivity, locale) : formatDate(c.createdAt, locale)}
-                            </span>
+                          <td className="px-6 py-4.5">
+                            <div className="space-y-0.5">
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                                {getLastActivityString(c.lastActivity ?? '', isRtl, locale)}
+                              </span>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono block">
+                                {c.lastActivity ? formatDate(c.lastActivity, locale) : formatDate(c.createdAt ?? '', locale)}
+                              </span>
+                            </div>
                           </td>
 
-                          {/* Column 7: Administrative Actions (Protected Dropdown) */}
-                          <td className="px-5 py-3.5 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <Link href={`/${locale}/clinics/${c.id}`} passHref>
-                                <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 hover:text-teal-600 font-bold shadow-2xs" title={isRtl ? 'عرض ملف العيادة بالكامل' : 'View full log dashboard'}>
-                                  <Eye className="w-3.5 h-3.5" />
-                                  {isRtl ? 'التفاصيل' : 'Details'}
-                                </Button>
-                              </Link>
-
+                          {/* Column 7: Administrative Actions (Consolidated Dropdown) */}
+                          <td className="px-6 py-4.5 text-center">
+                            <div className="flex items-center justify-center">
                               <DropdownMenu>
                                 <DropdownMenuTrigger
                                   render={
-                                    <Button size="sm" variant="outline" className="h-7 w-7 p-0 flex items-center justify-center shadow-2xs">
-                                      <MoreHorizontal className="w-3.5 h-3.5 text-gray-400" />
+                                    <Button size="sm" variant="outline" className="h-8 w-8 p-0 flex items-center justify-center shadow-3xs rounded-lg border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
+                                      <MoreHorizontal className="w-4 h-4 text-slate-500 dark:text-slate-450" />
                                     </Button>
                                   }
                                 />
-                                <DropdownMenuContent align="end" className="text-xs font-bold w-48" dir={isRtl ? 'rtl' : 'ltr'}>
-                                  <DropdownMenuItem disabled className="text-gray-400 text-[10px] py-1 text-center">
-                                    {isRtl ? 'إجراءات ترخيص العيادة' : 'Licensing Operations'}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
+                                <DropdownMenuContent align="end" className="text-xs font-bold w-52 p-1.5" dir={isRtl ? 'rtl' : 'ltr'}>
+                                  <Link href={`/${locale}/clinics/${c.id}`} className="block w-full">
+                                    <DropdownMenuItem className="cursor-pointer font-bold gap-2 focus:bg-slate-50 dark:focus:bg-slate-900">
+                                      <Eye className="w-3.5 h-3.5 text-slate-500" />
+                                      {isRtl ? 'سجلات وتقارير العيادة' : 'View Admin Logs'}
+                                    </DropdownMenuItem>
+                                  </Link>
+
+                                  <DropdownMenuSeparator className="my-1" />
+
                                   <DropdownMenuItem
                                     onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)}
-                                    className={`cursor-pointer ${isSuspended ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400 font-bold'}`}
+                                    className={`cursor-pointer font-bold gap-2 ${isSuspended ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
                                   >
                                     {isSuspended ? (
                                       <>
-                                        <Power className="w-3.5 h-3.5 ml-1 text-emerald-600 shrink-0" />
+                                        <Power className="w-3.5 h-3.5 shrink-0" />
                                         {isRtl ? 'تفعيل ترخيص العيادة' : 'Activate License'}
                                       </>
                                     ) : (
                                       <>
-                                        <PowerOff className="w-3.5 h-3.5 ml-1 text-rose-600 shrink-0" />
+                                        <PowerOff className="w-3.5 h-3.5 shrink-0" />
                                         {isRtl ? 'إيقاف / تعطيل العيادة' : 'Suspend License'}
                                       </>
                                     )}
                                   </DropdownMenuItem>
 
-                                  <DropdownMenuSeparator />
-
-                                  <DropdownMenuItem disabled className="text-[10px]">
-                                    <CreditCard className="w-3.5 h-3.5 ml-1 shrink-0" />
-                                    {isRtl ? 'الباقة: ' : 'Plan: '}{PLAN_MAP_AR[c.subscriptionPlan] || c.subscriptionPlan}
-                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator className="my-1" />
+                                  <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                    {isRtl ? 'تعديل باقة الاشتراك' : 'Modify SaaS Plan'}
+                                  </div>
+                                  
+                                  {['FREE', 'BASIC', 'PRO', 'ENTERPRISE'].map((plan) => {
+                                    const isActive = c.subscriptionPlan === plan;
+                                    return (
+                                      <DropdownMenuItem
+                                        key={plan}
+                                        onClick={() => handleChangePlan(c.id, c.subscriptionPlan, plan)}
+                                        className={`cursor-pointer text-[10px] font-bold rounded-md py-1 px-2.5 transition-colors ${isActive ? 'bg-slate-100 dark:bg-slate-800 text-teal-600 dark:text-teal-400 font-extrabold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900'}`}
+                                      >
+                                        <div className="flex items-center justify-between w-full">
+                                          <span>{isRtl ? PLAN_MAP_AR[plan] : plan}</span>
+                                          {isActive && <span className="text-[10px]">✓</span>}
+                                        </div>
+                                      </DropdownMenuItem>
+                                    );
+                                  })}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -1197,7 +1237,7 @@ export default function ClinicsPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 p-5">
-                {filteredClinics.map((c: any) => {
+                {filteredClinics.map((c: Clinic) => {
                   const isSuspended = c.subscriptionStatus === 'SUSPENDED';
                   return (
                     <Card key={c.id} className="relative border border-gray-200/80 dark:border-gray-800/80 shadow-xs overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col justify-between group bg-white dark:bg-slate-900/50 rounded-2xl">
@@ -1205,41 +1245,52 @@ export default function ClinicsPage() {
                         {/* Top Header Row of the Card */}
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0">
+                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-300 font-bold text-sm shadow-xs flex-shrink-0">
                               {c.name ? getInitials(c.name) : 'C'}
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-black text-gray-950 dark:text-white block group-hover:text-teal-600 truncate">{c.name}</span>
-                                {c.hasPendingInvoices && (
-                                  <Badge variant="outline" className="bg-rose-50 text-rose-600 border-rose-200 text-[8px] px-1 py-0 font-bold shadow-3xs shrink-0 select-none">
-                                    {isRtl ? 'متأخرات مالية' : 'Pending'}
-                                  </Badge>
+                                <span className="text-xs font-semibold text-gray-950 dark:text-white block group-hover:text-teal-600 truncate">{c.name}</span>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1 font-semibold">
+                                <span className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-[8px] font-bold text-slate-500 shrink-0">
+                                  {c.specializations?.[0] || (isRtl ? 'طب عام' : 'General')}
+                                </span>
+                                {(c.city || c.governorate) ? (
+                                  <span className="text-[10px] text-gray-400 font-semibold block truncate flex items-center gap-1" title={isRtl ? `${c.city?.nameAr}، ${c.governorate?.nameAr}` : `${c.city?.nameEn}, ${c.governorate?.nameEn}`}>
+                                    <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                                    {c.city ? (isRtl ? c.city.nameAr : c.city.nameEn) : ''}
+                                    {c.city && c.governorate ? '، ' : ''}
+                                    {c.governorate ? (isRtl ? c.governorate.nameAr : c.governorate.nameEn) : ''}
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-gray-400 font-semibold block truncate flex items-center gap-1" title={c.address}>
+                                    <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                                    {c.address || (isRtl ? 'لا يوجد عنوان' : 'No address')}
+                                  </span>
                                 )}
                               </div>
-                              {(c.city || c.governorate) ? (
-                                <span className="text-[10px] text-gray-400 font-semibold block truncate flex items-center gap-1" title={isRtl ? `${c.city?.nameAr}، ${c.governorate?.nameAr}` : `${c.city?.nameEn}, ${c.governorate?.nameEn}`}>
-                                  <MapPin className="w-3 h-3 text-teal-600 shrink-0" />
-                                  {c.city ? (isRtl ? c.city.nameAr : c.city.nameEn) : ''}
-                                  {c.city && c.governorate ? '، ' : ''}
-                                  {c.governorate ? (isRtl ? c.governorate.nameAr : c.governorate.nameEn) : ''}
-                                </span>
-                              ) : (
-                                <span className="text-[10px] text-gray-400 font-semibold block truncate flex items-center gap-1" title={c.address}>
-                                  <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                                  {c.address || (isRtl ? 'لا يوجد عنوان' : 'No address')}
-                                </span>
-                              )}
                             </div>
                           </div>
-                          <Badge variant="outline" className={`text-[9px] px-2 py-0.5 font-bold border rounded-md shrink-0 ${STATUS_COLOR[c.subscriptionStatus] || ''}`}>
-                            {isRtl ? (STATUS_MAP_AR[c.subscriptionStatus] || c.subscriptionStatus) : c.subscriptionStatus}
-                          </Badge>
+                          
+                          <div className="flex flex-col gap-1.5 items-end shrink-0">
+                            <Badge variant="outline" className={`text-[9px] px-2 py-0.5 font-bold border rounded-md ${PLAN_COLOR[c.subscriptionPlan]}`}>
+                              {isRtl ? (PLAN_MAP_AR[c.subscriptionPlan] || c.subscriptionPlan) : c.subscriptionPlan}
+                            </Badge>
+                            <Badge variant="outline" className={`text-[9px] px-2 py-0.5 font-bold border rounded-md gap-1 w-max ${STATUS_COLOR[c.subscriptionStatus] || ''}`}>
+                              {isRtl ? (STATUS_MAP_AR[c.subscriptionStatus] || c.subscriptionStatus) : c.subscriptionStatus}
+                              {c.subscriptionStatus === 'TRIAL' && c.trialEndsAt && (() => {
+                                const daysLeft = Math.ceil((new Date(c.trialEndsAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                                if (daysLeft > 0) return <span className="opacity-80 ms-0.5 font-mono">({daysLeft} {isRtl ? 'يوم' : 'd'})</span>;
+                                return null;
+                              })()}
+                            </Badge>
+                          </div>
                         </div>
 
                         {/* Owner Section */}
                         <div className="p-3 bg-gray-50/80 dark:bg-gray-900/40 rounded-xl border border-gray-100 dark:border-gray-800/60 space-y-1.5 text-xs font-semibold">
-                          <span className="text-[10px] text-gray-400 font-black block uppercase tracking-wider">{isRtl ? 'المالك الطبي / المسؤول' : 'Primary Clinic Owner'}</span>
+                          <span className="text-[10px] text-gray-400 font-bold block uppercase tracking-wider">{isRtl ? 'المالك الطبي / المسؤول' : 'Primary Clinic Owner'}</span>
                           {c.owner ? (
                             <div className="min-w-0">
                               <span className="text-xs font-bold text-gray-850 dark:text-white flex items-center gap-1.5 truncate">
@@ -1266,46 +1317,35 @@ export default function ClinicsPage() {
                         <div className="grid grid-cols-3 gap-2 py-2 border-y border-gray-100 dark:border-gray-800/60 text-center">
                           <div>
                             <span className="text-[10px] text-gray-400 block font-semibold">{isRtl ? 'المرضى' : 'Patients'}</span>
-                            <span className="text-xs font-black text-blue-600 dark:text-blue-400 mt-0.5 block font-mono">{c.stats?.patients || 0}</span>
+                            <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 mt-0.5 block font-mono">{c.stats?.patients || 0}</span>
                           </div>
                           <div>
                             <span className="text-[10px] text-gray-400 block font-semibold">{isRtl ? 'الأطباء' : 'Doctors'}</span>
-                            <span className="text-xs font-black text-purple-600 dark:text-purple-400 mt-0.5 block font-mono">{c.stats?.doctors || 0}</span>
+                            <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 mt-0.5 block font-mono">{c.stats?.doctors || 0}</span>
                           </div>
                           <div>
                             <span className="text-[10px] text-gray-400 block font-semibold">{isRtl ? 'المواعيد' : 'Appts'}</span>
-                            <span className="text-xs font-black text-amber-600 dark:text-amber-400 mt-0.5 block font-mono">{c.stats?.appointments || 0}</span>
+                            <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 mt-0.5 block font-mono">{c.stats?.appointments || 0}</span>
                           </div>
-                        </div>
-
-                        {/* Plan Modification Area */}
-                        <div className="flex items-center justify-between gap-2 pt-1">
-                          <span className="text-xs font-semibold text-gray-500">{isRtl ? 'تعديل الباقة:' : 'Modify Plan:'}</span>
-                          <select
-                            value={c.subscriptionPlan}
-                            onChange={(e) => handleChangePlan(c.id, c.subscriptionPlan, e.target.value)}
-                            className="h-7 w-28 rounded-md border border-gray-200 dark:border-gray-800 bg-background px-1 py-0.5 text-[10px] font-bold shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          >
-                            <option value="FREE">{isRtl ? 'باقة مجانية' : 'FREE'}</option>
-                            <option value="BASIC">{isRtl ? 'باقة أساسية' : 'BASIC'}</option>
-                            <option value="PRO">{isRtl ? 'باقة احترافية' : 'PRO'}</option>
-                            <option value="ENTERPRISE">{isRtl ? 'باقة مؤسسات' : 'ENTERPRISE'}</option>
-                          </select>
                         </div>
 
                         {/* Revenue & Last Activity */}
                         <div className="flex items-center justify-between text-xs pt-1">
                           <div className="flex flex-col">
-                            <span className="text-[9px] text-gray-400 font-bold uppercase">{isRtl ? 'إجمالي المدفوعات' : 'Paid Revenue'}</span>
-                            <span className="font-extrabold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
+                            <span className="text-[9px] text-gray-400 font-bold uppercase">{isRtl ? 'اشتراكات المنصة' : 'SaaS Invoices'}</span>
+                            <span className="font-extrabold text-slate-900 dark:text-white font-mono mt-0.5 flex items-center gap-1.5">
                               {(c.revenue || 0).toLocaleString()} {isRtl ? 'ج.م' : (c.currency || 'EGP')}
+                              {c.hasPendingInvoices && (
+                                <Badge variant="outline" className="bg-rose-50 text-rose-600 border-rose-200 text-[8px] px-1 py-0 font-bold shadow-3xs shrink-0 select-none">
+                                  {isRtl ? 'متأخر' : 'Overdue'}
+                                </Badge>
+                              )}
                             </span>
                           </div>
                           <div className="flex flex-col items-end">
                             <span className="text-[9px] text-gray-400 font-bold uppercase">{isRtl ? 'آخر نشاط' : 'Last Activity'}</span>
-                            <span className="text-[10px] text-gray-500 font-mono flex items-center gap-1 mt-0.5">
-                              <Calendar className="w-3 h-3 text-gray-400" />
-                              {c.lastActivity ? formatDate(c.lastActivity, locale) : formatDate(c.createdAt, locale)}
+                            <span className="text-[10px] text-gray-505 font-semibold flex items-center gap-1 mt-0.5">
+                              {getLastActivityString(c.lastActivity ?? '', isRtl, locale)}
                             </span>
                           </div>
                         </div>
@@ -1328,20 +1368,41 @@ export default function ClinicsPage() {
                               </Button>
                             }
                           />
-                          <DropdownMenuContent align="end" className="text-xs font-bold w-48" dir={isRtl ? 'rtl' : 'ltr'}>
-                            <DropdownMenuItem onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)} className={isSuspended ? 'text-emerald-600' : 'text-rose-600 font-bold'}>
+                          <DropdownMenuContent align="end" className="text-xs font-bold w-52 p-1.5" dir={isRtl ? 'rtl' : 'ltr'}>
+                            <DropdownMenuItem onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)} className={`cursor-pointer font-bold gap-2 ${isSuspended ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                               {isSuspended ? (
                                 <>
-                                  <Power className="w-3.5 h-3.5 ml-1 text-emerald-600 shrink-0" />
-                                  {isRtl ? 'تفعيل العيادة' : 'Activate Clinic'}
+                                  <Power className="w-3.5 h-3.5 shrink-0" />
+                                  {isRtl ? 'تفعيل ترخيص العيادة' : 'Activate License'}
                                 </>
                               ) : (
                                 <>
-                                  <PowerOff className="w-3.5 h-3.5 ml-1 text-rose-600 shrink-0" />
-                                  {isRtl ? 'تعطيل العيادة' : 'Suspend Clinic'}
+                                  <PowerOff className="w-3.5 h-3.5 shrink-0" />
+                                  {isRtl ? 'إيقاف / تعطيل العيادة' : 'Suspend License'}
                                 </>
                               )}
                             </DropdownMenuItem>
+
+                            <DropdownMenuSeparator className="my-1" />
+                            <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                              {isRtl ? 'تعديل باقة الاشتراك' : 'Modify SaaS Plan'}
+                            </div>
+
+                            {['FREE', 'BASIC', 'PRO', 'ENTERPRISE'].map((plan) => {
+                              const isActive = c.subscriptionPlan === plan;
+                              return (
+                                <DropdownMenuItem
+                                  key={plan}
+                                  onClick={() => handleChangePlan(c.id, c.subscriptionPlan, plan)}
+                                  className={`cursor-pointer text-[10px] font-bold rounded-md py-1 px-2.5 transition-colors ${isActive ? 'bg-slate-100 dark:bg-slate-800 text-teal-600 dark:text-teal-400 font-extrabold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900'}`}
+                                >
+                                  <div className="flex items-center justify-between w-full">
+                                    <span>{isRtl ? PLAN_MAP_AR[plan] : plan}</span>
+                                    {isActive && <span className="text-[10px]">✓</span>}
+                                  </div>
+                                </DropdownMenuItem>
+                              );
+                            })}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>

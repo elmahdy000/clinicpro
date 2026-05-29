@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantStorage } from '../prisma/tenant-context';
 import { RedisService } from '../redis/redis.service';
@@ -6,6 +6,7 @@ import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
+import { MedicalHistoryService } from '../medical-history/medical-history.service';
 
 const CACHE_TTL = 120; // 2 minutes
 
@@ -14,6 +15,7 @@ export class PatientsService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    private medicalHistory: MedicalHistoryService,
   ) {}
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<any>> {
@@ -87,10 +89,26 @@ export class PatientsService {
         medicalRecords: true,
         prescriptions: true,
         user: { select: { id: true, email: true, name: true, role: true } },
+        governorateRel: { select: { id: true, nameAr: true, nameEn: true } },
+        cityRel: { select: { id: true, nameAr: true, nameEn: true } },
+        clinics: { select: { clinicId: true, createdAt: true } },
       },
     });
     if (!patient) throw new NotFoundException(`Patient #${id} not found in your clinic`);
-    return patient;
+    
+    let isImported = false;
+    if (clinicId && patient.clinics && patient.clinics.length > 0) {
+      const sortedClinics = [...patient.clinics].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      const originalClinicId = sortedClinics[0]?.clinicId;
+      isImported = originalClinicId !== clinicId;
+    }
+
+    return {
+      ...patient,
+      isImported,
+    };
   }
 
   async create(dto: CreatePatientDto) {
@@ -104,13 +122,62 @@ export class PatientsService {
       delete patientData.dateOfBirth;
     }
 
-    let patient = null;
-    if (dto.phone) patient = await this.prisma.patient.findUnique({ where: { phone: dto.phone } });
+    // Normalize string fields to avoid accidental mismatches/overwrites from spaces.
+    Object.keys(patientData).forEach((key) => {
+      const value = patientData[key];
+      if (typeof value === 'string') {
+        patientData[key] = value.trim();
+      }
+    });
+
+    let patient: any = null;
+    if (patientData.phone) patient = await this.prisma.patient.findUnique({ where: { phone: patientData.phone } });
     
     if (!patient) {
       patient = await this.prisma.patient.create({ data: patientData });
     } else {
-      patient = await this.prisma.patient.update({ where: { id: patient.id }, data: patientData });
+      // IMPORTANT:
+      // If patient already exists (same phone), do NOT overwrite existing profile fields.
+      // Only fill missing fields from the new payload to protect previously saved data.
+      const patch: any = {};
+      const fillIfMissing = (field: string) => {
+        const current = (patient as any)[field];
+        const incoming = patientData[field];
+        const isCurrentEmpty =
+          current === null ||
+          current === undefined ||
+          (typeof current === 'string' && current.trim() === '');
+        const hasIncomingValue =
+          incoming !== null &&
+          incoming !== undefined &&
+          !(typeof incoming === 'string' && incoming.trim() === '');
+
+        if (isCurrentEmpty && hasIncomingValue) {
+          patch[field] = incoming;
+        }
+      };
+
+      [
+        'firstName',
+        'lastName',
+        'email',
+        'nationalId',
+        'governorate',
+        'governorateId',
+        'city',
+        'cityId',
+        'dateOfBirth',
+        'gender',
+        'address',
+        'bloodGroup',
+        'allergies',
+        'medicalHistory',
+        'emergencyContact',
+      ].forEach(fillIfMissing);
+
+      if (Object.keys(patch).length > 0) {
+        patient = await this.prisma.patient.update({ where: { id: patient.id }, data: patch });
+      }
     }
 
     if (clinicId) {
@@ -125,8 +192,45 @@ export class PatientsService {
   }
 
   async update(id: number, dto: UpdatePatientDto) {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
     const patientData = { ...dto } as any;
+
+    if (existing.isImported) {
+      const protectedFields = [
+        'firstName',
+        'lastName',
+        'email',
+        'phone',
+        'nationalId',
+        'dateOfBirth',
+        'gender',
+        'address',
+        'governorate',
+        'governorateId',
+        'city',
+        'cityId',
+      ];
+      protectedFields.forEach((field) => {
+        if (field in patientData) {
+          const incomingValue = patientData[field];
+          const existingValue = (existing as any)[field];
+          const isDifferent = (a: any, b: any) => {
+            if (a === undefined) return false;
+            if (!a && !b) return false;
+            if (a instanceof Date || b instanceof Date || field === 'dateOfBirth') {
+              if (!a || !b) return true;
+              return new Date(a).getTime() !== new Date(b).getTime();
+            }
+            return String(a).trim() !== String(b).trim();
+          };
+          if (isDifferent(incomingValue, existingValue)) {
+            throw new BadRequestException(
+              `لا يمكن تعديل البيانات التعريفية الأساسية لمريض مستورد: ${field}`
+            );
+          }
+        }
+      });
+    }
     if (patientData.dateOfBirth && String(patientData.dateOfBirth).trim() !== '') {
       patientData.dateOfBirth = new Date(patientData.dateOfBirth);
     } else {
@@ -185,7 +289,7 @@ export class PatientsService {
 
   async getTimeline(patientId: number) {
     const store = tenantStorage.getStore();
-    const key = `patients:timeline:${patientId}`;
+    const key = `patients:timeline:${store?.clinicId ?? 0}:${patientId}`;
     const cached = await this.redis.get<any[]>(key);
     if (cached) return cached;
 
@@ -207,11 +311,14 @@ export class PatientsService {
       }),
       this.prisma.prescription.findMany({
         where: { patientId },
-        include: { doctor: { include: { user: { select: { id: true, name: true } } } } },
+        include: {
+          doctor: { include: { user: { select: { id: true, name: true } } } },
+          items: { include: { medication: true } },
+        },
         orderBy: { prescribedDate: 'desc' },
       }),
       (await this.prisma.invoice.findMany({
-        where: { patientId },
+        where: { patientId, clinicId: store?.clinicId ?? 0 },
         orderBy: { createdAt: 'desc' },
       })).map((inv) => {
         try { inv.items = typeof inv.items === 'string' ? JSON.parse(inv.items) : inv.items; } catch {}
@@ -238,5 +345,48 @@ export class PatientsService {
 
     await this.redis.set(key, timeline, CACHE_TTL);
     return timeline;
+  }
+
+  async getUnifiedMedicalHistory(patientId: number) {
+    const store = tenantStorage.getStore();
+    const clinicId = store?.clinicId;
+    const patient = await this.prisma.patient.findFirst({
+      where: { id: patientId, clinics: clinicId ? { some: { clinicId } } : undefined },
+      select: { id: true },
+    });
+    if (!patient) throw new NotFoundException(`Patient #${patientId} not found`);
+    return this.medicalHistory.getUnifiedMedicalHistory(patientId, {
+      clinicIds: undefined, // Fetch globally across all clinics for EMR
+      includeDoctorNotes: true,
+    });
+  }
+
+  async getUnifiedMedicalTimeline(patientId: number) {
+    const profile = await this.getUnifiedMedicalHistory(patientId);
+    return profile?.timeline || [];
+  }
+
+  async getUnifiedMedicalSummary(patientId: number) {
+    const profile = await this.getUnifiedMedicalHistory(patientId);
+    if (!profile) throw new NotFoundException(`Patient #${patientId} not found`);
+
+    return {
+      patient: profile.patient,
+      summary: {
+        lastDiagnoses: profile.structuredProfile.recentDiagnoses.slice(0, 5),
+        currentMedications: profile.structuredProfile.currentMedications.slice(0, 10),
+        allergies: profile.structuredProfile.allergies,
+        chronicDiseases: profile.structuredProfile.chronicDiseases,
+        surgeries: profile.structuredProfile.surgeries,
+        familyHistory: profile.structuredProfile.familyHistory,
+        importantMedicalNotes: profile.structuredProfile.importantMedicalNotes,
+      },
+      counts: profile.counts,
+      share: {
+        url: `/api/patients/${patientId}/medical-history/summary`,
+        format: 'json',
+      },
+      generatedAt: profile.generatedAt,
+    };
   }
 }

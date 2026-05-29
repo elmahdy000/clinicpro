@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '@/stores/auth';
 import { useQueryClient } from '@tanstack/react-query';
@@ -17,12 +17,14 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const socketRef = useRef<Socket | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!user) {
-      if (socket) {
-        socket.disconnect();
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
         setSocket(null);
         setIsConnected(false);
       }
@@ -33,15 +35,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       ? process.env.NEXT_PUBLIC_API_URL.replace('/api', '/events')
       : 'http://localhost:3000/events';
 
-    console.log(`Connecting to Socket.io: ${socketUrl}`);
-
     const socketInstance = io(socketUrl, {
       transports: ['websocket'],
       autoConnect: true,
     });
 
     socketInstance.on('connect', () => {
-      console.log('Socket.io connected successfully:', socketInstance.id);
       setIsConnected(true);
       
       // Join the user-specific room
@@ -49,12 +48,10 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     });
 
     socketInstance.on('disconnect', () => {
-      console.log('Socket.io disconnected');
       setIsConnected(false);
     });
 
-    socketInstance.on('notification', (notification: any) => {
-      console.log('Real-time notification received:', notification);
+    socketInstance.on('notification', (notification: { title: string; message: string }) => {
       
       // Invalidate notifications queries to refresh both Doctor/Admin and Patient lists
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -92,7 +89,6 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     // Handle real-time updates for appointments, queue, and dashboard
     socketInstance.on('appointmentUpdate', () => {
-      console.log('Real-time appointment update received');
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointments-list'] });
       queryClient.invalidateQueries({ queryKey: ['patient-appointments'] });
@@ -100,12 +96,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     });
 
     socketInstance.on('dashboardUpdate', () => {
-      console.log('Real-time dashboard update received');
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['queue'] });
       queryClient.invalidateQueries({ queryKey: ['patient-dashboard'] });
     });
 
+    socketRef.current = socketInstance;
     setSocket(socketInstance);
 
     return () => {

@@ -15,10 +15,21 @@ export class CreatePrescriptionDto {
   medications: any;
 
   @IsOptional()
+  substitutions?: any[];
+
+  @IsOptional()
   @IsString()
   instructions?: string;
 
   @IsOptional()
   @IsDateString()
   prescribedDate?: Date;
+
+  @IsOptional()
+  @IsString()
+  branchId?: string;
+
+  @IsOptional()
+  @IsString()
+  branchName?: string;
 }

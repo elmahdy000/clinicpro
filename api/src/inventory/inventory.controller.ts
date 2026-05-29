@@ -17,55 +17,55 @@ import { AdjustStockDto } from './dto/adjust-stock.dto';
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get()
   findAll(@Query() query: PaginationDto & { medicationId?: string; lowStock?: string }) {
     return this.inventoryService.findAll(query);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get('low-stock')
   getLowStock() {
     return this.inventoryService.getLowStockItems();
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get('expiring')
   getExpiring(@Query('days') days?: string) {
     return this.inventoryService.getExpiringSoon(days ? parseInt(days, 10) : 30);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.inventoryService.findOne(id);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Post()
   create(@Body() dto: CreateStockDto) {
     return this.inventoryService.create(dto);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Put(':id/add-stock')
   addStock(@Param('id', ParseIntPipe) id: number, @Body() dto: AddStockDto, @Req() req: any) {
     return this.inventoryService.addStock(id, dto.quantity, dto.notes, req.user?.id);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Put(':id/remove-stock')
   removeStock(@Param('id', ParseIntPipe) id: number, @Body() dto: RemoveStockDto, @Req() req: any) {
     return this.inventoryService.removeStock(id, dto.quantity, dto.referenceType, dto.referenceId, req.user?.id, dto.notes);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
   @Put(':id/adjust')
   adjustStock(@Param('id', ParseIntPipe) id: number, @Body() dto: AdjustStockDto, @Req() req: any) {
     return this.inventoryService.adjustStock(id, dto.quantity, dto.notes, req.user?.id);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.inventoryService.remove(id);

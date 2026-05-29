@@ -27,5 +27,13 @@ export class RegisterClinicDto {
 
   @IsOptional()
   @IsString()
+  governorateId?: string;
+
+  @IsOptional()
+  @IsString()
+  cityId?: string;
+
+  @IsOptional()
+  @IsString()
   specialization?: string;
 }

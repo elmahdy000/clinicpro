@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import {
   WebSocketGateway,
   WebSocketServer,
@@ -15,21 +16,23 @@ import { Server, Socket } from 'socket.io';
   },
 })
 export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  private readonly logger = new Logger(EventsGateway.name);
+
   @WebSocketServer()
   server: Server;
 
   handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`);
+    this.logger.log(`Client connected: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.id}`);
+    this.logger.log(`Client disconnected: ${client.id}`);
   }
 
   @SubscribeMessage('join')
   handleJoin(client: Socket, userId: number) {
     client.join(`user_${userId}`);
-    console.log(`Client ${client.id} joined room user_${userId}`);
+    this.logger.log(`Client ${client.id} joined room user_${userId}`);
   }
 
   sendNotification(userId: number, notification: any) {

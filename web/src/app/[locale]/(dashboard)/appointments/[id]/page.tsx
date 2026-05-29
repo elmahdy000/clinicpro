@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -36,7 +36,7 @@ export default function AppointmentDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       toast.success('Appointment updated');
     },
-    onError: () => toast.error('Failed to update'),
+    onError: (e) => console.error(e),
   });
 
   if (isLoading) return <div className="space-y-4 animate-fade-in"><Skeleton className="h-48 w-full" /><Skeleton className="h-32 w-full" /></div>;
@@ -106,7 +106,7 @@ export default function AppointmentDetailPage() {
               </Link>
               <p className="text-sm text-gray-500">{apt.patient?.phone}</p>
             </div>
-            <Badge variant={(statusVariant[apt.status] as any) || 'outline'} className="text-sm px-3 py-1">
+            <Badge variant={(statusVariant[apt.status] || 'outline') as 'default' | 'secondary' | 'destructive' | 'outline'} className="text-sm px-3 py-1">
               {statusLabel(apt.status)}
             </Badge>
           </div>

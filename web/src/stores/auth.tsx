@@ -17,6 +17,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
+  activeBranchId: string;
+  setActiveBranchId: (id: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -25,6 +27,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeBranchId, setActiveBranchIdState] = useState<string>('main');
+
+  const setActiveBranchId = (id: string) => {
+    setActiveBranchIdState(id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('active_branch_id', id);
+    }
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem('access_token');
@@ -33,12 +43,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(stored);
       try {
         const payload = JSON.parse(atob(stored.split('.')[1]));
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setUser({ id: payload.sub, email: payload.email, name: payload.name || payload.email, role: payload.role, clinicId: payload.clinicId });
       } catch {
         localStorage.removeItem('access_token');
       }
     }
+    
+    if (typeof window !== 'undefined') {
+      const storedBranch = localStorage.getItem('active_branch_id');
+      if (storedBranch) {
+        setActiveBranchIdState(storedBranch);
+      }
+    }
+    
     setIsLoading(false);
   }, []);
 
@@ -59,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, isLoading, activeBranchId, setActiveBranchId }}>
       {children}
     </AuthContext.Provider>
   );

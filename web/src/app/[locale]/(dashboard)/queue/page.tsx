@@ -56,7 +56,7 @@ export default function QueuePage() {
       queryClient.invalidateQueries({ queryKey: ['today-appointments'] });
       toast.success('تم تحديث الحالة');
     },
-    onError: () => toast.error('فشل تحديث الحالة'),
+    onError: (e) => console.error(e),
   });
 
   const handleRefresh = () => {

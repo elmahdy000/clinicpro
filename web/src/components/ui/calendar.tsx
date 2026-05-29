@@ -40,7 +40,7 @@ function Calendar({
       locale={locale}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString(locale?.code, { month: "short" }),
+          date.toLocaleString((locale as { code?: string })?.code, { month: "short" }),
         ...formatters,
       }}
       classNames={{
@@ -127,7 +127,7 @@ function Calendar({
           defaultClassNames.outside
         ),
         ...classNames,
-      } as any}
+      } as Record<string, string>}
       components={{
         Root: ({ className, rootRef, ...props }) => {
           return (
@@ -193,7 +193,7 @@ function CalendarDayButton({
     <Button
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString(locale?.code)}
+      data-day={day.date.toLocaleDateString((locale as { code?: string })?.code)}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

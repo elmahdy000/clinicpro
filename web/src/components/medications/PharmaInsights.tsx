@@ -8,15 +8,73 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   TrendingUp, Users, Activity, Star, UserCheck, Flame,
-  ChevronDown, ChevronUp, Stethoscope, BarChart3, Pill, Globe, Building2, HelpCircle
+  Stethoscope, BarChart3, Pill, Globe, Building2, HelpCircle
 } from 'lucide-react';
+
+interface AnalyticsDoctor {
+  name: string;
+  specialization: string;
+  count: number;
+}
+
+interface AnalyticsClinic {
+  name: string;
+  count: number;
+}
+
+interface AnalyticsMonthlyTrend {
+  month: string;
+  count: number;
+}
+
+interface AnalyticsMedication {
+  id: number;
+  name: string;
+  prescribedCount: number;
+  activeIngredient?: string;
+  form?: string;
+  strength?: string;
+  category?: string;
+  manufacturer?: string;
+  demographics: {
+    genders: { MALE: number; FEMALE: number };
+    ageGroups: Record<string, number>;
+  };
+  topDoctors: AnalyticsDoctor[];
+  topClinics: AnalyticsClinic[];
+  monthlyTrend: AnalyticsMonthlyTrend[];
+}
+
+interface CategoryShare {
+  name: string;
+  value: number;
+  percentage: number;
+}
+
+interface FormShare {
+  name: string;
+  value: number;
+  percentage: number;
+}
+
+interface MedicationAnalytics {
+  summary: {
+    totalPrescribedItems: number;
+    totalMedsInDict: number;
+    globalMedsCount: number;
+    clinicCustomCount: number;
+  };
+  categoryShare: CategoryShare[];
+  formShare: FormShare[];
+  topMedications: AnalyticsMedication[];
+}
 
 export function PharmaInsights() {
   const locale = useLocale();
   const isRtl = locale === 'ar';
   const [selectedMedId, setSelectedMedId] = useState<number | null>(null);
 
-  const { data: analytics, isLoading } = useQuery<any>({
+  const { data: analytics, isLoading } = useQuery<MedicationAnalytics>({
     queryKey: ['medications-analytics'],
     queryFn: () => api.get('/medications/analytics').then((r) => r.data),
   });
@@ -41,7 +99,7 @@ export function PharmaInsights() {
 
   // Default select the top medication if none is selected
   const activeMedId = selectedMedId || (topMedications.length > 0 ? topMedications[0].id : null);
-  const activeMed = topMedications.find((m: any) => m.id === activeMedId);
+  const activeMed = topMedications.find((m: AnalyticsMedication) => m.id === activeMedId);
 
   // Total categories & forms
   const totalPrescribed = summary?.totalPrescribedItems || 0;
@@ -77,7 +135,7 @@ export function PharmaInsights() {
             icon: Star,
           },
           {
-            label: isRtl ? 'حجم القاموس ومصادره' : 'Dictionary Sources',
+            label: isRtl ? 'حجم سجل الأدوية ومصادره' : 'Registry Sources',
             value: `${summary?.totalMedsInDict || 0}`,
             subText: isRtl
               ? `عام: ${summary?.globalMedsCount || 0} | خاص بالعيادات: ${summary?.clinicCustomCount || 0}`
@@ -126,7 +184,7 @@ export function PharmaInsights() {
               </div>
             ) : (
               <div className="space-y-1 max-h-[500px] overflow-y-auto pr-1">
-                {topMedications.map((med: any, idx: number) => {
+                {topMedications.map((med: AnalyticsMedication, idx: number) => {
                   const isActive = med.id === activeMedId;
                   const pct = totalPrescribed ? Math.round((med.prescribedCount / totalPrescribed) * 100) : 0;
                   return (
@@ -249,8 +307,8 @@ export function PharmaInsights() {
                       {isRtl ? 'الفئة العمرية الأكثر طلباً للدواء' : 'Market Share by Age Bracket'}
                     </h4>
                     <div className="space-y-2 pt-1.5">
-                      {Object.entries(activeMed.demographics.ageGroups).map(([group, val]: any) => {
-                        const sumG = Object.values(activeMed.demographics.ageGroups).reduce((a: any, b: any) => a + b, 0) as number || 1;
+                      {Object.entries(activeMed.demographics.ageGroups).map(([group, val]) => {
+                        const sumG = Object.values(activeMed.demographics.ageGroups).reduce<number>((a: number, b: number) => a + b, 0) || 1;
                         const pct = Math.round((val / sumG) * 100);
                         return (
                           <div key={group} className="space-y-1">
@@ -280,10 +338,10 @@ export function PharmaInsights() {
                     </h4>
                     {activeMed.topDoctors.length > 0 ? (
                       <div className="space-y-3 pt-2">
-                        {activeMed.topDoctors.map((doc: any, i: number) => (
+                        {activeMed.topDoctors.map((doc: AnalyticsDoctor, i: number) => (
                           <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-gray-900 border">
                             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                              {doc.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                              {doc.name.split(' ').map(n => n[0]).slice(0, 2).join('')}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{doc.name}</p>
@@ -308,7 +366,7 @@ export function PharmaInsights() {
                     </h4>
                     {activeMed.topClinics.length > 0 ? (
                       <div className="space-y-3 pt-2">
-                        {activeMed.topClinics.map((cl: any, i: number) => (
+                        {activeMed.topClinics.map((cl: AnalyticsClinic, i: number) => (
                           <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-gray-900 border">
                             <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-xs">
                               {cl.name[0]}
@@ -337,8 +395,8 @@ export function PharmaInsights() {
                   </h4>
                   {activeMed.monthlyTrend.length > 0 ? (
                     <div className="flex items-end justify-between h-24 pt-4 px-4 gap-4">
-                      {activeMed.monthlyTrend.map((t: any) => {
-                        const maxVal = Math.max(...activeMed.monthlyTrend.map((m: any) => m.count)) || 1;
+                      {activeMed.monthlyTrend.map((t: AnalyticsMonthlyTrend) => {
+                        const maxVal = Math.max(...activeMed.monthlyTrend.map((m: AnalyticsMonthlyTrend) => m.count)) || 1;
                         const height = Math.max(10, Math.round((t.count / maxVal) * 100));
                         return (
                           <div key={t.month} className="flex-1 flex flex-col items-center gap-1.5 group cursor-pointer">
@@ -382,7 +440,7 @@ export function PharmaInsights() {
             {categoryShare.length === 0 ? (
               <p className="text-xs text-gray-400 text-center py-6">{isRtl ? 'لا توجد بيانات' : 'No data'}</p>
             ) : (
-              categoryShare.map((cat: any, i: number) => (
+              categoryShare.map((cat: CategoryShare) => (
                 <div key={cat.name} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5">
@@ -412,7 +470,7 @@ export function PharmaInsights() {
             {formShare.length === 0 ? (
               <p className="text-xs text-gray-400 text-center py-6">{isRtl ? 'لا توجد بيانات' : 'No data'}</p>
             ) : (
-              formShare.map((form: any, i: number) => (
+              formShare.map((form: FormShare) => (
                 <div key={form.name} className="space-y-1">
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5">

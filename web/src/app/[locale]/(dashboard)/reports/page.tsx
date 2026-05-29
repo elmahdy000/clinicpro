@@ -1,5 +1,7 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+
 import { useTranslations, useLocale } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -10,13 +12,21 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import {
   BarChart3, CalendarDays, Users, Activity, XCircle, TrendingUp,
-  Printer, Filter, RefreshCw, Calendar, Download, Building2,
+  Printer, Funnel, RefreshCw, Calendar, Download, Building2,
   FileText, Shield, Award, Landmark, Stethoscope, CheckCircle2
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useState } from 'react';
 import { useAuth } from '@/stores/auth';
 import { formatDate } from '@/lib/utils';
+import { usePrint } from '@/hooks/usePrint';
+import { useGovernorates } from '@/hooks/useGovernorates';
+import { useCities } from '@/hooks/useCities';
+
+const allSpecializations = [
+  'GENERAL', 'DENTISTRY', 'PEDIATRICS', 'DERMATOLOGY', 'CARDIOLOGY',
+  'ORTHOPEDICS', 'GYNECOLOGY', 'OPHTHALMOLOGY', 'PSYCHIATRY', 'NEUROLOGY'
+];
 
 export default function ReportsPage() {
   const t = useTranslations('reports');
@@ -24,42 +34,108 @@ export default function ReportsPage() {
   const isRtl = locale === 'ar';
   const { user } = useAuth();
   const isAdmin = user?.role === 'PLATFORM_OWNER';
+  const { printElement } = usePrint();
 
   // Filters State
-  const [dateRange, setDateRange] = useState('30days'); // today, yesterday, 7days, 30days, thismonth, custom
+  const [dateRange, setDateRange] = useState('all'); // today, yesterday, 7days, 30days, thismonth, custom
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [clinicFilter, setClinicFilter] = useState('all');
   const [planFilter, setPlanFilter] = useState('all');
+  const [govFilter, setGovFilter] = useState('all');
+  const [cityFilter, setCityFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [specialtyFilter, setSpecialtyFilter] = useState('all');
+
+  const { data: governorates = [], isLoading: loadingGov } = useGovernorates();
+  const { data: cities = [], isLoading: loadingCities } = useCities(govFilter === 'all' ? null : govFilter);
 
   const { data: stats, isLoading, refetch } = useQuery({
     queryKey: ['dashboard-stats-reports', dateRange, startDate, endDate, clinicFilter, planFilter],
     queryFn: () => api.get('/dashboard/stats').then((r) => r.data),
+    refetchInterval: 10_000,
+  });
+
+  const { data: pharmaInsights } = useQuery({
+    queryKey: ['reports-pharma-insights', govFilter, cityFilter, specialtyFilter, dateRange],
+    queryFn: () => api.get('/dashboard/pharma-insights', {
+      params: {
+        governorateId: govFilter === 'all' ? undefined : govFilter,
+        cityId: cityFilter === 'all' ? undefined : cityFilter,
+        specialty: specialtyFilter === 'all' ? undefined : specialtyFilter,
+        period: dateRange,
+      }
+    }).then(r => r.data),
+    enabled: isAdmin,
+    refetchInterval: 10_000,
   });
 
   const { data: clinics } = useQuery<any[]>({
     queryKey: ['reports-clinics'],
-    queryFn: () => api.get('/clinics').then((r) => r.data),
+    queryFn: () => api.get('/clinics').then((r) => r.data?.data || r.data),
     enabled: isAdmin,
+    refetchInterval: 10_000,
   });
 
   // Calculate filtered stats dynamically for local demonstration
-  const totalClinicsCount = clinics?.length || 0;
   const filteredClinics = clinics?.filter(c => {
     if (planFilter !== 'all' && c.subscriptionPlan !== planFilter) return false;
+    if (statusFilter !== 'all' && c.subscriptionStatus !== statusFilter) return false;
+    if (govFilter !== 'all' && String(c.governorateId) !== String(govFilter) && String(c.governorate?.id) !== String(govFilter)) return false;
+    if (cityFilter !== 'all' && String(c.cityId) !== String(cityFilter) && String(c.city?.id) !== String(cityFilter)) return false;
+    if (specialtyFilter !== 'all' && !c.specializations?.includes(specialtyFilter)) return false;
+
+    // Time Period Filter
+    if (dateRange !== 'all') {
+      const createdAt = new Date(c.createdAt);
+      const now = new Date();
+      if (dateRange === 'today') {
+        if (createdAt.toDateString() !== now.toDateString()) return false;
+      } else if (dateRange === 'yesterday') {
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (createdAt.toDateString() !== yesterday.toDateString()) return false;
+      } else if (dateRange === '7days') {
+        const sevenDaysAgo = new Date(now);
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        if (createdAt < sevenDaysAgo) return false;
+      } else if (dateRange === '30days') {
+        const thirtyDaysAgo = new Date(now);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        if (createdAt < thirtyDaysAgo) return false;
+      } else if (dateRange === 'thismonth') {
+        if (createdAt.getMonth() !== now.getMonth() || createdAt.getFullYear() !== now.getFullYear()) return false;
+      } else if (dateRange === 'custom' && startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        if (createdAt < start || createdAt > end) return false;
+      }
+    }
     return true;
   }) || [];
 
+  const filteredTotalClinics = filteredClinics.length;
+  const filteredTotalPrescriptions = filteredClinics.reduce((sum, c) => sum + (c.stats?.prescriptions || 0), 0);
+  const filteredTotalPatients = filteredClinics.reduce((sum, c) => sum + (c.stats?.patients || 0), 0);
+  const filteredTotalRevenue = filteredClinics.reduce((sum, c) => sum + (c.revenue || 0), 0);
+
+
+  const router = useRouter();
+
   const handlePrint = () => {
-    window.print();
+    printElement('report-print-area', 'ClinicPro Report');
   };
 
   const resetFilters = () => {
-    setDateRange('30days');
+    setDateRange('all');
     setStartDate('');
     setEndDate('');
     setClinicFilter('all');
     setPlanFilter('all');
+    setGovFilter('all');
+    setCityFilter('all');
+    setStatusFilter('all');
+    setSpecialtyFilter('all');
   };
 
   // Preset Date range labels
@@ -87,25 +163,29 @@ export default function ReportsPage() {
     visits: item.appointments,
     revenue: item.revenue,
   })) || [
-    { name: isRtl ? 'السبت' : 'Sat', visits: 0, revenue: 0 },
-    { name: isRtl ? 'الأحد' : 'Sun', visits: 0, revenue: 0 },
-    { name: isRtl ? 'الإثنين' : 'Mon', visits: 0, revenue: 0 },
-    { name: isRtl ? 'الثلاثاء' : 'Tue', visits: 0, revenue: 0 },
-    { name: isRtl ? 'الأربعاء' : 'Wed', visits: 0, revenue: 0 },
-    { name: isRtl ? 'الخميس' : 'Thu', visits: 0, revenue: 0 },
-    { name: isRtl ? 'الجمعة' : 'Fri', visits: 0, revenue: 0 },
-  ];
+      { name: isRtl ? 'السبت' : 'Sat', visits: 0, revenue: 0 },
+      { name: isRtl ? 'الأحد' : 'Sun', visits: 0, revenue: 0 },
+      { name: isRtl ? 'الإثنين' : 'Mon', visits: 0, revenue: 0 },
+      { name: isRtl ? 'الثلاثاء' : 'Tue', visits: 0, revenue: 0 },
+      { name: isRtl ? 'الأربعاء' : 'Wed', visits: 0, revenue: 0 },
+      { name: isRtl ? 'الخميس' : 'Thu', visits: 0, revenue: 0 },
+      { name: isRtl ? 'الجمعة' : 'Fri', visits: 0, revenue: 0 },
+    ];
 
   if (isAdmin) {
-    const pharmaData = stats?.pharmaAnalytics?.topMedications?.map((m: any) => ({
+    const pharmaData = pharmaInsights?.topMedications?.map((m: any) => ({
+      name: m.name,
+      prescriptions: m.prescribedCount,
+      category: m.category || 'عام',
+    })) || stats?.pharmaAnalytics?.topMedications?.map((m: any) => ({
       name: m.name,
       prescriptions: m.prescribedCount,
       category: m.category,
     })) || [];
 
     return (
-      <div className={`space-y-6 animate-fade-in ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
-        
+      <div id="report-print-area" className={`space-y-6 animate-fade-in print-area ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
+
         {/* Print Only Header (Hidden on screen) */}
         <div className="hidden print:block border-b-2 border-teal-600 pb-4 mb-6">
           <div className="flex justify-between items-center">
@@ -151,7 +231,7 @@ export default function ReportsPage() {
         {/* ── ADVANCED FILTER PANEL ── */}
         <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:hidden">
           <CardHeader className="pb-3 flex-row items-center gap-2">
-            <Filter className="w-4 h-4 text-teal-600" />
+            <Funnel className="w-4 h-4 text-teal-600" />
             <CardTitle className="text-sm font-semibold">{isRtl ? 'نظام الفلاتر والبحث المتقدم' : 'Advanced Report Filtering'}</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -163,6 +243,7 @@ export default function ReportsPage() {
                 onChange={(e) => setDateRange(e.target.value)}
                 className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500"
               >
+                <option value="all">{isRtl ? 'كل الأوقات' : 'All Time'}</option>
                 <option value="today">{isRtl ? 'اليوم' : 'Today'}</option>
                 <option value="yesterday">{isRtl ? 'أمس' : 'Yesterday'}</option>
                 <option value="7days">{isRtl ? 'آخر 7 أيام' : 'Last 7 Days'}</option>
@@ -212,10 +293,77 @@ export default function ReportsPage() {
               </select>
             </div>
 
+            {/* Governorate Filter */}
+            <div className="space-y-2">
+              <Label className="text-xs">{isRtl ? 'المحافظة' : 'Governorate'}</Label>
+              <select
+                value={govFilter}
+                onChange={(e) => {
+                  setGovFilter(e.target.value);
+                  setCityFilter('all');
+                }}
+                className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500"
+                disabled={loadingGov}
+              >
+                <option value="all">{isRtl ? 'كل المحافظات' : 'All Governorates'}</option>
+                {governorates.map((gov: any) => (
+                  <option key={gov.id} value={gov.id}>{isRtl ? gov.nameAr : (gov.nameEn || gov.nameAr)}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* City Filter */}
+            <div className="space-y-2">
+              <Label className="text-xs">{isRtl ? 'المدينة' : 'City'}</Label>
+              <select
+                value={cityFilter}
+                onChange={(e) => setCityFilter(e.target.value)}
+                className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500"
+                disabled={govFilter === 'all' || loadingCities}
+              >
+                <option value="all">{isRtl ? 'كل المدن' : 'All Cities'}</option>
+                {cities.map((city: any) => (
+                  <option key={city.id} value={city.id}>{isRtl ? city.nameAr : (city.nameEn || city.nameAr)}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Status Filter */}
+            <div className="space-y-2">
+              <Label className="text-xs">{isRtl ? 'حالة الحساب' : 'Account Status'}</Label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500"
+              >
+                <option value="all">{isRtl ? 'كل الحالات' : 'All Statuses'}</option>
+                <option value="ACTIVE">{isRtl ? 'نشط' : 'Active'}</option>
+                <option value="DISABLED">{isRtl ? 'معطل' : 'Disabled'}</option>
+                <option value="TRIAL">{isRtl ? 'فترة تجريبية' : 'Trial'}</option>
+                <option value="OVERDUE">{isRtl ? 'متأخر السداد' : 'Overdue'}</option>
+              </select>
+            </div>
+
+            {/* Specialty Filter */}
+            <div className="space-y-2">
+              <Label className="text-xs">{isRtl ? 'التخصص الطبي' : 'Specialty'}</Label>
+              <select
+                value={specialtyFilter}
+                onChange={(e) => setSpecialtyFilter(e.target.value)}
+                className="w-full h-9 rounded-lg border border-gray-200 dark:border-gray-800 bg-background px-3 text-xs focus:ring-2 focus:ring-teal-500"
+              >
+                <option value="all">{isRtl ? 'كل التخصصات' : 'All Specialties'}</option>
+                {['باطنة', 'قلب', 'أطفال', 'أسنان', 'جلدية', 'نساء وتوليد', 'عظام', 'عيون', 'أنف وأذن وحنجرة', 'جراحة عامة', 'أعصاب', 'نفسية'].map((spec: any) => (
+                  <option key={spec} value={spec}>{spec}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Reset actions */}
-            <div className="flex items-end gap-2">
-              <Button onClick={resetFilters} variant="ghost" className="w-full h-9 text-xs gap-1">
-                {isRtl ? 'إعادة تعيين' : 'Reset'}
+            <div className="flex items-end gap-2 lg:col-span-4 mt-2">
+              <Button onClick={resetFilters} variant="ghost" className="w-full h-9 text-xs gap-1 border border-gray-200 dark:border-gray-800">
+                <RefreshCw className="w-3 h-3" />
+                {isRtl ? 'إعادة تعيين الفلاتر' : 'Reset All Filters'}
               </Button>
             </div>
           </CardContent>
@@ -224,10 +372,10 @@ export default function ReportsPage() {
         {/* ── 1. PLATFORM SUMMARY STATS ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: isRtl ? 'إجمالي الاشتراكات' : 'Total Subscriptions', value: totalClinicsCount, icon: Building2, color: 'text-teal-600', bg: 'bg-teal-50 dark:bg-teal-950/30' },
-            { label: isRtl ? 'إجمالي الروشتات' : 'Total Prescriptions', value: stats?.pharmaAnalytics?.totalPrescriptions || 0, icon: FileText, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/30' },
-            { label: isRtl ? 'إجمالي المرضى' : 'Total Patients', value: stats?.patients || 0, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
-            { label: isRtl ? 'عائدات المنصة المحصلة' : 'Revenue Collected', value: `${(stats?.revenue?.total || 0).toLocaleString()} ج.م`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950/30' },
+            { label: isRtl ? 'إجمالي الاشتراكات' : 'Total Subscriptions', value: filteredTotalClinics, icon: Building2, color: 'text-teal-600', bg: 'bg-teal-50 dark:bg-teal-950/30' },
+            { label: isRtl ? 'إجمالي الروشتات' : 'Total Prescriptions', value: filteredTotalPrescriptions, icon: FileText, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/30' },
+            { label: isRtl ? 'إجمالي المرضى' : 'Total Patients', value: filteredTotalPatients, icon: Users, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
+            { label: isRtl ? 'عائدات المنصة المحصلة' : 'Revenue Collected', value: `${filteredTotalRevenue.toLocaleString()} ج.م`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-950/30' },
           ].map((card, i) => {
             const Icon = card.icon;
             return (
@@ -252,11 +400,23 @@ export default function ReportsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:break-inside-avoid">
           {/* Top prescribed meds */}
           <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Activity className="w-4 h-4 text-purple-600" /> {isRtl ? 'الأدوية الأكثر وصفاً (المنصة)' : 'Pharma Prescriptions'}</CardTitle></CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Activity className="w-4 h-4 text-purple-600" /> {isRtl ? 'الأدوية الأكثر وصفاً (المنصة)' : 'Pharma Prescriptions'}
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-teal-600 text-xs h-8 hover:bg-teal-50 dark:hover:bg-teal-900/20"
+                onClick={() => router.push(`/${locale}/pharma-insights`)}
+              >
+                {isRtl ? 'عرض الكل' : 'View All'}
+              </Button>
+            </CardHeader>
             <CardContent>
               {pharmaData.length > 0 ? (
                 <div className="space-y-4">
-                  {pharmaData.map((item: any, idx: number) => (
+                  {pharmaData.slice(0, 5).map((item: any, idx: number) => (
                     <div key={idx} className="space-y-1">
                       <div className="flex justify-between text-xs font-semibold">
                         <span>{item.name} <span className="text-gray-400 font-normal">({item.category})</span></span>
@@ -291,7 +451,11 @@ export default function ReportsPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {filteredClinics.slice(0, 5).map((clinic) => (
-                    <tr key={clinic.id} className="hover:bg-teal-50/10">
+                    <tr
+                      key={clinic.id}
+                      className="hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors group"
+                      onClick={() => router.push(`/${locale}/clinics/${clinic.id}`)}
+                    >
                       <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{clinic.name}</td>
                       <td className="px-4 py-3 font-mono">{clinic.subscriptionPlan}</td>
                       <td className="px-4 py-3 font-bold text-teal-600">{clinic.stats?.patients}</td>
@@ -320,8 +484,8 @@ export default function ReportsPage() {
 
   // ── CLINIC USER REPORTS VIEW (Original preserved + styled beautifully for print) ──
   return (
-    <div className={`space-y-6 animate-fade-in ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
-      
+    <div id="report-print-area" className={`space-y-6 animate-fade-in print-area ${isRtl ? 'text-right' : 'text-left'}`} dir={isRtl ? 'rtl' : 'ltr'}>
+
       {/* Print Only Header */}
       <div className="hidden print:block border-b-2 border-teal-600 pb-4 mb-6">
         <div className="flex justify-between items-center">
@@ -446,7 +610,7 @@ export default function ReportsPage() {
             <Card className="border-gray-200/60 dark:border-gray-800/60 shadow-sm print:border-gray-300">
               <CardHeader><CardTitle className="text-base">{t('patientGrowth')}</CardTitle></CardHeader>
               <CardContent className="print:hidden">
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer minWidth={0} width="100%" height={300}>
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="name" tick={{ fontSize: 12 }} />

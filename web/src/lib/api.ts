@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { toast } from 'sonner';
+import { extractErrorMessage } from './utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -26,9 +28,16 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('access_token');
-      window.location.href = `/${getLocale()}/login`;
+    if (typeof window !== 'undefined') {
+      if (error.response?.status === 401) {
+        localStorage.removeItem('access_token');
+        window.location.href = `/${getLocale()}/login`;
+      } else if (error.response?.status >= 400 && error.response?.status !== 401) {
+        const msg = extractErrorMessage(error, '');
+        if (msg) {
+          toast.error(msg);
+        }
+      }
     }
     return Promise.reject(error);
   },

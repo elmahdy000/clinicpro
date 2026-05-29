@@ -17,6 +17,41 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { AlertTriangle, ArrowLeft, Clock3, Save, UserRound, Stethoscope } from 'lucide-react';
 
+interface Patient {
+  id: number;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}
+
+interface Doctor {
+  id: number;
+  user?: { id?: number; name?: string };
+  specialization?: string;
+}
+
+interface AppointmentFormData {
+  patientId: number;
+  doctorId: number;
+  appointmentDate: string;
+  durationMinutes: number;
+  reason: string;
+  notes: string;
+  status: string; type: string;
+}
+
+interface AppointmentConflict {
+  id: string | number;
+  patient?: Patient;
+  appointmentDate: string;
+  appointmentEndDate?: string;
+  durationMinutes?: number | string;
+  status?: string;
+  reason?: string;
+  notes?: string;
+  doctorId?: number;
+}
+
 export default function NewAppointmentPage() {
   const locale = useLocale();
   const router = useRouter();
@@ -27,7 +62,7 @@ export default function NewAppointmentPage() {
   const patientIdFromQuery = searchParams.get('patientId');
 
   const [patientSearch, setPatientSearch] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
   const durationOptions = [15, 30, 45, 60];
 
@@ -88,7 +123,8 @@ export default function NewAppointmentPage() {
       durationMinutes: 30,
       reason: '',
       notes: '',
-      status: 'SCHEDULED',
+      status: 'CONFIRMED',
+      type: 'CONSULTATION',
     },
   });
 
@@ -108,13 +144,13 @@ export default function NewAppointmentPage() {
   };
 
   const mutation = useMutation({
-    mutationFn: (data: any) => api.post('/appointments', data),
+    mutationFn: (data: AppointmentFormData) => api.post('/appointments', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       toast.success('تم حفظ الموعد');
       router.push(`/${locale}/appointments`);
     },
-    onError: () => toast.error('حدث خطأ أثناء حفظ الموعد'),
+    onError: (e) => console.error(e),
   });
 
   const appointmentDate = form.watch('appointmentDate');
@@ -123,7 +159,7 @@ export default function NewAppointmentPage() {
   const doctorId = useMemo(() => {
     if (selectedDoctorId) return selectedDoctorId;
     const allDoctors = doctors?.data || [];
-    const matchedDoctor = allDoctors.find((d: any) => d?.user?.id === user?.id);
+    const matchedDoctor = allDoctors.find((d: Doctor) => d?.user?.id === user?.id);
     const fallbackDoctor = allDoctors[0];
     return matchedDoctor?.id || fallbackDoctor?.id || null;
   }, [doctors, user?.id, selectedDoctorId]);
@@ -141,7 +177,7 @@ export default function NewAppointmentPage() {
     const start = new Date(`${appointmentDate}T${appointmentTime}:00`);
     const end = new Date(start.getTime() + Number(durationMinutes) * 60000);
     const list = allAppointments?.data || [];
-    return list.some((a: any) => {
+    return list.some((a: AppointmentConflict) => {
       if (a.status === 'CANCELLED' || a.status === 'COMPLETED') return false;
       if (a.doctorId !== doctorId) return false;
       const aStart = new Date(a.appointmentDate);
@@ -159,6 +195,10 @@ export default function NewAppointmentPage() {
       toast.error('بيانات الطبيب غير مكتملة');
       return;
     }
+    if (!data.appointmentDate || !data.appointmentTime) {
+      toast.error(isRtl ? 'يرجى اختيار تاريخ ووقت الموعد بالكامل' : 'Please select a complete appointment date and time');
+      return;
+    }
 
     mutation.mutate({
       patientId: selectedPatient.id,
@@ -168,6 +208,7 @@ export default function NewAppointmentPage() {
       reason: data.reason,
       notes: data.notes,
       status: data.status,
+      type: data.type,
     });
   });
 
@@ -213,7 +254,7 @@ export default function NewAppointmentPage() {
             )}
             {patients?.data?.length > 0 && (
               <div className="max-h-52 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-lg divide-y divide-slate-100 dark:divide-slate-800">
-                {patients.data.map((p: any) => (
+                {patients.data.map((p: Patient) => (
                   <button
                     key={p.id}
                     type="button"
@@ -239,7 +280,7 @@ export default function NewAppointmentPage() {
                 className="w-full h-10 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
               >
                 <option value="">{isRtl ? '-- اختر الطبيب --' : '-- Select Doctor --'}</option>
-                {(doctors?.data || []).map((doc: any) => (
+                {(doctors?.data || []).map((doc: Doctor) => (
                   <option key={doc.id} value={doc.id}>{doc.user?.name} - {doc.specialization}</option>
                 ))}
               </select>
@@ -321,14 +362,26 @@ export default function NewAppointmentPage() {
               <Input type="number" {...form.register('durationMinutes', { valueAsNumber: true })} defaultValue={30} className="medical-input" />
             </div>
             <div className="space-y-2">
+              <Label>{isRtl ? 'نوع الموعد' : 'Appointment Type'}</Label>
+              <select
+                {...form.register('type')}
+                defaultValue="CONSULTATION"
+                className="w-full h-10 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+              >
+                <option value="CONSULTATION">{isRtl ? 'كشف / استشارة جديدة' : 'New Consultation'}</option>
+                <option value="FOLLOWUP">{isRtl ? 'إعادة / استشارة متابعة' : 'Follow-up'}</option>
+              </select>
+            </div>
+            <div className="space-y-2">
               <Label>{appointmentLabels.status}</Label>
-              <Select defaultValue="SCHEDULED" onValueChange={(v) => form.setValue('status', String(v ?? 'SCHEDULED'))}>
-                <SelectTrigger className="medical-input"><SelectValue placeholder={appointmentLabels.scheduled} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="SCHEDULED">{appointmentLabels.scheduled}</SelectItem>
-                  <SelectItem value="CONFIRMED">{appointmentLabels.confirmed}</SelectItem>
-                </SelectContent>
-              </Select>
+              <select
+                {...form.register('status')}
+                defaultValue="CONFIRMED"
+                className="w-full h-10 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 px-3 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
+              >
+                <option value="CONFIRMED">{isRtl ? 'مؤكد' : 'Confirmed'}</option>
+                <option value="PENDING">{isRtl ? 'قيد الانتظار' : 'Pending'}</option>
+              </select>
             </div>
             <div className="space-y-2">
               <Label>{appointmentLabels.endTime}</Label>

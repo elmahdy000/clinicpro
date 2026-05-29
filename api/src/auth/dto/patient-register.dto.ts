@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class PatientRegisterDto {
   @IsString()
@@ -12,5 +12,9 @@ export class PatientRegisterDto {
 
   @IsString()
   @IsNotEmpty()
-  name: string;
+  fullName: string;
+
+  @IsString()
+  @IsOptional()
+  patientCode?: string;
 }

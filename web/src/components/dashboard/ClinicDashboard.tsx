@@ -11,13 +11,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   CalendarDays, Clock, Users, UserPlus, Stethoscope, Pill,
   XCircle, Activity, FileText, TrendingUp, Receipt,
-  CheckCircle2, AlertCircle, Play, Sparkles, TrendingDown
+  CheckCircle2, AlertCircle, Play, Sparkles
 } from 'lucide-react';
 import { formatDate, formatTime } from '@/lib/utils';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
+import TopPrescribedMedicinesCard from './TopPrescribedMedicinesCard';
 
 const statusBadgeClass = (s: string) => {
   const m: Record<string, string> = {
@@ -37,37 +37,108 @@ const KPI_COLORS = [
   { bg: 'bg-red-50 dark:bg-red-950/30',     text: 'text-red-600 dark:text-red-400',     icon: XCircle },
 ];
 
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number; color: string; unit?: string }>;
+  label?: string;
+  isRtl: boolean;
+}
+
+interface WeeklyTrendItem {
+  dayIdx: number;
+  appointments: number;
+  revenue: number;
+}
+
+interface TopMedication {
+  name: string;
+  prescribedCount: number;
+}
+
+interface ActivityItem {
+  id: string;
+  patient?: { firstName: string; lastName: string; id?: string };
+  doctor?: { user: { name: string } };
+  appointmentDate: string;
+  reason?: string;
+  status: string;
+}
+
+interface PrescriptionItem {
+  id: string;
+  patient?: { firstName: string; lastName: string; id?: string };
+  items?: Array<{ medication?: { name: string } }>;
+  prescribedDate: string;
+}
+
+interface InvoiceItem {
+  id: string;
+  patient?: { firstName: string; lastName: string; id?: string };
+  invoiceNumber: string;
+  total: number;
+  status: string;
+  createdAt: string;
+}
+
+interface ClinicDashboardStats {
+  todayAppointments: Record<string, number>;
+  newPatients: number;
+  totalPatients: number;
+  weekAppointmentsCount: number;
+  newPatientsThisWeek: number;
+  prescriptions: { thisMonth: number };
+  revenue: { thisMonth: number; byStatus: { PENDING: { count: number } } };
+  pharmaAnalytics: { topMedications: TopMedication[] };
+  weeklyTrend: WeeklyTrendItem[];
+}
+
+function CustomTooltip({ active, payload, label, isRtl }: CustomTooltipProps) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl shadow-lg text-right" dir={isRtl ? 'rtl' : 'ltr'}>
+        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{label}</p>
+        {payload.map((item, i: number) => (
+          <p key={i} className="text-[11px] font-semibold mt-1" style={{ color: item.color }}>
+            {item.name}: {item.value.toLocaleString()} {item.unit || ''}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+}
+
 export default function ClinicDashboard() {
   const t = useTranslations('dashboard');
   const locale = useLocale();
   const isRtl = locale === 'ar';
   const { user } = useAuth();
 
-  const { data: stats, isLoading } = useQuery<any>({
+  const { data: stats, isLoading } = useQuery<ClinicDashboardStats>({
     queryKey: ['clinic-dash-stats'],
     queryFn: () => api.get('/dashboard/stats').then((r) => r.data),
     refetchInterval: 60_000,
   });
 
-  const { data: recentActivity } = useQuery<any[]>({
+  const { data: recentActivity } = useQuery<ActivityItem[]>({
     queryKey: ['clinic-dash-recent'],
     queryFn: () => api.get('/dashboard/recent-activity').then((r) => r.data),
     refetchInterval: 30_000,
   });
 
-  const { data: recentPrescriptions } = useQuery<any[]>({
+  const { data: recentPrescriptions } = useQuery<PrescriptionItem[]>({
     queryKey: ['clinic-dash-rx'],
     queryFn: () => api.get('/dashboard/recent-prescriptions').then((r) => r.data),
     refetchInterval: 60_000,
   });
 
-  const { data: recentInvoices } = useQuery<any[]>({
+  const { data: recentInvoices } = useQuery<InvoiceItem[]>({
     queryKey: ['clinic-dash-inv'],
     queryFn: () => api.get('/dashboard/recent-invoices').then((r) => r.data),
     refetchInterval: 60_000,
   });
 
-  const totalToday = Object.values(stats?.todayAppointments ?? {}).reduce((a: any, b: any) => a + b, 0) as number;
+  const totalToday = Object.values(stats?.todayAppointments ?? {}).reduce((a: number, b: number) => a + b, 0);
   const pendingQueue = (recentActivity ?? []).filter((a) => a.status === 'PENDING' || a.status === 'WAITING');
   
   // Call Next Patient banner calculation
@@ -90,7 +161,7 @@ export default function ClinicDashboard() {
   const dayNamesEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   // Dynamic weekly trend data aggregated from backend (representing patient load & revenue growth)
-  const weeklyTrendData = stats?.weeklyTrend?.map((item: any) => ({
+  const weeklyTrendData = stats?.weeklyTrend?.map((item: WeeklyTrendItem) => ({
     day: isRtl ? dayNamesAr[item.dayIdx] : dayNamesEn[item.dayIdx],
     appointments: item.appointments,
     revenue: item.revenue,
@@ -103,29 +174,6 @@ export default function ClinicDashboard() {
     { day: isRtl ? 'الخميس' : 'Thu', appointments: 0, revenue: 0 },
     { day: isRtl ? 'الجمعة' : 'Fri', appointments: 0, revenue: 0 },
   ];
-
-  // Live top prescribed medications mapping
-  const rawTopMeds = stats?.pharmaAnalytics?.topMedications || [];
-  const topMedsData = rawTopMeds.slice(0, 5).map((m: any) => ({ 
-    name: m.name, 
-    count: m.prescribedCount 
-  }));
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl shadow-lg text-right" dir={isRtl ? 'rtl' : 'ltr'}>
-          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{label}</p>
-          {payload.map((item: any, i: number) => (
-            <p key={i} className="text-[11px] font-semibold mt-1" style={{ color: item.color }}>
-              {item.name}: {item.value.toLocaleString()} {item.unit || ''}
-            </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
-  };
 
   return (
     <div className="space-y-5 md:space-y-6 animate-fade-in text-right" dir={isRtl ? 'rtl' : 'ltr'}>
@@ -186,7 +234,7 @@ export default function ClinicDashboard() {
                   <div className="min-w-0 text-right">
                     <p className="stat-label">{kpi.label}</p>
                     {isLoading ? <Skeleton className="h-7 w-14 mt-1" /> : <p className="stat-value mt-0.5">{kpi.value}</p>}
-                    <p className="text-[10px] md:text-xs text-gray-400 mt-0.5 truncate">{kpi.sub}</p>
+                    <p className="text-[10px] md:text-xs text-gray-400 mt-0.5 line-clamp-1 leading-normal" dir="auto">{kpi.sub}</p>
                   </div>
                   <div className={`p-2 rounded-xl ${KPI_COLORS[i].bg} flex-shrink-0`}>
                     <Icon className={`w-[18px] h-[18px] ${KPI_COLORS[i].text}`} />
@@ -217,8 +265,8 @@ export default function ClinicDashboard() {
           </CardHeader>
           <CardContent className="pt-2">
             <div className="h-[220px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={weeklyTrendData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+              <ResponsiveContainer minWidth={0} width="100%" height="100%">
+                <AreaChart data={weeklyTrendData} margin={{ top: 10, right: 15, left: 10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorVisits" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#0d9488" stopOpacity={0.25}/>
@@ -231,8 +279,8 @@ export default function ClinicDashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
                   <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<CustomTooltip />} />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={30} />
+                  <Tooltip content={<CustomTooltip isRtl={isRtl} />} />
                   <Area type="monotone" dataKey="appointments" name={isRtl ? 'عدد الحالات' : 'Total Cases'} stroke="#0d9488" strokeWidth={2.5} fillOpacity={1} fill="url(#colorVisits)" />
                   <Area type="monotone" dataKey="revenue" name={isRtl ? 'النشاط التقديري (ج.م)' : 'Activity (EGP)'} stroke="#16a34a" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
                 </AreaChart>
@@ -241,46 +289,8 @@ export default function ClinicDashboard() {
           </CardContent>
         </Card>
 
-        {/* Chart 2: Top Prescribed Medications (Horizontal Bar Chart) */}
-        <Card className="dashboard-card animate-fade-in-up delay-2">
-          <CardHeader className="pb-1">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Pill className="w-4 h-4 text-purple-600" />
-              {isRtl ? 'الأدوية الأكثر وصفاً بالعيادة' : 'Top Prescribed Medications'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2">
-            {topMedsData.length > 0 ? (
-              <div className="h-[220px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topMedsData} layout="vertical" margin={{ top: 5, right: 10, left: -25, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(148, 163, 184, 0.1)" />
-                    <XAxis type="number" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                    <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="count" name={isRtl ? 'مرات الوصف' : 'Prescribed Times'} fill="#8b5cf6" radius={[0, 6, 6, 0]}>
-                      {topMedsData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={index === 0 ? '#0d9488' : index === 1 ? '#0ea5e9' : '#8b5cf6'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-[220px] text-gray-400 dark:text-gray-500">
-                <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-900/60 flex items-center justify-center mb-3">
-                  <Pill className="w-6 h-6 text-slate-400 dark:text-slate-500 animate-pulse-subtle" />
-                </div>
-                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{isRtl ? 'لا توجد أدوية موصوفة بعد' : 'No medications prescribed yet'}</p>
-                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 max-w-[200px] text-center leading-relaxed">
-                  {isRtl 
-                    ? 'ستظهر هنا الأدوية الأكثر استخداماً فور كتابة أول روشتة للمرضى' 
-                    : 'Most used medications will appear here once you write your first prescription'}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Chart 2: Top Prescribed Medications (Ranked Medical Insight Card) */}
+        <TopPrescribedMedicinesCard locale={locale} isRtl={isRtl} />
 
       </div>
 
@@ -343,7 +353,7 @@ export default function ClinicDashboard() {
                 { label: t('addPatient'), icon: UserPlus, color: 'text-teal-600', bg: 'bg-teal-50 dark:bg-teal-950/30', href: `/${locale}/patients/new` },
                 { label: t('bookAppointment'), icon: CalendarDays, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30', href: `/${locale}/appointments/new` },
                 { label: t('startVisit'), icon: Stethoscope, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30', href: `/${locale}/visits/new` },
-                { label: isRtl ? 'روشتة جديدة' : 'New Rx', icon: Pill, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/30', href: `/${locale}/prescriptions/new` },
+                { label: t('createPrescription'), icon: Pill, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/30', href: `/${locale}/prescriptions/new` },
               ].map((action) => {
                 const Icon = action.icon;
                 return (
@@ -422,8 +432,8 @@ export default function ClinicDashboard() {
                       </div>
                       <div className="flex-1 min-w-0 text-right">
                         <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{rx.patient?.firstName} {rx.patient?.lastName}</p>
-                        <p className="text-[10px] text-gray-500 truncate">
-                          {rx.items?.slice(0, 2).map((it: any) => it.medication?.name).filter(Boolean).join('، ') || (isRtl ? 'روشتة طبية' : 'Prescription')}
+                        <p className="text-[10px] text-gray-500 line-clamp-1 leading-normal" dir="auto">
+                          {rx.items?.slice(0, 2).map((it) => it.medication?.name).filter(Boolean).join('، ') || (isRtl ? 'روشتة طبية' : 'Prescription')}
                         </p>
                       </div>
                       <span className="text-[10px] text-gray-400 flex-shrink-0">{formatDate(rx.prescribedDate, locale)}</span>

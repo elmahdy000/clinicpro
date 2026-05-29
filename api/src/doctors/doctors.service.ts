@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { tenantStorage } from '../prisma/tenant-context';
@@ -89,8 +89,11 @@ export class DoctorsService {
     return this.prisma.doctorAvailability.findMany({ where: { doctorId } });
   }
 
-  async upsertAvailability(doctorId: number, dto: CreateAvailabilityDto) {
-    await this.findOne(doctorId);
+  async upsertAvailability(doctorId: number, dto: CreateAvailabilityDto, requestingUser?: any) {
+    const doctor = await this.findOne(doctorId);
+    if (requestingUser?.role === 'DOCTOR' && doctor.userId !== requestingUser.id) {
+      throw new ForbiddenException('Cannot modify another doctor\'s availability');
+    }
     return this.prisma.doctorAvailability.upsert({
       where: { doctorId_dayOfWeek: { doctorId, dayOfWeek: dto.dayOfWeek } },
       update: {
@@ -110,8 +113,11 @@ export class DoctorsService {
     });
   }
 
-  async removeAvailability(doctorId: number, dayOfWeek: number) {
-    await this.findOne(doctorId);
+  async removeAvailability(doctorId: number, dayOfWeek: number, requestingUser?: any) {
+    const doctor = await this.findOne(doctorId);
+    if (requestingUser?.role === 'DOCTOR' && doctor.userId !== requestingUser.id) {
+      throw new ForbiddenException('Cannot modify another doctor\'s availability');
+    }
     try {
       await this.prisma.doctorAvailability.delete({
         where: { doctorId_dayOfWeek: { doctorId, dayOfWeek } },
@@ -126,19 +132,28 @@ export class DoctorsService {
     return this.prisma.doctorTimeOff.findMany({ where: { doctorId }, orderBy: { date: 'asc' } });
   }
 
-  async addTimeOff(doctorId: number, dto: CreateTimeOffDto) {
-    await this.findOne(doctorId);
+  async addTimeOff(doctorId: number, dto: CreateTimeOffDto, requestingUser?: any) {
+    const doctor = await this.findOne(doctorId);
+    if (requestingUser?.role === 'DOCTOR' && doctor.userId !== requestingUser.id) {
+      throw new ForbiddenException('Cannot add time-off for another doctor');
+    }
     return this.prisma.doctorTimeOff.create({
       data: { doctorId, date: dto.date, reason: dto.reason },
     });
   }
 
-  async removeTimeOff(id: number) {
+  async removeTimeOff(id: number, requestingUser?: any) {
     const store = tenantStorage.getStore();
     const record = await this.prisma.doctorTimeOff.findFirst({
       where: { id, doctor: { clinicId: store?.clinicId ?? 0 } },
+      include: { doctor: true }
     });
     if (!record) throw new NotFoundException(`TimeOff #${id} not found`);
+
+    if (requestingUser?.role === 'DOCTOR' && record.doctor.userId !== requestingUser.id) {
+      throw new ForbiddenException('Cannot remove another doctor\'s time-off');
+    }
+
     return this.prisma.doctorTimeOff.delete({ where: { id } });
   }
 

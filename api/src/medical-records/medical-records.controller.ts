@@ -34,7 +34,7 @@ export class MedicalRecordsController {
     return this.medicalRecordsService.update(id, dto);
   }
 
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.PLATFORM_OWNER)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.medicalRecordsService.remove(id);

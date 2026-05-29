@@ -168,11 +168,41 @@ export class AppointmentsService {
   }
 
   async create(dto: CreateAppointmentDto) {
+    const store = tenantStorage.getStore();
+    const clinicId = store?.clinicId ?? 0;
+
+    if (!clinicId) {
+      throw new BadRequestException('Clinic context is missing. Please ensure you are logged in under a clinic context.');
+    }
+
+    // Verify Clinic exists
+    const clinicExists = await this.prisma.clinic.findUnique({
+      where: { id: clinicId },
+    });
+    if (!clinicExists) {
+      throw new NotFoundException(`Clinic #${clinicId} not found`);
+    }
+
+    // Verify Patient exists
+    const patientExists = await this.prisma.patient.findUnique({
+      where: { id: dto.patientId },
+    });
+    if (!patientExists) {
+      throw new NotFoundException(`Patient #${dto.patientId} not found`);
+    }
+
+    // Verify Doctor exists
+    const doctorExists = await this.prisma.doctor.findUnique({
+      where: { id: dto.doctorId },
+    });
+    if (!doctorExists) {
+      throw new NotFoundException(`Doctor #${dto.doctorId} not found`);
+    }
+
     const appointmentEndDate = this.calculateEndDate(dto.appointmentDate, dto.durationMinutes);
     await this.checkOverlap(dto.doctorId, new Date(dto.appointmentDate), appointmentEndDate);
-    const store = tenantStorage.getStore();
     const appointment = await this.prisma.appointment.create({
-      data: { ...dto, appointmentEndDate, clinicId: store?.clinicId ?? 0 } as any,
+      data: { ...dto, appointmentEndDate, clinicId } as any,
     });
     const full = await this.findOne(appointment.id);
     await this.notificationHelper.sendAppointmentCreated(full, full.doctor.user, full.patient).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));

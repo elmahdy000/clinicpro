@@ -3,10 +3,12 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { SidebarProvider } from '@/stores/sidebar';
 import { SidebarSync } from '@/components/layout/SidebarSync';
+import { RouteGuard } from '@/components/common/RouteGuard';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
+      <RouteGuard>
       <div className="min-h-screen bg-gray-50/60 dark:bg-gray-950">
         <Sidebar />
         <SidebarSync>
@@ -18,6 +20,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </main>
         </SidebarSync>
       </div>
+      </RouteGuard>
     </SidebarProvider>
   );
 }
