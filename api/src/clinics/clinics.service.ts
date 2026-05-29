@@ -412,17 +412,27 @@ export class ClinicsService {
     const current = await this.prisma.clinic.findUnique({ where: { id } });
     if (!current) throw new NotFoundException(`Clinic #${id} not found`);
 
+    const updateData: any = {
+      name: data.name,
+      address: data.address,
+      phone: data.phone,
+      governorateId: data.governorateId !== undefined ? data.governorateId : undefined,
+      cityId: data.cityId !== undefined ? data.cityId : undefined,
+    };
+
+    // Strict role check: Only the Platform Owner can modify critical subscription fields
+    if (user && user.role === 'PLATFORM_OWNER') {
+      if (data.subscriptionPlan !== undefined) {
+        updateData.subscriptionPlan = data.subscriptionPlan;
+      }
+      if (data.subscriptionStatus !== undefined) {
+        updateData.subscriptionStatus = data.subscriptionStatus;
+      }
+    }
+
     const updated = await this.prisma.clinic.update({
       where: { id },
-      data: {
-        name: data.name,
-        address: data.address,
-        phone: data.phone,
-        subscriptionPlan: data.subscriptionPlan,
-        subscriptionStatus: data.subscriptionStatus,
-        governorateId: data.governorateId !== undefined ? data.governorateId : undefined,
-        cityId: data.cityId !== undefined ? data.cityId : undefined,
-      },
+      data: updateData,
     });
 
     if (data.subscriptionPlan && data.subscriptionPlan !== current.subscriptionPlan) {
