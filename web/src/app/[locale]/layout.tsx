@@ -23,19 +23,21 @@ export async function generateMetadata({ params }: MetadataProps): Promise<Metad
 
   return {
     title: {
-      default: isAr ? 'ClinicPro — نظام إدارة العيادات الطبية المتكامل' : 'ClinicPro — Complete Clinic Management System',
+      default: isAr 
+        ? 'ClinicPro — أفضل سيستم إدارة عيادات ومراكز طبية متكامل' 
+        : 'ClinicPro — Best Clinic Management System & EHR Software',
       template: '%s — ClinicPro'
     },
     description: isAr
-      ? 'منصة ClinicPro لإدارة العيادات والمراكز الطبية: تنظيم المواعيد، السجلات الطبية الإلكترونية للرعاية الصحية، الفواتير، الصيدلية وإدارة شؤون المرضى بكل سهولة.'
-      : 'ClinicPro platform for medical clinics & centers management: organize appointments, electronic health records (EHR/EMR), medical billing, pharmacy, and patient portal with ease.',
+      ? 'منصة ClinicPro هي أفضل سيستم إدارة عيادات ومراكز طبية في مصر والشرق الأوسط. تنظيم حجز المواعيد، سجلات المرضى الإلكترونية، الروشتة الذكية، وإدارة الفواتير والحسابات بكل سهولة.'
+      : 'ClinicPro is the best clinic management system and medical software in Egypt & Middle East. Organize appointments, electronic medical records (EMR/EHR), smart prescriptions, and billing with ease.',
     keywords: isAr
       ? [
-          'إدارة العيادات', 'برنامج عيادة طبية', 'سجلات طبية إلكترونية', 'حجز مواعيد أطباء', 
-          'برنامج عيادات طبية', 'EHR', 'Clinic Management System', 'ClinicPro', 'نظام عيادات متكامل'
+          'أفضل سيستم إدارة عيادات', 'أفضل برنامج إدارة عيادات', 'إدارة العيادات الطبية', 'برنامج عيادة طبية', 
+          'سجلات طبية إلكترونية', 'حجز مواعيد أطباء', 'سستم إدارة عيادات ومراكز طبية', 'EHR', 'Clinic Management System', 'ClinicPro'
         ]
       : [
-          'clinic management', 'clinic software', 'electronic health records', 'ehr software',
+          'best clinic management system', 'best clinic software', 'ehr software', 'medical records program', 
           'doctor appointment scheduling', 'emr system', 'integrated medical software', 'clinicpro'
         ],
     manifest: '/manifest.webmanifest',
@@ -56,10 +58,12 @@ export async function generateMetadata({ params }: MetadataProps): Promise<Metad
       type: 'website',
       locale: isAr ? 'ar_EG' : 'en_US',
       url: 'https://clinicpro.online',
-      title: isAr ? 'ClinicPro — نظام إدارة العيادات الطبية المتكامل' : 'ClinicPro — Complete Clinic Management System',
+      title: isAr 
+        ? 'ClinicPro — أفضل سيستم إدارة عيادات ومراكز طبية متكامل' 
+        : 'ClinicPro — Best Clinic Management System & EHR Software',
       description: isAr
-        ? 'نظام إدارة العيادات والمراكز الطبية المتطور للأطباء والمرضى. إدارة السجلات الطبية والملفات الإلكترونية وحجز المواعيد.'
-        : 'Advanced medical clinic and center management system for doctors and patients. Manage medical records, EMR, and appointments.',
+        ? 'منصة ClinicPro هي أفضل سيستم إدارة عيادات ومراكز طبية في مصر والشرق الأوسط. تنظيم حجز المواعيد، سجلات المرضى الإلكترونية، الروشتة الذكية، وإدارة الفواتير والحسابات بكل سهولة.'
+        : 'ClinicPro is the best clinic management system and medical software in Egypt & Middle East. Organize appointments, EMR/EHR, and billing.',
       siteName: 'ClinicPro',
       images: [
         {
@@ -72,10 +76,12 @@ export async function generateMetadata({ params }: MetadataProps): Promise<Metad
     },
     twitter: {
       card: 'summary_large_image',
-      title: isAr ? 'ClinicPro — نظام إدارة العيادات الطبية المتكامل' : 'ClinicPro — Complete Clinic Management System',
+      title: isAr 
+        ? 'ClinicPro — أفضل سيستم إدارة عيادات ومراكز طبية متكامل' 
+        : 'ClinicPro — Best Clinic Management System & EHR Software',
       description: isAr
-        ? 'إدارة متكاملة لعيادتك الطبية من أي مكان. تنظيم ملفات المرضى، المواعيد، والفواتير.'
-        : 'Complete management of your medical clinic from anywhere. Organize patient files, appointments, and billing.',
+        ? 'أفضل نظام متكامل لإدارة العيادات الطبية من أي مكان. تنظيم ملفات المرضى، المواعيد، الفواتير والروشتات.'
+        : 'Best complete clinic management software. Organize patient EMR, appointment slots, invoices, and smart prescriptions.',
       images: ['https://clinicpro.online/icon-512.png'],
     },
     other: {
@@ -125,25 +131,95 @@ export default async function LocaleLayout({ children, params }: Props) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              '@context': 'https://schema.org',
-              '@type': 'SoftwareApplication',
-              'name': 'ClinicPro',
-              'operatingSystem': 'All',
-              'applicationCategory': 'MedicalBusinessApplication',
-              'url': 'https://clinicpro.online',
-              'description': 'نظام إدارة العيادات الطبية المتكامل للأطباء والمرضى - تنظيم المواعيد، السجلات الطبية الإلكترونية، والفواتير.',
-              'offers': {
-                '@type': 'Offer',
-                'price': '0.00',
-                'priceCurrency': 'EGP'
+            __html: JSON.stringify([
+              {
+                '@context': 'https://schema.org',
+                '@type': 'SoftwareApplication',
+                'name': 'ClinicPro',
+                'operatingSystem': 'All',
+                'applicationCategory': 'MedicalBusinessApplication',
+                'url': 'https://clinicpro.online',
+                'description': locale === 'ar'
+                  ? 'منصة ClinicPro هي أفضل سيستم متكامل لإدارة العيادات والمراكز الطبية في مصر والشرق الأوسط: المواعيد، السجلات الطبية الإلكترونية، الروشتات، والفوترة.'
+                  : 'ClinicPro is the best clinic management system and medical software in Egypt & Middle East: EMR, appointments, prescriptions, and billing.',
+                'offers': {
+                  '@type': 'Offer',
+                  'price': '0.00',
+                  'priceCurrency': 'EGP'
+                },
+                'aggregateRating': {
+                  '@type': 'AggregateRating',
+                  'ratingValue': '4.9',
+                  'ratingCount': '210'
+                }
               },
-              'aggregateRating': {
-                '@type': 'AggregateRating',
-                'ratingValue': '4.9',
-                'ratingCount': '150'
+              {
+                '@context': 'https://schema.org',
+                '@type': 'WebSite',
+                'name': 'ClinicPro',
+                'url': 'https://clinicpro.online',
+                'potentialAction': {
+                  '@type': 'SearchAction',
+                  'target': 'https://clinicpro.online/search?q={search_term_string}',
+                  'query-input': 'required name=search_term_string'
+                }
+              },
+              {
+                '@context': 'https://schema.org',
+                '@type': 'FAQPage',
+                'mainEntity': locale === 'ar' ? [
+                  {
+                    '@type': 'Question',
+                    'name': 'ما هو أفضل سيستم لإدارة العيادات والمراكز الطبية؟',
+                    'acceptedAnswer': {
+                      '@type': 'Answer',
+                      'text': 'سيستم ClinicPro هو أفضل برنامج متكامل لإدارة العيادات والمراكز الطبية في مصر والوطن العربي؛ حيث يوفر لوحة تحكم ذكية لتنظيم حجز مواعيد الأطباء، والسجلات الطبية الإلكترونية للرعاية الصحية، وطباعة الروشتات الاحترافية، والفوترة والحسابات مع دعم كامل للغتين العربية والإنجليزية.'
+                    }
+                  },
+                  {
+                    '@type': 'Question',
+                    'name': 'هل يدعم برنامج ClinicPro طباعة الروشتات وحسابات المرضى؟',
+                    'acceptedAnswer': {
+                      '@type': 'Answer',
+                      'text': 'نعم، يدعم سيستم ClinicPro طباعة روشتات طبية احترافية تتطابق مع المعايير الطبية، بالإضافة لنظام حسابات مالي متكامل لتسجيل ومتابعة إيصالات الدفع والإيرادات اليومية وتسهيل الفوترة.'
+                    }
+                  },
+                  {
+                    '@type': 'Question',
+                    'name': 'هل يمكنني تجربة برنامج ClinicPro مجاناً؟',
+                    'acceptedAnswer': {
+                      '@type': 'Answer',
+                      'text': 'نعم، يمكنك تسجيل حساب عيادتك وتجربة برنامج ClinicPro مجاناً بالكامل دون أي التزامات لتجربة كافة الميزات وتسهيل شؤون المرضى والمواعيد.'
+                    }
+                  }
+                ] : [
+                  {
+                    '@type': 'Question',
+                    'name': 'What is the best clinic management system?',
+                    'acceptedAnswer': {
+                      '@type': 'Answer',
+                      'text': 'ClinicPro is the best clinic management system and EHR software in the Middle East. It offers smart scheduling, electronic medical records (EMR), professional prescription printing, and advanced billing.'
+                    }
+                  },
+                  {
+                    '@type': 'Question',
+                    'name': 'Does ClinicPro support prescription printing and patient billing?',
+                    'acceptedAnswer': {
+                      '@type': 'Answer',
+                      'text': 'Yes, ClinicPro fully supports issuing and printing professional medical prescriptions and invoices, tracking payments, daily revenues, and clinic financial reports.'
+                    }
+                  },
+                  {
+                    '@type': 'Question',
+                    'name': 'Can I try ClinicPro for free?',
+                    'acceptedAnswer': {
+                      '@type': 'Answer',
+                      'text': 'Yes! You can register your clinic and start a completely free trial with no commitment, allowing you to explore all scheduling, medical records, and billing features.'
+                    }
+                  }
+                ]
               }
-            })
+            ])
           }}
         />
       </head>

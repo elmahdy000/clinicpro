@@ -58,12 +58,12 @@ export default function LandingPage() {
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight mb-6">
-                نظام ذكي لإدارة العيادة<br />
+                أفضل سيستم لإدارة العيادات<br />
                 <span className="bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">من الحجز حتى الروشتة</span>
               </h1>
 
               <p className="text-slate-600 text-lg leading-relaxed mb-8 max-w-xl">
-                احجز المواعيد بسهولة، واحفظ ملفات المرضى، واصدر الروشتات والفواتير، وتابع أداء عيادتك بالتقارير الذكية — في مكان واحد وبواجهة عربية سهلة الاستخدام ومريحة للعين.
+                برنامج ClinicPro هو أفضل سيستم لإدارة العيادات والمراكز الطبية في مصر والوطن العربي؛ احجز المواعيد بسهولة، واحفظ السجلات الطبية الإلكترونية للمرضى، واصدر الروشتات الذكية والفواتير، وتابع أداء عيادتك بالتقارير — في مكان واحد وبواجهة عربية سهلة الاستخدام ومريحة للعين.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto mb-12">
