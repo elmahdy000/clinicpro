@@ -154,7 +154,9 @@ export class DoctorsService {
       throw new ForbiddenException('Cannot remove another doctor\'s time-off');
     }
 
-    return this.prisma.doctorTimeOff.delete({ where: { id } });
+    await this.prisma.doctorTimeOff.delete({ where: { id } });
+    await this.redis.delByPattern(`doctors:available-days:${record.doctorId}:*`);
+    await this.redis.delByPattern(`doctors:available-slots:${record.doctorId}:*`);
   }
 
   private async getClinicTimezone(): Promise<string> {
@@ -224,6 +226,7 @@ export class DoctorsService {
     const timezone = await this.getClinicTimezone();
     const from = new Date(fromDate);
     const to = new Date(toDate);
+    if (from > to) return [];
 
     const { startUtc: startBound } = this.getLocalDayBoundsInUtc(fromDate, timezone);
     const { endUtc: endBound } = this.getLocalDayBoundsInUtc(toDate, timezone);

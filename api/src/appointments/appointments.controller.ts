@@ -3,9 +3,9 @@ import { AppointmentsService } from './appointments.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
+import { AppointmentQueryDto } from './dto/appointment-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
-import { PaginationDto } from '../common/dto/pagination.dto';
 import { UserRole } from '../users/user-role.enum';
 
 @Controller('appointments')
@@ -15,7 +15,7 @@ export class AppointmentsController {
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST, UserRole.NURSE)
   @Get()
-  findAll(@Query() query: PaginationDto) {
+  findAll(@Query() query: AppointmentQueryDto) {
     return this.appointmentsService.findAll(query);
   }
 

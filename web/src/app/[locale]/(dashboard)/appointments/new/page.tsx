@@ -104,11 +104,6 @@ export default function NewAppointmentPage() {
     queryFn: () => api.get(`/patients/${patientIdFromQuery}`).then((r) => r.data),
     enabled: !!patientIdFromQuery,
   });
-  const { data: allAppointments } = useQuery({
-    queryKey: ['appointments-for-conflicts'],
-    queryFn: () => api.get('/appointments', { params: { limit: 100 } }).then((r) => r.data),
-  });
-
   useEffect(() => {
     if (patientFromQuery && !selectedPatient) {
       setSelectedPatient(patientFromQuery);
@@ -163,6 +158,27 @@ export default function NewAppointmentPage() {
     const fallbackDoctor = allDoctors[0];
     return matchedDoctor?.id || fallbackDoctor?.id || null;
   }, [doctors, user?.id, selectedDoctorId]);
+
+  const conflictDate = form.watch('appointmentDate');
+  const conflictDoctorId = doctorId;
+  const { data: allAppointments } = useQuery({
+    queryKey: ['appointments-for-conflicts', conflictDate, conflictDoctorId],
+    queryFn: () => {
+      const params: Record<string, string | number> = { limit: 200 };
+      if (conflictDate) {
+        const dt = new Date(conflictDate);
+        const from = new Date(dt);
+        from.setDate(from.getDate() - 1);
+        const to = new Date(dt);
+        to.setDate(to.getDate() + 1);
+        params.appointmentDateFrom = from.toISOString().split('T')[0];
+        params.appointmentDateTo = to.toISOString().split('T')[0];
+      }
+      if (conflictDoctorId) params.doctorId = conflictDoctorId;
+      return api.get('/appointments', { params }).then((r) => r.data);
+    },
+    enabled: !!conflictDate && !!conflictDoctorId,
+  });
 
   const endTime = useMemo(() => {
     if (!appointmentDate || !appointmentTime || !durationMinutes) return '-';

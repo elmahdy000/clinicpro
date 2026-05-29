@@ -15,7 +15,6 @@ const SocketContext = createContext<SocketContextType>({ socket: null, isConnect
 
 export function SocketProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const queryClient = useQueryClient();
@@ -25,7 +24,6 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
-        setSocket(null);
         setIsConnected(false);
       }
       return;
@@ -41,13 +39,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Bulletproof DNS fallback: redirect dead events.clinicpro.online to active api.clinicpro.online
     if (socketUrl.includes('events.clinicpro.online')) {
       socketUrl = socketUrl.replace('events.clinicpro.online', 'api.clinicpro.online');
     }
 
     const socketInstance = io(socketUrl, {
-      transports: ['websocket'], // Force websocket only to prevent PM2 cluster 400 Bad Request session mismatches
+      transports: ['websocket'],
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 10,
@@ -56,8 +53,6 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     socketInstance.on('connect', () => {
       setIsConnected(true);
-      
-      // Join the user-specific room
       socketInstance.emit('join', user.id);
     });
 
@@ -66,25 +61,21 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     });
 
     socketInstance.on('notification', (notification: { title: string; message: string }) => {
-      
-      // Invalidate notifications queries to refresh both Doctor/Admin and Patient lists
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
       queryClient.invalidateQueries({ queryKey: ['patient-notifications'] });
       queryClient.invalidateQueries({ queryKey: ['patient-dashboard'] });
 
-      // Trigger standard and custom audio alert
       try {
         const audio = new Audio('/sounds/notification.mp3');
         audio.volume = 0.5;
         audio.play().catch(() => {});
       } catch {}
 
-      // Display premium live notification toast
       toast.custom((t) => (
         <div className="flex w-full max-w-md items-center gap-4 rounded-2xl bg-white p-4 shadow-xl border border-gray-100 dark:bg-slate-900 dark:border-slate-800 animate-fade-in">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600 dark:bg-teal-950/50 dark:text-teal-400">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="h-5 w-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 018 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
             </svg>
           </div>
           <div className="flex-1">
@@ -101,7 +92,6 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       ), { duration: 5000 });
     });
 
-    // Handle real-time updates for appointments, queue, and dashboard
     socketInstance.on('appointmentUpdate', () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointments-list'] });
@@ -116,7 +106,6 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     });
 
     socketRef.current = socketInstance;
-    setSocket(socketInstance);
 
     return () => {
       socketInstance.disconnect();
@@ -124,7 +113,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   }, [user, queryClient]);
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected }}>
+    <SocketContext.Provider value={{ socket: socketRef.current, isConnected }}>
       {children}
     </SocketContext.Provider>
   );

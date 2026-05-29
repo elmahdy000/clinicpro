@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe, UseGuard
 import { PrescriptionsService } from './prescriptions.service';
 import { CreatePrescriptionDto } from './dto/create-prescription.dto';
 import { UpdatePrescriptionDto } from './dto/update-prescription.dto';
+import { SubstituteMedicineDto } from './dto/substitute-medicine.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { PaginationDto } from '../common/dto/pagination.dto';
@@ -39,7 +40,7 @@ export class PrescriptionsController {
   substituteMedicine(
     @Param('id', ParseIntPipe) id: number,
     @Param('lineId', ParseIntPipe) lineId: number,
-    @Body() dto: any
+    @Body() dto: SubstituteMedicineDto
   ) {
     return this.prescriptionsService.substituteMedicine(id, lineId, dto);
   }

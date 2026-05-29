@@ -100,7 +100,7 @@ export class DoctorsController {
     @Param('id', ParseIntPipe) id: number,
     @Query() query: AvailableSlotsQueryDto,
   ) {
-    return this.doctorsService.getAvailableSlots(id, query.date as unknown as string, query.durationMinutes);
+    return this.doctorsService.getAvailableSlots(id, query.date, query.durationMinutes);
   }
 
   @Get(':id/available-days')

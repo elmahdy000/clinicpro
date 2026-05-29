@@ -92,7 +92,7 @@ export class AuthService {
           email: dto.email,
           name: dto.name,
           password: hashedPassword,
-          role: 'DOCTOR',
+          role: 'CLINIC_ADMIN',
           clinicId: clinic.id,
         }
       });

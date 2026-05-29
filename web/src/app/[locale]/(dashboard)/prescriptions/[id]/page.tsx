@@ -39,9 +39,9 @@ export default function PrescriptionDetailPage() {
   });
 
   const substituteMutation = useMutation({
-    mutationFn: (data: { lineId: number; alternativeId: number; reason: string }) =>
+    mutationFn: (data: { lineId: number; alternativeMedicineId: number; reason: string }) =>
       api.post(`/prescriptions/${params.id}/medicines/${data.lineId}/substitute`, {
-        alternativeId: data.alternativeId,
+        alternativeMedicineId: data.alternativeMedicineId,
         reason: data.reason,
       }),
     onSuccess: () => {
@@ -68,8 +68,8 @@ export default function PrescriptionDetailPage() {
         return;
       }
       substituteMutation.mutate({
-        lineId: currentMedData.id, // ID of the PrescriptionItem
-        alternativeId: newMed.medicineId,
+        lineId: currentMedData.id,
+        alternativeMedicineId: newMed.medicineId,
         reason,
       });
     } else {

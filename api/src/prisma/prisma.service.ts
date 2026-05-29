@@ -14,15 +14,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async onModuleInit() {
     await this.$connect();
 
-    this.$use(async (params, next) => {
+      this.$use(async (params, next) => {
       const store = tenantStorage.getStore();
       if (store && store.clinicId && tenantModels.includes(params.model as string)) {
         const action = params.action as string;
-        if (action === 'findUnique' || action === 'findFirst') {
-          params.action = 'findFirst';
-          params.args.where = { ...params.args.where, clinicId: store.clinicId };
-        }
-        if (action === 'findMany' || action === 'count' || action === 'aggregate' || action === 'groupBy') {
+        if (action === 'findFirst' || action === 'findMany' || action === 'count' || action === 'aggregate' || action === 'groupBy') {
           if (!params.args) params.args = {};
           params.args.where = { ...params.args.where, clinicId: store.clinicId };
         }

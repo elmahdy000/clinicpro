@@ -7,7 +7,7 @@ import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
 import { AppointmentStatus } from './enums/appointment-status.enum';
 import { NotificationHelperService } from '../common/services/notification-helper.service';
-import { PaginationDto } from '../common/dto/pagination.dto';
+import { AppointmentQueryDto } from './dto/appointment-query.dto';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
 
 @Injectable()
@@ -32,10 +32,18 @@ export class AppointmentsService {
     });
   }
 
-  async findAll(query: PaginationDto): Promise<PaginatedResult<any>> {
-    const { page = 1, limit = 10, search, sortBy = 'appointmentDate', sortOrder = 'desc' } = query;
+  async findAll(query: AppointmentQueryDto): Promise<PaginatedResult<any>> {
+    const { page = 1, limit = 10, search, sortBy = 'appointmentDate', sortOrder = 'desc', appointmentDateFrom, appointmentDateTo, doctorId } = query;
     const store = tenantStorage.getStore();
     const where: any = { clinicId: store?.clinicId ?? 0 };
+    const allowedSortFields = new Set(['id', 'appointmentDate', 'appointmentEndDate', 'status', 'type', 'durationMinutes', 'createdAt']);
+    const safeSortBy = allowedSortFields.has(sortBy) ? sortBy : 'appointmentDate';
+    if (doctorId) where.doctorId = doctorId;
+    if (appointmentDateFrom || appointmentDateTo) {
+      where.appointmentDate = {};
+      if (appointmentDateFrom) where.appointmentDate.gte = new Date(appointmentDateFrom);
+      if (appointmentDateTo) where.appointmentDate.lte = new Date(appointmentDateTo);
+    }
     if (search) {
       where.OR = [
         { type: { contains: search } },
@@ -51,7 +59,7 @@ export class AppointmentsService {
         include,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { [sortBy]: sortOrder },
+        orderBy: { [safeSortBy]: sortOrder },
       }),
       this.prisma.appointment.count({ where }),
     ]);
@@ -216,7 +224,7 @@ export class AppointmentsService {
 
     if (dto.appointmentDate || dto.durationMinutes) {
       const startDate = new Date(dto.appointmentDate || old.appointmentDate);
-      const duration = dto.durationMinutes || old.durationMinutes;
+      const duration = dto.durationMinutes ?? old.durationMinutes ?? 30;
       const endDate = this.calculateEndDate(startDate.toISOString(), duration);
       data.appointmentEndDate = endDate;
       await this.checkOverlap(old.doctorId, startDate, endDate, id);
@@ -233,9 +241,9 @@ export class AppointmentsService {
     const appointment = await this.prisma.appointment.update({ where: { id }, data });
     const full = await this.findOne(appointment.id);
 
-    if (dto.status === 'CANCELLED') {
+    if (dto.status === AppointmentStatus.CANCELLED) {
       await this.notificationHelper.sendAppointmentCancelled(full, full.doctor.user, full.patient).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));
-    } else if (dto.status === 'IN_PROGRESS' && old.status !== 'IN_PROGRESS') {
+    } else if (dto.status === AppointmentStatus.IN_PROGRESS && old.status !== AppointmentStatus.IN_PROGRESS) {
       await this.notificationHelper.sendQueuePositionCalled(full.patient, full.doctor.user.name, full.queuePosition || 1).catch((e) => this.logger.warn(`Queue notification failed: ${(e as Error).message}`));
     } else if (dto.appointmentDate && Math.abs(new Date(dto.appointmentDate).getTime() - old.appointmentDate.getTime()) > 1000) {
       await this.notificationHelper.sendAppointmentUpdated(full, full.doctor.user, full.patient, old.appointmentDate.toISOString(), dto.reason).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));

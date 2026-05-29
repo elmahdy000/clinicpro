@@ -224,7 +224,7 @@ model Prescription {
   patientId       Int
   doctor          Doctor         @relation("PrescriptionDoctor", fields: [doctorId], references: [id])
   doctorId        Int
-  medicalRecord   MedicalRecord? @relation("PrescriptionMedicalRecord", fields: [medicalRecordId], references: [id])
+  medicalRecord   MedicalRecord? @relation("PrescriptionMedicalRecord", fields: [medicalRecordId], references: [id], onDelete: SetNull)
   medicalRecordId Int?           @unique
   prescribedDate  DateTime       @default(now())
   medications     String? // Legacy text field, migrating to items

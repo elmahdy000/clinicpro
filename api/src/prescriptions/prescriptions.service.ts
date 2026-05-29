@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { tenantStorage } from '../prisma/tenant-context';
 import { CreatePrescriptionDto } from './dto/create-prescription.dto';
 import { UpdatePrescriptionDto } from './dto/update-prescription.dto';
+import { SubstituteMedicineDto } from './dto/substitute-medicine.dto';
 import { NotificationHelperService } from '../common/services/notification-helper.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
@@ -23,7 +24,11 @@ export class PrescriptionsService {
     if (search) {
       where.OR = [
         { notes: { contains: search } },
-      ];
+        { id: isNaN(Number(search)) ? undefined : Number(search) },
+        { patient: { firstName: { contains: search } } },
+        { patient: { lastName: { contains: search } } },
+        { patient: { phone: { contains: search } } },
+      ].filter(Boolean);
     }
     const selectUser = { id: true, email: true, name: true, role: true };
     const include = {
@@ -81,7 +86,7 @@ export class PrescriptionsService {
     return prescription;
   }
 
-  private async resolveMedicationId(item: any): Promise<number | null> {
+  private async resolveMedicationId(item: any, clinicId: number): Promise<number | null> {
     if (item.medicationId) {
       return item.medicationId;
     }
@@ -98,6 +103,7 @@ export class PrescriptionsService {
           data: {
             name,
             isGlobal: false,
+            clinicId,
           },
         });
       } catch (e) {
@@ -157,7 +163,7 @@ export class PrescriptionsService {
     const itemsToCreate = [];
     if (Array.isArray(items)) {
       for (const item of items) {
-        const medId = await this.resolveMedicationId(item);
+        const medId = await this.resolveMedicationId(item, clinicId);
         if (medId) {
           itemsToCreate.push({
             prescriptionId: prescription.id,
@@ -165,16 +171,24 @@ export class PrescriptionsService {
             dosage: item.dosage || '',
             frequency: item.frequency || '',
             duration: item.duration || '',
+            instructions: item.instructions || null,
           });
-          await this.decrementStock(medId, clinicId);
         }
       }
     }
       
     if (itemsToCreate.length > 0) {
-      await Promise.all(itemsToCreate.map((item: any) => 
+      const createdItems = await Promise.all(itemsToCreate.map((item: any) =>
         this.prisma.prescriptionItem.create({ data: item })
       ));
+      for (let i = 0; i < createdItems.length; i++) {
+        const medId = itemsToCreate[i].medicationId;
+        await this.decrementStock(medId, clinicId);
+        await this.prisma.doctorMedicine.updateMany({
+          where: { clinicId, medicineId: medId },
+          data: { usageCount: { increment: 1 } },
+        });
+      }
     }
 
     if (data.substitutions && Array.isArray(data.substitutions) && data.substitutions.length > 0) {
@@ -215,6 +229,8 @@ export class PrescriptionsService {
   }
 
   async update(id: number, dto: UpdatePrescriptionDto) {
+    const store = tenantStorage.getStore();
+    const clinicId = store?.clinicId ?? 0;
     await this.findOne(id);
     const data: any = { ...dto };
     const items = data.medications || [];
@@ -227,7 +243,7 @@ export class PrescriptionsService {
       await this.prisma.prescriptionItem.deleteMany({ where: { prescriptionId: id } });
       const itemsToCreate = [];
       for (const item of items) {
-        const medId = await this.resolveMedicationId(item);
+        const medId = await this.resolveMedicationId(item, clinicId);
         if (medId) {
           itemsToCreate.push({
             prescriptionId: id,
@@ -235,6 +251,7 @@ export class PrescriptionsService {
             dosage: item.dosage || '',
             frequency: item.frequency || '',
             duration: item.duration || '',
+            instructions: item.instructions || null,
           });
         }
       }
@@ -247,7 +264,7 @@ export class PrescriptionsService {
     return updated;
   }
 
-  async substituteMedicine(prescriptionId: number, lineId: number, dto: any) {
+  async substituteMedicine(prescriptionId: number, lineId: number, dto: SubstituteMedicineDto) {
     const store = tenantStorage.getStore();
     const clinicId = store?.clinicId ?? 0;
     
@@ -327,27 +344,6 @@ export class PrescriptionsService {
             date: new Date()
         }
     });
-
-    // Also update the legacy JSON medications string if needed for backward compatibility
-    try {
-        if (prescription.medications && typeof prescription.medications === 'string') {
-            const arr = JSON.parse(prescription.medications);
-            let changed = false;
-            arr.forEach((m: any) => {
-                if (m.name === originalMed.name || m.medicationId === originalMed.id) {
-                    m.name = alternativeMed.name;
-                    m.medicationId = alternativeMed.id;
-                    changed = true;
-                }
-            });
-            if (changed) {
-                await this.prisma.prescription.update({
-                    where: { id: prescriptionId },
-                    data: { medications: JSON.stringify(arr) }
-                });
-            }
-        }
-    } catch(e) {}
 
     return { success: true, log };
   }
