@@ -293,7 +293,7 @@ export class ClinicsService {
       const medMap = new Map(meds.map((m) => [m.id, m]));
       topMedications = topMedicationsRaw.map((m) => ({
         id: m.medicationId,
-        name: medMap.get(m.medicationId)?.name || 'Unknown',
+        name: (medMap.get(m.medicationId) as any)?.name || 'Unknown',
         category: (medMap.get(m.medicationId) as any)?.category || '',
         count: m._count.id,
       }));

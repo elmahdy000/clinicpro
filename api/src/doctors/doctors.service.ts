@@ -255,7 +255,7 @@ export class DoctorsService {
       const dayOfWeek = d.getDay();
 
       if (timeOffDates.has(dateStr)) continue;
-      const availability = availByDay.get(dayOfWeek);
+      const availability = availByDay.get(dayOfWeek) as any;
       if (!availability) continue;
 
       const [startH, startM] = availability.startTime.split(':').map(Number);
