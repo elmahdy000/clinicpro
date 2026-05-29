@@ -199,7 +199,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="h-11 transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20 text-left font-mono"
+                  className={`h-11 transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20 ${isRtl ? 'text-right' : 'text-left'} font-mono`}
                 />
               </div>
 
@@ -213,7 +213,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="h-11 pe-10 transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20 text-left font-mono"
+                    className={`h-11 pe-10 transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20 ${isRtl ? 'text-right' : 'text-left'} font-mono`}
                   />
                   <button
                     type="button"
@@ -286,7 +286,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="doctor@example.com"
-                    className="h-10 text-xs font-mono text-left"
+                    className={`h-10 text-xs font-mono ${isRtl ? 'text-right' : 'text-left'}`}
                   />
                 </div>
 
@@ -300,7 +300,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="h-10 text-xs font-mono text-left"
+                    className={`h-10 text-xs font-mono ${isRtl ? 'text-right' : 'text-left'}`}
                   />
                 </div>
 
@@ -332,7 +332,7 @@ export default function LoginPage() {
                     value={clinicPhone}
                     onChange={(e) => setClinicPhone(e.target.value)}
                     placeholder="01012345678"
-                    className="h-10 text-xs font-mono"
+                    className={`h-10 text-xs font-mono ${isRtl ? 'text-right' : 'text-left'}`}
                   />
                 </div>
 
@@ -547,7 +547,7 @@ function PatientPortalForm({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="01012345678"
-              className="h-11 text-left font-mono transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+              className={`h-11 font-mono transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20 ${isRtl ? 'text-right' : 'text-left'}`}
             />
           </div>
           <div className="space-y-2 text-right">
@@ -562,7 +562,7 @@ function PatientPortalForm({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="h-11 pe-10 text-left font-mono transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+                className={`h-11 pe-10 font-mono transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20 ${isRtl ? 'text-right' : 'text-left'}`}
               />
               <button
                 type="button"
@@ -604,7 +604,7 @@ function PatientPortalForm({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="01012345678"
-              className="h-11 text-left font-mono transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+              className={`h-11 font-mono transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20 ${isRtl ? 'text-right' : 'text-left'}`}
             />
           </div>
           <div className="space-y-2 text-right">
@@ -619,7 +619,7 @@ function PatientPortalForm({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="h-11 pe-10 text-left font-mono transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20"
+                className={`h-11 pe-10 font-mono transition-all focus:border-teal-400 focus:ring-2 focus:ring-teal-500/20 ${isRtl ? 'text-right' : 'text-left'}`}
               />
               <button
                 type="button"

@@ -31,7 +31,10 @@ api.interceptors.response.use(
     if (typeof window !== 'undefined') {
       if (error.response?.status === 401) {
         localStorage.removeItem('access_token');
-        window.location.href = `/${getLocale()}/login`;
+        // Only redirect to login page if we are not already on the login page
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = `/${getLocale()}/login`;
+        }
       } else if (error.response?.status >= 400 && error.response?.status !== 401) {
         const msg = extractErrorMessage(error, '');
         if (msg) {
