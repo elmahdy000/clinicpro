@@ -3,7 +3,7 @@
 import { useLocale } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,6 +21,13 @@ export default function PrescriptionDetailPage() {
   const queryClient = useQueryClient();
   const { printElement } = usePrint();
 
+  // Redirect legacy /prescriptions/new to /visits/new immediately
+  useEffect(() => {
+    if (params.id === 'new') {
+      router.replace(`/${locale}/visits/new`);
+    }
+  }, [params.id, locale, router]);
+
   const [altModalOpen, setAltModalOpen] = useState(false);
   const [currentMedIndex, setCurrentMedIndex] = useState<number | null>(null);
   const [currentMedData, setCurrentMedData] = useState<any>(null);
@@ -28,6 +35,7 @@ export default function PrescriptionDetailPage() {
   const { data: rx, isLoading } = useQuery({
     queryKey: ['prescription', params.id],
     queryFn: () => api.get(`/prescriptions/${params.id}`).then((r) => r.data),
+    enabled: !!params.id && params.id !== 'new',
   });
 
   const substituteMutation = useMutation({

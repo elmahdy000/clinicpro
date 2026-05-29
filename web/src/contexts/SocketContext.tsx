@@ -41,6 +41,11 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Bulletproof DNS fallback: redirect dead events.clinicpro.online to active api.clinicpro.online
+    if (socketUrl.includes('events.clinicpro.online')) {
+      socketUrl = socketUrl.replace('events.clinicpro.online', 'api.clinicpro.online');
+    }
+
     const socketInstance = io(socketUrl, {
       transports: ['polling', 'websocket'], // Robust fallback for proxy/load balancer limits
       upgrade: true,
