@@ -22,9 +22,10 @@ export class PrescriptionsService {
     const store = tenantStorage.getStore();
     const where: any = { clinicId: store?.clinicId ?? 0 };
     if (search) {
+      const isNumeric = !isNaN(Number(search)) && search.trim() !== '';
       where.OR = [
-        { notes: { contains: search } },
-        { id: isNaN(Number(search)) ? undefined : Number(search) },
+        { instructions: { contains: search } },
+        isNumeric ? { id: Number(search) } : null,
         { patient: { firstName: { contains: search } } },
         { patient: { lastName: { contains: search } } },
         { patient: { phone: { contains: search } } },
