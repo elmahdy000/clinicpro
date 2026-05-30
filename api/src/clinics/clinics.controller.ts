@@ -19,6 +19,27 @@ export class ClinicsController {
     return this.clinicsService.findAll(query);
   }
 
+  // Platform Owner: list clinics pending approval
+  @Get('pending-approval')
+  @Roles(UserRole.PLATFORM_OWNER)
+  getPendingApproval() {
+    return this.clinicsService.getPendingApproval();
+  }
+
+  // Platform Owner: approve a clinic
+  @Put(':id/approve')
+  @Roles(UserRole.PLATFORM_OWNER)
+  approve(@Param('id', ParseIntPipe) id: number) {
+    return this.clinicsService.approveClinic(id);
+  }
+
+  // Platform Owner: reject a clinic
+  @Put(':id/reject')
+  @Roles(UserRole.PLATFORM_OWNER)
+  reject(@Param('id', ParseIntPipe) id: number, @Body('note') note: string) {
+    return this.clinicsService.rejectClinic(id, note);
+  }
+
   // Doctors, Admins & Staff can read their own clinic details (for settings/header)
   @Get(':id')
   @Roles(UserRole.PLATFORM_OWNER, UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)

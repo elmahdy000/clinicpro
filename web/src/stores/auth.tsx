@@ -60,11 +60,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const { data } = await api.post('/auth/login', { email, password });
-    localStorage.setItem('access_token', data.access_token);
-    setToken(data.access_token);
-    const payload = JSON.parse(atob(data.access_token.split('.')[1]));
-    setUser({ id: payload.sub, email: payload.email, name: payload.name || payload.email, role: payload.role, clinicId: payload.clinicId });
+    try {
+      const { data } = await api.post('/auth/login', { email, password });
+      localStorage.setItem('access_token', data.access_token);
+      setToken(data.access_token);
+      const payload = JSON.parse(atob(data.access_token.split('.')[1]));
+      setUser({ id: payload.sub, email: payload.email, name: payload.name || payload.email, role: payload.role, clinicId: payload.clinicId });
+    } catch (error: any) {
+      // Handle clinic approval errors specifically
+      const message = error?.response?.data?.message;
+      if (message) {
+        try {
+          const parsed = JSON.parse(message);
+          if (parsed.code === 'CLINIC_PENDING_APPROVAL' || parsed.code === 'CLINIC_REJECTED') {
+            sessionStorage.setItem('clinicApprovalError', JSON.stringify(parsed));
+            const locale = window.location.pathname.split('/')[1] || 'ar';
+            window.location.href = `/${locale}/clinic-pending`;
+            return;
+          }
+        } catch {
+          // not a JSON message, rethrow original
+        }
+      }
+      throw error;
+    }
   };
 
   const logout = () => {

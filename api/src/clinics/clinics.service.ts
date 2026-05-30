@@ -618,5 +618,89 @@ export class ClinicsService {
 
     return this.getClinicSettings(clinicId);
   }
-}
 
+  // ─── Clinic Approval Workflow ───────────────────────────────────────────────
+
+  async getPendingApproval() {
+    const clinics = await this.prisma.clinic.findMany({
+      where: { approvalStatus: 'PENDING' },
+      include: {
+        users: {
+          where: { role: 'CLINIC_ADMIN' },
+          select: { id: true, name: true, email: true },
+          take: 1,
+        },
+        governorate: { select: { nameAr: true, nameEn: true } },
+        city: { select: { nameAr: true, nameEn: true } },
+        _count: { select: { doctors: true } },
+      },
+      orderBy: { createdAt: 'asc' }, // oldest first → first registered, first served
+    });
+    return clinics;
+  }
+
+  async approveClinic(clinicId: number) {
+    const clinic = await this.prisma.clinic.findUnique({ where: { id: clinicId } });
+    if (!clinic) throw new NotFoundException(`Clinic #${clinicId} not found`);
+
+    const updated = await this.prisma.clinic.update({
+      where: { id: clinicId },
+      data: {
+        approvalStatus: 'APPROVED',
+        approvalNote: null,
+        approvedAt: new Date(),
+        subscriptionStatus: 'ACTIVE',
+      },
+    });
+
+    // Notify the clinic admin
+    const admin = await this.prisma.user.findFirst({
+      where: { clinicId, role: 'CLINIC_ADMIN' },
+      select: { id: true, name: true },
+    });
+    if (admin) {
+      await this.prisma.notification.create({
+        data: {
+          userId: admin.id,
+          title: '✅ تمت الموافقة على عيادتك',
+          message: `تهانينا ${admin.name}! تمت الموافقة على تسجيل عيادة "${clinic.name}" بنجاح. يمكنك الآن تسجيل الدخول والبدء في استخدام النظام.`,
+          type: 'SUCCESS',
+        },
+      }).catch((e) => this.logger.warn(`Approval notification failed: ${(e as Error).message}`));
+    }
+
+    return { success: true, message: `Clinic "${updated.name}" approved successfully`, clinic: updated };
+  }
+
+  async rejectClinic(clinicId: number, note?: string) {
+    const clinic = await this.prisma.clinic.findUnique({ where: { id: clinicId } });
+    if (!clinic) throw new NotFoundException(`Clinic #${clinicId} not found`);
+
+    const updated = await this.prisma.clinic.update({
+      where: { id: clinicId },
+      data: {
+        approvalStatus: 'REJECTED',
+        approvalNote: note || 'لم يتم تحديد سبب الرفض',
+        subscriptionStatus: 'SUSPENDED',
+      },
+    });
+
+    // Notify the clinic admin
+    const admin = await this.prisma.user.findFirst({
+      where: { clinicId, role: 'CLINIC_ADMIN' },
+      select: { id: true, name: true },
+    });
+    if (admin) {
+      await this.prisma.notification.create({
+        data: {
+          userId: admin.id,
+          title: '❌ تم رفض طلب تسجيل العيادة',
+          message: `نأسف ${admin.name}، تم رفض طلب تسجيل عيادة "${clinic.name}". السبب: ${note || 'يرجى التواصل مع الدعم الفني للمزيد من التفاصيل.'}`,
+          type: 'ERROR',
+        },
+      }).catch((e) => this.logger.warn(`Rejection notification failed: ${(e as Error).message}`));
+    }
+
+    return { success: true, message: `Clinic "${updated.name}" rejected`, clinic: updated };
+  }
+}

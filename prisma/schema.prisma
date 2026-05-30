@@ -15,6 +15,9 @@ model Clinic {
   logoUrl            String?
   subscriptionPlan   String       @default("FREE")
   subscriptionStatus String       @default("ACTIVE")
+  approvalStatus     String       @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvalNote       String?      // Optional reason for rejection
+  approvedAt         DateTime?    // When the clinic was approved
   governorateId      String?
   cityId             String?
   governorate        Governorate? @relation(fields: [governorateId], references: [id])

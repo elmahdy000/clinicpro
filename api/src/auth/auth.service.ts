@@ -120,6 +120,38 @@ export class AuthService {
     const isMatch = await bcrypt.compare(dto.password, user.password);
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
 
+    // Platform owners bypass clinic approval checks
+    if (user.role !== 'PLATFORM_OWNER' && user.clinicId) {
+      const clinic = await tenantStorage.run({ clinicId: null }, async () => {
+        return await this.prisma.clinic.findUnique({
+          where: { id: user.clinicId! },
+          select: { approvalStatus: true, approvalNote: true, name: true },
+        });
+      });
+
+      if (clinic) {
+        if (clinic.approvalStatus === 'PENDING') {
+          throw new UnauthorizedException(
+            JSON.stringify({
+              code: 'CLINIC_PENDING_APPROVAL',
+              clinicName: clinic.name,
+              message: 'طلب تسجيل العيادة قيد المراجعة. سيتم إشعارك بالموافقة عبر البريد الإلكتروني.',
+            }),
+          );
+        }
+        if (clinic.approvalStatus === 'REJECTED') {
+          throw new UnauthorizedException(
+            JSON.stringify({
+              code: 'CLINIC_REJECTED',
+              clinicName: clinic.name,
+              approvalNote: clinic.approvalNote,
+              message: 'تم رفض طلب تسجيل العيادة. يرجى التواصل مع الدعم الفني.',
+            }),
+          );
+        }
+      }
+    }
+
     const payload = { email: user.email, sub: user.id, role: user.role, clinicId: user.clinicId };
     const access_token = this.jwtService.sign(payload);
 
