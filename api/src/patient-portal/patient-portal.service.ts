@@ -560,7 +560,10 @@ export class PatientPortalService {
       where.verificationStatus = filters.verificationStatus;
     }
     if (filters?.clinicId && filters.clinicId !== 'ALL') {
-      where.clinicId = parseInt(filters.clinicId, 10);
+      const parsedId = parseInt(filters.clinicId, 10);
+      if (!isNaN(parsedId)) {
+        where.clinicId = parsedId;
+      }
     }
     if (filters?.period) {
       const now = new Date();
@@ -590,7 +593,7 @@ export class PatientPortalService {
 
     const file = await this.prisma.patientMedicalFile.create({
       data: {
-        clinicId: targetClinicId,
+        clinicId: targetClinicId || null,
         patientId: patient.id,
         title: dto.title || dto.fileName || 'Untitled',
         fileType: dto.fileType || 'application/octet-stream',
@@ -606,7 +609,7 @@ export class PatientPortalService {
     await this.prisma.patientMedicalTimelineEvent.create({
       data: {
         patientId: patient.id,
-        clinicId: targetClinicId,
+        clinicId: targetClinicId || null,
         type: 'FILE_UPLOAD',
         title: 'تم رفع ملف طبي بواسطة المريض',
         description: 'الملف بانتظار مراجعة العيادة',
