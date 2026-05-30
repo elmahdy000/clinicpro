@@ -159,6 +159,7 @@ export class PrescriptionsService {
     if (data.medications && typeof data.medications !== 'string') {
       data.medications = JSON.stringify(data.medications);
     }
+    delete data.substitutions;
     const prescription = await this.prisma.prescription.create({ data: { ...data, clinicId } });
     
     const itemsToCreate = [];
