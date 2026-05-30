@@ -193,8 +193,8 @@ export class PrescriptionsService {
       }
     }
 
-    if (data.substitutions && Array.isArray(data.substitutions) && data.substitutions.length > 0) {
-      for (const sub of data.substitutions) {
+    if (dto.substitutions && Array.isArray(dto.substitutions) && dto.substitutions.length > 0) {
+      for (const sub of dto.substitutions) {
         await this.prisma.drugSubstitutionLog.create({
           data: {
             clinicId,
