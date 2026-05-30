@@ -1,4 +1,4 @@
-import { Controller, Delete, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Param, ParseIntPipe, UseGuards, Req } from '@nestjs/common';
 import { UploadsService } from './uploads.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
@@ -11,7 +11,7 @@ export class FilesController {
 
   @Roles(UserRole.ADMIN)
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.uploadsService.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.uploadsService.remove(id, req.user);
   }
 }

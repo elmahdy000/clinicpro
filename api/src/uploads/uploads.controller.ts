@@ -48,13 +48,13 @@ const ALLOWED_MIMETYPES = [
 export class UploadsController {
   constructor(private readonly uploadsService: UploadsService) {}
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT)
   @Get()
-  findAll() {
-    return this.uploadsService.findAll();
+  findAll(@Req() req: any) {
+    return this.uploadsService.findAll(req.user);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT)
   @Post('medical-document')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -89,17 +89,17 @@ export class UploadsController {
   ) {
     return this.uploadsService.upload(
       file,
-      req.user.id,
+      req.user,
       dto.patientId,
       dto.notes,
       dto.category,
     );
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT)
   @Get(':id/download')
-  async download(@Param('id', ParseIntPipe) id: number, @Res() res: any) {
-    const fileRecord = await this.uploadsService.findOne(id);
+  async download(@Param('id', ParseIntPipe) id: number, @Req() req: any, @Res() res: any) {
+    const fileRecord = await this.uploadsService.findOne(id, req.user);
     if (fs.existsSync(fileRecord.url)) {
       res.download(fileRecord.url, fileRecord.fileName);
     } else {
@@ -107,9 +107,9 @@ export class UploadsController {
     }
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT)
   @Delete('files/:id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.uploadsService.remove(id);
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.uploadsService.remove(id, req.user);
   }
 }
