@@ -21,11 +21,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
+    if (!payload || payload.sub === undefined || payload.sub === null || isNaN(Number(payload.sub))) {
+      throw new UnauthorizedException('Invalid token payload: missing sub claim');
+    }
+
     const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
+      where: { id: Number(payload.sub) },
       select: { id: true, email: true, name: true, role: true, clinicId: true },
     });
-    if (!user) throw new UnauthorizedException();
+    if (!user) throw new UnauthorizedException('User not found');
     return user;
   }
 }
