@@ -11,9 +11,9 @@ export class PatientPortalService {
 
   private async getPortalAccess() {
     return {
-      canRequestAppointment: false,
-      canViewMedicalNotes: false,
-      canDownloadPrescriptions: false,
+      canRequestAppointment: true,
+      canViewMedicalNotes: true,
+      canDownloadPrescriptions: true,
       canViewFiles: true,
     };
   }

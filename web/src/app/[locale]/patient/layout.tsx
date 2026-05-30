@@ -85,13 +85,13 @@ export default function PatientLayout({ children }: { children: ReactNode }) {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center">
               <HeartPulse className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-sm text-slate-800">بوابة المريض</span>
+            <span className="font-bold text-sm text-slate-800 dark:text-slate-100">{isRtl ? 'بوابة المريض' : 'Patient Portal'}</span>
           </Link>
 
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+            <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-800 rounded-xl px-2.5 py-1.5">
               <UserCircle2 className="w-5 h-5 text-teal-600" />
-              <div className="leading-tight text-right">
+              <div className={cn("leading-tight", isRtl ? "text-right" : "text-left")}>
                 <p className="text-xs font-semibold text-slate-800">{profileName}</p>
                 <p className="text-[11px] text-slate-500">{profilePhone}</p>
               </div>
