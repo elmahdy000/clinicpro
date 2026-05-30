@@ -136,15 +136,33 @@ export class BillingService {
     const where: any = {};
     if (store?.clinicId) where.clinicId = store.clinicId;
 
-    const invoices = await this.prisma.invoice.findMany({
-      where,
-      select: { status: true, total: true, createdAt: true },
-    });
+    const [aggregates, count] = await Promise.all([
+      this.prisma.invoice.groupBy({
+        by: ['status'],
+        where,
+        _sum: {
+          total: true,
+        },
+      }),
+      this.prisma.invoice.count({ where }),
+    ]);
 
-    const collected = invoices.filter((i) => i.status === 'PAID').reduce((s, i) => s + i.total, 0);
-    const pending = invoices.filter((i) => i.status === 'PENDING').reduce((s, i) => s + i.total, 0);
-    const overdue = invoices.filter((i) => i.status === 'OVERDUE').reduce((s, i) => s + i.total, 0);
+    let totalCollected = 0;
+    let totalPending = 0;
+    let totalOverdue = 0;
 
-    return { totalCollected: collected, totalPending: pending, totalOverdue: overdue, count: invoices.length };
+    for (const group of aggregates) {
+      const sum = group._sum.total || 0;
+      if (group.status === 'PAID') totalCollected = sum;
+      else if (group.status === 'PENDING') totalPending = sum;
+      else if (group.status === 'OVERDUE') totalOverdue = sum;
+    }
+
+    return {
+      totalCollected,
+      totalPending,
+      totalOverdue,
+      count,
+    };
   }
 }

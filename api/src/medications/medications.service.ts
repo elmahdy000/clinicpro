@@ -144,18 +144,53 @@ export class MedicationsService {
       rxItemWhere.createdAt = { gte: since };
     }
 
-    // 2. Fetch distinct prescription items grouping by medication
     const items = await this.prisma.prescriptionItem.findMany({
       where: rxItemWhere,
-      include: {
-        medication: true,
-          prescription: {
-            include: {
-              patient: true,
-              doctor: { include: { user: true } },
-              clinic: { include: { governorate: true, city: true } },
+      select: {
+        id: true,
+        medicationId: true,
+        prescriptionId: true,
+        medication: {
+          select: {
+            id: true,
+            name: true,
+            activeIngredient: true,
+            category: true,
+            form: true,
+            strength: true,
+            manufacturer: true,
+          },
+        },
+        prescription: {
+          select: {
+            prescribedDate: true,
+            clinicId: true,
+            doctorId: true,
+            patient: {
+              select: {
+                gender: true,
+                dateOfBirth: true,
+              },
+            },
+            doctor: {
+              select: {
+                id: true,
+                specialization: true,
+                user: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            clinic: {
+              select: {
+                id: true,
+                name: true,
+              },
             },
           },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
