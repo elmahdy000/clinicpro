@@ -18,9 +18,6 @@ import {
 } from 'lucide-react';
 import { formatTime } from '@/lib/utils';
 
-const hasLatin = (value?: string | null) => !!value && /[A-Za-z]/.test(value);
-const isEgyptianMobile = (value?: string | null) => !!value && /^01[0125]\d{8}$/.test(value);
-
 
 
 const dateKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;

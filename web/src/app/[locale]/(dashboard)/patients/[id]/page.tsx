@@ -62,15 +62,7 @@ import {
 } from 'lucide-react';
 import { formatDate, formatTime } from '@/lib/utils';
 
-const hasLatin = (value?: string | null) => !!value && /[A-Za-z]/.test(value);
-const isEgyptianMobile = (value?: string | null) => !!value && /^01[0125]\d{8}$/.test(value);
 
-const EGYPTIAN_FALLBACKS = [
-  { firstName: 'أحمد', lastName: 'محمد', phone: '01001234567', address: 'شارع التحرير، الدقي، الجيزة', allergies: 'أتربة' },
-  { firstName: 'محمود', lastName: 'حسن', phone: '01123456789', address: 'شارع فيصل، الهرم، الجيزة', allergies: 'لا يوجد' },
-  { firstName: 'منى', lastName: 'علي', phone: '01224567891', address: 'شارع مصطفى النحاس، مدينة نصر، القاهرة', allergies: 'أدوية معينة' },
-  { firstName: 'سارة', lastName: 'خالد', phone: '01535678912', address: 'شارع السودان، المهندسين، الجيزة', allergies: 'أتربة' },
-];
 
 const toArabicNumber = (num: number) => new Intl.NumberFormat('ar-EG').format(num);
 
@@ -261,20 +253,19 @@ export default function PatientProfilePage() {
     );
   }
 
-  const fallback = EGYPTIAN_FALLBACKS[(Number(patient.id) || 0) % EGYPTIAN_FALLBACKS.length];
-  const firstName = hasLatin(patient.firstName) ? fallback.firstName : (patient.firstName || fallback.firstName);
-  const lastName = hasLatin(patient.lastName) ? fallback.lastName : (patient.lastName || fallback.lastName);
-  const fullName = `${firstName} ${lastName}`;
-  const phone = isEgyptianMobile(patient.phone) ? patient.phone : fallback.phone;
-  const address = hasLatin(patient.address) || !patient.address ? fallback.address : patient.address;
-  const allergies = hasLatin(patient.allergies) ? 'أتربة' : (patient.allergies || 'لا يوجد');
+  const firstName = patient.firstName || '';
+  const lastName = patient.lastName || '';
+  const fullName = `${firstName} ${lastName}`.trim() || 'مريض';
+  const phone = patient.phone || '-';
+  const address = patient.address || '-';
+  const allergies = patient.allergies || 'لا يوجد';
   const hasAllergies = allergies !== 'لا يوجد';
 
   const age = patient.dateOfBirth
     ? Math.floor((Date.now() - new Date(patient.dateOfBirth).getTime()) / 31557600000)
     : null;
 
-  const genderLabel = patient.gender === 'Male' ? 'ذكر' : patient.gender === 'Female' ? 'أنثى' : 'لا يوجد';
+  const genderLabel = (patient.gender === 'Male' || patient.gender === 'MALE') ? 'ذكر' : (patient.gender === 'Female' || patient.gender === 'FEMALE') ? 'أنثى' : 'لا يوجد';
 
   const events = Array.isArray(timeline) ? timeline : [];
   const appointments = events.filter((i: any) => i.type === 'APPOINTMENT');
@@ -538,7 +529,7 @@ export default function PatientProfilePage() {
                   <div className="flex items-center justify-between py-1.5">
                     <span className="text-slate-500">التاريخ المرضي</span>
                     <span className="font-medium text-slate-800 dark:text-slate-200 text-left max-w-[60%]">
-                      {hasLatin(patient.medicalHistory) ? 'لا يوجد' : (patient.medicalHistory || 'لا يوجد')}
+                      {patient.medicalHistory || 'لا يوجد'}
                     </span>
                   </div>
                 </div>
@@ -728,7 +719,7 @@ export default function PatientProfilePage() {
                 <div className="min-w-0 flex-1">
                   <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">التاريخ المرضي</h3>
                   <div className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
-                    {hasLatin(patient.medicalHistory) ? 'لا يوجد تاريخ مرضي مسجل' : (patient.medicalHistory || 'لا يوجد تاريخ مرضي مسجل')}
+                    {patient.medicalHistory || 'لا يوجد تاريخ مرضي مسجل'}
                   </div>
                 </div>
               </div>

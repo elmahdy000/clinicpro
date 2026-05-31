@@ -24,8 +24,6 @@ import {
 } from 'lucide-react';
 import { formatDate, cn } from '@/lib/utils';
 
-const hasLatin = (value?: string | null) => !!value && /[A-Za-z]/.test(value);
-const isEgyptianMobile = (value?: string | null) => !!value && /^01[0125]\d{8}$/.test(value);
 
 export default function PrescriptionsPage() {
   const locale = useLocale();

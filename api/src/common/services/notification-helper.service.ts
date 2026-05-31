@@ -15,15 +15,17 @@ export class NotificationHelperService {
 
   async sendAppointmentCreated(appointment: any, doctorUser: any, patient: any): Promise<void> {
     try {
-      const patientNotification = await this.notificationsService.create({
-        userId: patient.userId,
-        title: 'Appointment Confirmed',
-        message: `Your appointment with Dr. ${doctorUser.name} on ${new Date(appointment.appointmentDate).toLocaleDateString()} has been confirmed.`,
-        type: 'APPOINTMENT',
-        referenceType: 'appointment',
-        referenceId: appointment.id,
-      });
-      this.eventsGateway.sendNotification(patient.userId, patientNotification);
+      if (patient.userId) {
+        const patientNotification = await this.notificationsService.create({
+          userId: patient.userId,
+          title: 'Appointment Confirmed',
+          message: `Your appointment with Dr. ${doctorUser.name} on ${new Date(appointment.appointmentDate).toLocaleDateString()} has been confirmed.`,
+          type: 'APPOINTMENT',
+          referenceType: 'appointment',
+          referenceId: appointment.id,
+        });
+        this.eventsGateway.sendNotification(patient.userId, patientNotification);
+      }
 
       const doctorNotification = await this.notificationsService.create({
         userId: doctorUser.id,
@@ -49,15 +51,17 @@ export class NotificationHelperService {
 
   async sendAppointmentCancelled(appointment: any, doctorUser: any, patient: any): Promise<void> {
     try {
-      const patientNotification = await this.notificationsService.create({
-        userId: patient.userId,
-        title: 'Appointment Cancelled',
-        message: `Your appointment with Dr. ${doctorUser.name} on ${new Date(appointment.appointmentDate).toLocaleDateString()} has been cancelled.`,
-        type: 'APPOINTMENT',
-        referenceType: 'appointment',
-        referenceId: appointment.id,
-      });
-      this.eventsGateway.sendNotification(patient.userId, patientNotification);
+      if (patient.userId) {
+        const patientNotification = await this.notificationsService.create({
+          userId: patient.userId,
+          title: 'Appointment Cancelled',
+          message: `Your appointment with Dr. ${doctorUser.name} on ${new Date(appointment.appointmentDate).toLocaleDateString()} has been cancelled.`,
+          type: 'APPOINTMENT',
+          referenceType: 'appointment',
+          referenceId: appointment.id,
+        });
+        this.eventsGateway.sendNotification(patient.userId, patientNotification);
+      }
 
       const doctorNotification = await this.notificationsService.create({
         userId: doctorUser.id,
@@ -83,15 +87,17 @@ export class NotificationHelperService {
     try {
       const oldDateMsg = oldDate ? ` (was ${new Date(oldDate).toLocaleString()})` : '';
       const reasonMsg = reason ? ` Reason: ${reason}.` : '';
-      const patientNotification = await this.notificationsService.create({
-        userId: patient.userId,
-        title: 'Appointment Rescheduled',
-        message: `Your appointment with Dr. ${doctorUser.name} has been rescheduled to ${new Date(appointment.appointmentDate).toLocaleString()}.${oldDateMsg}${reasonMsg}`,
-        type: 'APPOINTMENT',
-        referenceType: 'appointment',
-        referenceId: appointment.id,
-      });
-      this.eventsGateway.sendNotification(patient.userId, patientNotification);
+      if (patient.userId) {
+        const patientNotification = await this.notificationsService.create({
+          userId: patient.userId,
+          title: 'Appointment Rescheduled',
+          message: `Your appointment with Dr. ${doctorUser.name} has been rescheduled to ${new Date(appointment.appointmentDate).toLocaleString()}.${oldDateMsg}${reasonMsg}`,
+          type: 'APPOINTMENT',
+          referenceType: 'appointment',
+          referenceId: appointment.id,
+        });
+        this.eventsGateway.sendNotification(patient.userId, patientNotification);
+      }
 
       const doctorNotification = await this.notificationsService.create({
         userId: doctorUser.id,
@@ -117,15 +123,17 @@ export class NotificationHelperService {
 
   async sendPrescriptionCreated(prescription: any, doctorUser: any, patient: any): Promise<void> {
     try {
-      const patientNotification = await this.notificationsService.create({
-        userId: patient.userId,
-        title: 'New Prescription',
-        message: `Dr. ${doctorUser.name} has issued a new prescription for you.`,
-        type: 'PRESCRIPTION',
-        referenceType: 'prescription',
-        referenceId: prescription.id,
-      });
-      this.eventsGateway.sendNotification(patient.userId, patientNotification);
+      if (patient.userId) {
+        const patientNotification = await this.notificationsService.create({
+          userId: patient.userId,
+          title: 'New Prescription',
+          message: `Dr. ${doctorUser.name} has issued a new prescription for you.`,
+          type: 'PRESCRIPTION',
+          referenceType: 'prescription',
+          referenceId: prescription.id,
+        });
+        this.eventsGateway.sendNotification(patient.userId, patientNotification);
+      }
 
       this.mailService.sendPrescriptionNotification(
         patient.email,
@@ -139,15 +147,17 @@ export class NotificationHelperService {
 
   async sendMedicalRecordCreated(record: any, doctorUser: any, patient: any): Promise<void> {
     try {
-      const patientNotification = await this.notificationsService.create({
-        userId: patient.userId,
-        title: 'Medical Record Updated',
-        message: `Dr. ${doctorUser.name} has added a new medical record for you.`,
-        type: 'MEDICAL_RECORD',
-        referenceType: 'medicalRecord',
-        referenceId: record.id,
-      });
-      this.eventsGateway.sendNotification(patient.userId, patientNotification);
+      if (patient.userId) {
+        const patientNotification = await this.notificationsService.create({
+          userId: patient.userId,
+          title: 'Medical Record Updated',
+          message: `Dr. ${doctorUser.name} has added a new medical record for you.`,
+          type: 'MEDICAL_RECORD',
+          referenceType: 'medicalRecord',
+          referenceId: record.id,
+        });
+        this.eventsGateway.sendNotification(patient.userId, patientNotification);
+      }
     } catch (error) {
       this.logger.error(`sendMedicalRecordCreated failed: ${(error as Error).message}`);
     }
