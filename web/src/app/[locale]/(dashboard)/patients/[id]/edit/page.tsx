@@ -31,6 +31,7 @@ export default function EditPatientPage() {
   const { data: patient, isLoading } = useQuery({
     queryKey: ['patient', params.id],
     queryFn: () => api.get(`/patients/${params.id}`).then((r) => r.data),
+    staleTime: 2 * 60 * 1000,
   });
 
   const form = useForm({

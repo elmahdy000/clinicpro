@@ -12,5 +12,6 @@ export function useCities(governorateId?: string | null) {
       return data.data;
     },
     enabled: !!governorateId,
+    staleTime: Infinity,
   });
 }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useLocale } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDebounce } from '@/hooks/useDebounce';
 import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,23 +26,25 @@ export default function InventoryPage() {
   const isRtl = locale === 'ar';
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [showLowStock, setShowLowStock] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [medName, setMedName] = useState('');
   const [medSearch, setMedSearch] = useState('');
+  const debouncedMedSearch = useDebounce(medSearch, 300);
   const [quantity, setQuantity] = useState('');
   const [batchNumber, setBatchNumber] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
 
   const { data: inventory, isLoading } = useQuery<any>({
-    queryKey: ['inventory', search, showLowStock],
-    queryFn: () => api.get('/inventory', { params: { search, lowStock: showLowStock ? 'true' : undefined, limit: 100 } }).then((r) => r.data),
+    queryKey: ['inventory', debouncedSearch, showLowStock],
+    queryFn: () => api.get('/inventory', { params: { search: debouncedSearch, lowStock: showLowStock ? 'true' : undefined, limit: 100 } }).then((r) => r.data),
   });
 
   const { data: meds } = useQuery({
-    queryKey: ['medications-search-inv', medSearch],
-    queryFn: () => api.get('/medications', { params: { q: medSearch, limit: 10 } }).then((r) => r.data),
-    enabled: medSearch.length > 1,
+    queryKey: ['medications-search-inv', debouncedMedSearch],
+    queryFn: () => api.get('/medications', { params: { q: debouncedMedSearch, limit: 10 } }).then((r) => r.data),
+    enabled: debouncedMedSearch.length > 1,
   });
 
   const { data: lowStockItems } = useQuery({

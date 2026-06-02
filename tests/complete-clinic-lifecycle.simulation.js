@@ -65,6 +65,26 @@ async function runFullLifecycle() {
         console.log(`   - 🏥 اسم العيادة: ${registerResponse.data.clinicName || `مركز الشفاء - ${suffix}`}`);
         console.log(`   - 🩺 الطبيب المؤسس: د. حسن الشافي`);
 
+        // STEP 1.5: PLATFORM OWNER APPROVES CLINIC
+        console.log("\n👉 [الخطوة 1.5]: تسجيل دخول مالك المنصة للموافقة على العيادة...");
+        const ownerLogin = await request('/auth/login', 'POST', {
+            email: 'owner@clinicpro.com',
+            password: 'owner123'
+        });
+        if (ownerLogin.status !== 200 && ownerLogin.status !== 201) {
+            console.error("❌ Failed to login as Platform Owner:", ownerLogin.data);
+            return;
+        }
+        const ownerToken = ownerLogin.data.access_token;
+        const clinicId = registerResponse.data.clinicId;
+        console.log(`   - الموافقة على عيادة ID: ${clinicId}...`);
+        const approveResponse = await request(`/clinics/${clinicId}/approve`, 'PUT', null, ownerToken);
+        if (approveResponse.status !== 200 && approveResponse.status !== 201) {
+            console.error("❌ Failed to approve clinic:", approveResponse.data);
+            return;
+        }
+        console.log("✅ [نجاح]: تم تفعيل العيادة من قِبل مالك المنصة.");
+
         // STEP 2: DOCTOR LOGIN
         console.log("\n👉 [الخطوة 2]: تسجيل دخول الطبيب للحصول على الصلاحيات...");
         const docLogin = await request('/auth/login', 'POST', {

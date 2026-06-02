@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale } from 'next-intl';
 import { useState, useCallback, useEffect } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { createPortal } from 'react-dom';
 import { useAuth } from '@/stores/auth';
 import api from '@/lib/api';
@@ -41,6 +42,7 @@ export default function MyMedicationsPage() {
   const qc = useQueryClient();
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [page, setPage] = useState(1);
   const [filterFavorites, setFilterFavorites] = useState(false);
   const [filterSource, setFilterSource] = useState('');
@@ -51,10 +53,10 @@ export default function MyMedicationsPage() {
   const [deleting, setDeleting] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery<any>({
-    queryKey: ['my-medicines', search, page, filterFavorites, filterSource],
+    queryKey: ['my-medicines', debouncedSearch, page, filterFavorites, filterSource],
     queryFn: () =>
       api.get('/my-medicines', {
-        params: { search, page, limit, favorite: filterFavorites || undefined, source: filterSource || undefined },
+        params: { search: debouncedSearch, page, limit, favorite: filterFavorites || undefined, source: filterSource || undefined },
       }).then((r) => r.data),
     enabled: !!user && (user.role === 'DOCTOR' || user.role === 'CLINIC_ADMIN'),
   });

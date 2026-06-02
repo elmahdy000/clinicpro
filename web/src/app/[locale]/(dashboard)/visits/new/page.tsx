@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useMemo, useState } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import api from '@/lib/api';
 import { useAuth } from '@/stores/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -115,10 +116,12 @@ export default function NewVisitPage() {
   
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(patientIdFromQuery);
   const [patientSearch, setPatientSearch] = useState('');
+  const debouncedPatientSearch = useDebounce(patientSearch, 300);
   
   const [medicines, setMedicines] = useState<MedicineRow[]>([]);
   const [vitalsOpen, setVitalsOpen] = useState(false);
   const [medSearch, setMedSearch] = useState('');
+  const debouncedMedSearch = useDebounce(medSearch, 300);
   const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string>(activeBranchId || 'main');
 
@@ -128,7 +131,8 @@ export default function NewVisitPage() {
   const { data: clinicSettings } = useQuery({
     queryKey: ['clinic-settings', user?.clinicId],
     queryFn: () => api.get(`/clinics/${user?.clinicId}/settings`).then(r => r.data),
-    enabled: !!user?.clinicId
+    enabled: !!user?.clinicId,
+    staleTime: 5 * 60 * 1000,
   });
 
   const branches = useMemo(() => {
@@ -145,18 +149,20 @@ export default function NewVisitPage() {
     queryKey: ['patient', selectedPatientId],
     queryFn: () => api.get(`/patients/${selectedPatientId}`).then((r) => r.data),
     enabled: !!selectedPatientId,
+    staleTime: 2 * 60 * 1000,
   });
 
   const { data: timeline } = useQuery({
     queryKey: ['patient-timeline', selectedPatientId],
     queryFn: () => api.get(`/patients/${selectedPatientId}/timeline`).then((r) => r.data),
     enabled: !!selectedPatientId,
+    staleTime: 2 * 60 * 1000,
   });
 
   const { data: patients } = useQuery({
-    queryKey: ['patient-search', patientSearch],
-    queryFn: () => api.get('/patients', { params: { search: patientSearch, limit: 10 } }).then((r) => r.data),
-    enabled: patientSearch.length > 1,
+    queryKey: ['patient-search', debouncedPatientSearch],
+    queryFn: () => api.get('/patients', { params: { search: debouncedPatientSearch, limit: 10 } }).then((r) => r.data),
+    enabled: debouncedPatientSearch.length > 1,
   });
 
   const { data: doctors } = useQuery({
@@ -164,21 +170,22 @@ export default function NewVisitPage() {
     queryFn: () => api.get('/doctors', { params: { limit: 100 } }).then((r) => r.data),
     enabled: !!user,
     retry: 1,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: globalResults, isLoading: searchingGlobal } = useQuery({
-    queryKey: ['medications-search', medSearch],
-    queryFn: () => api.get('/medications', { params: { q: medSearch } }).then((r) => r.data),
-    enabled: !!medSearch,
+    queryKey: ['medications-search', debouncedMedSearch],
+    queryFn: () => api.get('/medications', { params: { q: debouncedMedSearch } }).then((r) => r.data),
+    enabled: !!debouncedMedSearch,
   });
 
   const { data: privateResults, isLoading: searchingPrivate } = useQuery({
-    queryKey: ['my-medicines-search', medSearch],
-    queryFn: () => api.get('/my-medicines/search', { params: { q: medSearch } }).then((r) => r.data),
-    enabled: !!medSearch && !['PLATFORM_OWNER'].includes(user?.role || ''),
+    queryKey: ['my-medicines-search', debouncedMedSearch],
+    queryFn: () => api.get('/my-medicines/search', { params: { q: debouncedMedSearch } }).then((r) => r.data),
+    enabled: !!debouncedMedSearch && !['PLATFORM_OWNER'].includes(user?.role || ''),
   });
 
-  const searchingMeds = searchingGlobal || searchingPrivate;
+  const searchingMeds = (medSearch !== debouncedMedSearch) || searchingGlobal || searchingPrivate;
   const searchResults = useMemo(() => {
     const pMeds = (privateResults || []).map((m: any) => ({
       id: `private_${m.id}`,

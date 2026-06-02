@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { useLocale } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDebounce } from '@/hooks/useDebounce';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -198,6 +199,7 @@ export default function FilesPage() {
   const [uploadCategory, setUploadCategory] = useState('');
   const [uploadPatientId, setUploadPatientId] = useState<string>('');
   const [patientSearch, setPatientSearch] = useState('');
+  const debouncedPatientSearch = useDebounce(patientSearch, 300);
   const [uploading, setUploading] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<CategoryKey>('all');
@@ -230,9 +232,9 @@ export default function FilesPage() {
   });
 
   const { data: patientResults } = useQuery({
-    queryKey: ['patient-search-upload', patientSearch],
-    queryFn: () => api.get('/patients', { params: { search: patientSearch, limit: 5 } }).then((r) => r.data),
-    enabled: patientSearch.length > 1,
+    queryKey: ['patient-search-upload', debouncedPatientSearch],
+    queryFn: () => api.get('/patients', { params: { search: debouncedPatientSearch, limit: 5 } }).then((r) => r.data),
+    enabled: debouncedPatientSearch.length > 1,
   });
 
   // Track pre-upload file changes

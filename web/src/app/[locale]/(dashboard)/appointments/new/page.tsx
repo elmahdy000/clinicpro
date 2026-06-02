@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useEffect, useMemo, useState } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import api from '@/lib/api';
 import { useAuth } from '@/stores/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -62,6 +63,7 @@ export default function NewAppointmentPage() {
   const patientIdFromQuery = searchParams.get('patientId');
 
   const [patientSearch, setPatientSearch] = useState('');
+  const debouncedPatientSearch = useDebounce(patientSearch, 300);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState<number | null>(null);
   const durationOptions = [15, 30, 45, 60];
@@ -89,20 +91,22 @@ export default function NewAppointmentPage() {
   };
 
   const { data: patients } = useQuery({
-    queryKey: ['patient-search', patientSearch],
-    queryFn: () => api.get('/patients', { params: { search: patientSearch, limit: 10 } }).then((r) => r.data),
-    enabled: patientSearch.length > 1,
+    queryKey: ['patient-search', debouncedPatientSearch],
+    queryFn: () => api.get('/patients', { params: { search: debouncedPatientSearch, limit: 10 } }).then((r) => r.data),
+    enabled: debouncedPatientSearch.length > 1,
   });
   const { data: doctors } = useQuery({
     queryKey: ['doctors-for-appointment'],
     queryFn: () => api.get('/doctors', { params: { limit: 100 } }).then((r) => r.data),
     enabled: !!user,
     retry: 1,
+    staleTime: 5 * 60 * 1000,
   });
   const { data: patientFromQuery } = useQuery({
     queryKey: ['appointment-patient', patientIdFromQuery],
     queryFn: () => api.get(`/patients/${patientIdFromQuery}`).then((r) => r.data),
     enabled: !!patientIdFromQuery,
+    staleTime: 2 * 60 * 1000,
   });
   useEffect(() => {
     if (patientFromQuery && !selectedPatient) {

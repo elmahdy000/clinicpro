@@ -8,5 +8,6 @@ export function useGovernorates() {
       const { data } = await api.get('/locations/governorates');
       return data.data;
     },
+    staleTime: Infinity,
   });
 }

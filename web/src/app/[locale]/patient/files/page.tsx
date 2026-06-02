@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useLocale } from 'next-intl';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useDebounce } from '@/hooks/useDebounce';
 import api from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ export default function PatientFilesPage() {
 
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [selectedType, setSelectedType] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [selectedPeriod, setSelectedPeriod] = useState('ALL');
@@ -88,7 +90,7 @@ export default function PatientFilesPage() {
   const clinics: any[] = clinicsData || [];
 
   const { data: files = [], isLoading } = useQuery({
-    queryKey: ['patient-files', { activeTab, searchQuery, selectedType, selectedStatus, selectedPeriod }],
+    queryKey: ['patient-files', { activeTab, searchQuery: debouncedSearchQuery, selectedType, selectedStatus, selectedPeriod }],
     queryFn: async () => {
       let cat = selectedType !== 'ALL' ? selectedType : undefined;
       let stat = selectedStatus !== 'ALL' ? selectedStatus : undefined;
@@ -100,7 +102,7 @@ export default function PatientFilesPage() {
       }
 
       const params = new URLSearchParams();
-      if (searchQuery) params.append('q', searchQuery);
+      if (debouncedSearchQuery) params.append('q', debouncedSearchQuery);
       if (cat) params.append('category', cat);
       if (stat) params.append('verificationStatus', stat);
       if (selectedPeriod !== 'ALL') params.append('period', selectedPeriod);

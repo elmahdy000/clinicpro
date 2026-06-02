@@ -33,6 +33,8 @@ export default function LoginPage() {
   // Shared form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -79,12 +81,12 @@ export default function LoginPage() {
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!doctorName.trim() || !email.trim() || !password.trim() || !clinicName.trim()) {
+    if (!doctorName.trim() || !regEmail.trim() || !regPassword.trim() || !clinicName.trim()) {
       toast.error(isRtl ? 'الرجاء ملء جميع الحقول الإجبارية.' : 'Please fill all required fields.');
       return;
     }
 
-    if (password.length < 6) {
+    if (regPassword.length < 6) {
       toast.error(isRtl ? 'كلمة المرور يجب أن تكون ٦ أحرف على الأقل.' : 'Password must be at least 6 characters.');
       return;
     }
@@ -99,8 +101,8 @@ export default function LoginPage() {
 
     const payload = {
       name: doctorName,
-      email,
-      password,
+      email: regEmail,
+      password: regPassword,
       clinicName,
       clinicPhone,
       clinicAddress: fullAddress,
@@ -115,7 +117,7 @@ export default function LoginPage() {
       toast.success(isRtl ? 'تم تسجيل عيادتك بنجاح! جاري تسجيل الدخول تلقائياً...' : 'Clinic registered successfully! Logging you in...');
       
       // Auto login on success
-      await login(email, password);
+      await login(regEmail, regPassword);
     } catch (error: unknown) {
       const errMsg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || '';
       if (errMsg.includes('already in use')) {
@@ -283,8 +285,8 @@ export default function LoginPage() {
                     id="regEmail"
                     type="email"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
                     placeholder="doctor@example.com"
                     className={`h-10 text-xs font-mono ${isRtl ? 'text-right' : 'text-left'}`}
                   />
@@ -297,8 +299,8 @@ export default function LoginPage() {
                     id="regPassword"
                     type="password"
                     required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="••••••••"
                     className={`h-10 text-xs font-mono ${isRtl ? 'text-right' : 'text-left'}`}
                   />

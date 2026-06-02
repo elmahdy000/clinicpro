@@ -52,6 +52,13 @@ async function runSaaSSimulation() {
     console.log("=========================================\n");
 
     try {
+        // Authenticate Platform Owner for approvals
+        const ownerLogin = await request('/auth/login', 'POST', {
+            email: 'owner@clinicpro.com',
+            password: 'owner123'
+        });
+        const ownerToken = ownerLogin.data.access_token;
+
         // --- 1. REGISTER CLINIC A ---
         console.log("--- 1. REGISTER CLINIC A ---");
         const emailA = `adminA_${Date.now()}@clinicA.com`;
@@ -62,6 +69,10 @@ async function runSaaSSimulation() {
             name: "Dr. Ahmed Elite"
         });
         expectStatus(clinicA, 201, "Register Clinic A");
+
+        // Approve Clinic A
+        const approveA = await request(`/clinics/${clinicA.data.clinicId}/approve`, 'PUT', null, ownerToken);
+        if (approveA.status !== 200 && approveA.status !== 201) console.error('Approval A failed:', approveA.data);
 
         // Login Clinic A
         const loginA = await request('/auth/login', 'POST', { email: emailA, password: 'password123' });
@@ -79,6 +90,10 @@ async function runSaaSSimulation() {
             name: "Dr. Sarah Smile"
         });
         expectStatus(clinicB, 201, "Register Clinic B");
+
+        // Approve Clinic B
+        const approveB = await request(`/clinics/${clinicB.data.clinicId}/approve`, 'PUT', null, ownerToken);
+        if (approveB.status !== 200 && approveB.status !== 201) console.error('Approval B failed:', approveB.data);
 
         // Login Clinic B
         const loginB = await request('/auth/login', 'POST', { email: emailB, password: 'password123' });

@@ -1,19 +1,13 @@
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const p = prisma as any;
 
 async function main() {
-  console.log('Fetching all clinics in database...');
-  const clinics = await p.clinic.findMany({
-    include: {
-      governorate: true,
-      city: true
-    }
-  });
-  console.log('Total clinics found:', clinics.length);
-  for (const c of clinics) {
-    console.log(`- ID: ${c.id}, Name: ${c.name}, Governorate: ${c.governorate?.nameAr}, City: ${c.city?.nameAr}, Address: ${c.address}`);
+  console.log('Fetching all users in database...');
+  const users = await prisma.user.findMany();
+  console.log('Total users found:', users.length);
+  for (const u of users) {
+    console.log(`- ID: ${u.id}, Name: ${u.name}, Email: ${u.email}, Role: ${u.role}, Clinic ID: ${u.clinicId}`);
   }
 }
 
@@ -24,3 +18,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

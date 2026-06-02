@@ -36,11 +36,10 @@ async function run() {
     try {
         const phoneNum = '01211111111'; // Pre-seeded clinic patient Ahmed Ali
         
-        // 1. Patient Registration (Or login if already exists)
         console.log(`[1] Registering Portal Account for phone: ${phoneNum}...`);
         const register = await request('/auth/patient-register', 'POST', {
             phone: phoneNum,
-            name: "أحمد علي عبد الله",
+            fullName: "أحمد علي عبد الله",
             password: "patient123"
         });
 
@@ -52,7 +51,7 @@ async function run() {
             // Already registered, attempt login
             console.log("ℹ️ Account already registered. Attempting Portal Login...");
             const login = await request('/auth/patient-login', 'POST', {
-                phone: phoneNum,
+                identifier: phoneNum,
                 password: "patient123"
             });
             if (login.status === 200 || login.status === 201) {

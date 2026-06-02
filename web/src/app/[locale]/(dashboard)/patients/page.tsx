@@ -3,6 +3,7 @@
 import { useTranslations, useLocale } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
@@ -33,10 +34,11 @@ export default function PatientsPage() {
   const isRtl = locale === 'ar';
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(searchParams.get('search') || '');
+  const debouncedSearch = useDebounce(search, 300);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['patients', search],
-    queryFn: () => api.get('/patients', { params: { search, limit: 20 } }).then((r) => r.data),
+    queryKey: ['patients', debouncedSearch],
+    queryFn: () => api.get('/patients', { params: { search: debouncedSearch, limit: 20 } }).then((r) => r.data),
   });
 
   const patients = data?.data || [];

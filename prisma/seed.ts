@@ -90,6 +90,7 @@ async function main() {
       phone: '01011111111',
       subscriptionPlan: 'PRO',
       subscriptionStatus: 'ACTIVE',
+      approvalStatus: 'APPROVED',
       governorateId: cairoGov?.id,
       cityId: nasrCity?.id,
       settings: { create: { currency: 'EGP', timezone: 'Africa/Cairo' } }
@@ -104,6 +105,54 @@ async function main() {
     data: { clinicId: clinic1.id, userId: doc1User.id, specialization: 'Cardiologist', consultationFee: 600, status: 'active' }
   });
 
+  // ── SEED ACTIVE PATIENT IN CLINIC 1 FOR DOCTOR CONSULTATION SIMULATION
+  console.log('👤 Seeding active patient Ahmed Ali in Clinic 1...');
+  const patient1User = await prisma.user.create({
+    data: {
+      email: 'ahmed_ali@patient.clinicpro',
+      password: hash('patient123'),
+      name: 'أحمد علي عبد الله',
+      role: 'PATIENT'
+    }
+  });
+
+  await prisma.patient.create({
+    data: {
+      firstName: 'أحمد',
+      lastName: 'علي عبد الله',
+      email: 'ahmed_ali@patient.clinicpro',
+      phone: '01211111111',
+      userId: patient1User.id,
+      clinics: {
+        create: {
+          clinicId: clinic1.id
+        }
+      }
+    }
+  });
+
+  // =========================================================================
+  // ── CLINIC SCENARIO 2: PEDIATRICS CLINIC (PRO PLAN)
+  // =========================================================================
+  console.log('🏥 Seeding Scenario 2: Clinic 2 - Pediatrics (Giza)...');
+  const clinic2 = await p.clinic.create({
+    data: {
+      name: 'عيادة الأطفال التخصصية',
+      address: 'شارع الدقي، الجيزة',
+      phone: '01022222222',
+      subscriptionPlan: 'PRO',
+      subscriptionStatus: 'ACTIVE',
+      approvalStatus: 'APPROVED',
+      governorateId: gizaGov?.id,
+      cityId: dokkiCity?.id,
+      settings: { create: { currency: 'EGP', timezone: 'Africa/Cairo' } }
+    }
+  });
+
+  await prisma.user.create({
+    data: { clinicId: clinic2.id, email: 'sarah_admin@clinicpro.com', password: hash('admin123'), name: 'Dr. Sarah Smile', role: 'CLINIC_ADMIN' }
+  });
+
   console.log('\n======================================================');
   console.log('      MINIMAL CLINICPRO SEED COMPLETED SUCCESSFULLY  ');
   console.log('======================================================');
@@ -112,6 +161,7 @@ async function main() {
   console.log('  - Platform Owner:  owner@clinicpro.com  / owner123');
   console.log('  --------------------------------------------------');
   console.log('  - Clinic 1 (PRO):   doctor@clinicpro.com / doctor123 (Doctor)');
+  console.log('  - Clinic 2 (PRO):   sarah_admin@clinicpro.com / admin123 (Admin)');
   console.log('======================================================\n');
 }
 

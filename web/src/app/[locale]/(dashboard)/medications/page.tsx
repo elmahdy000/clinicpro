@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocale } from 'next-intl';
 import { useState, useCallback } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useAuth } from '@/stores/auth';
 import api from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -41,6 +42,7 @@ export default function MedicationsPage() {
 
   const [activeTab, setActiveTab] = useState<'dictionary' | 'insights'>('dictionary');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [page, setPage] = useState(1);
   const [catFilter, setCatFilter] = useState('');
   const [formFilter, setFormFilter] = useState('');
@@ -54,10 +56,10 @@ export default function MedicationsPage() {
   const [importing, setImporting] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery<any>({
-    queryKey: ['medications', search, page, catFilter, formFilter, sourceFilter],
+    queryKey: ['medications', debouncedSearch, page, catFilter, formFilter, sourceFilter],
     queryFn: () =>
       api.get('/medications/table', {
-        params: { search, page, limit, category: catFilter, form: formFilter, source: sourceFilter },
+        params: { search: debouncedSearch, page, limit, category: catFilter, form: formFilter, source: sourceFilter },
       }).then((r) => r.data),
   });
 
