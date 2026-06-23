@@ -6,6 +6,7 @@ import { UpdateMedicalRecordDto } from './dto/update-medical-record.dto';
 import { NotificationHelperService } from '../common/services/notification-helper.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class MedicalRecordsService {
@@ -14,6 +15,7 @@ export class MedicalRecordsService {
   constructor(
     private prisma: PrismaService,
     private notificationHelper: NotificationHelperService,
+    private redis: RedisService,
   ) {}
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<any>> {
@@ -89,22 +91,27 @@ export class MedicalRecordsService {
 
     const full = await this.findOne(record.id);
     await this.notificationHelper.sendMedicalRecordCreated(full, full.doctor.user, full.patient).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));
+    await this.redis.delByPattern(`patients:timeline:*:${record.patientId}`);
     return full;
   }
 
   async update(id: number, dto: UpdateMedicalRecordDto) {
     await this.findOne(id);
-    return this.prisma.medicalRecord.update({
+    const updated = await this.prisma.medicalRecord.update({
       where: { id },
       data: {
         ...dto,
         vitalSigns: dto.vitalSigns ? JSON.stringify(dto.vitalSigns) : undefined,
       },
     });
+    await this.redis.delByPattern(`patients:timeline:*:${updated.patientId}`);
+    return updated;
   }
 
   async remove(id: number) {
-    await this.findOne(id);
-    return this.prisma.medicalRecord.delete({ where: { id } });
+    const old = await this.findOne(id);
+    const result = await this.prisma.medicalRecord.delete({ where: { id } });
+    await this.redis.delByPattern(`patients:timeline:*:${old.patientId}`);
+    return result;
   }
 }

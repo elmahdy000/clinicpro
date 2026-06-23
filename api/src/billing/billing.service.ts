@@ -6,6 +6,7 @@ import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
 import { NotificationHelperService } from '../common/services/notification-helper.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class BillingService {
@@ -20,6 +21,7 @@ export class BillingService {
   constructor(
     private prisma: PrismaService,
     private notificationHelper: NotificationHelperService,
+    private redis: RedisService,
   ) {}
 
   private parseInvoice(invoice: any) {
@@ -104,6 +106,7 @@ export class BillingService {
     const clinic = await this.prisma.clinic.findUnique({ where: { id: store?.clinicId ?? 0 } });
     await this.notificationHelper.sendInvoiceCreated(invoice, invoice.patient, clinic?.name || 'ClinicPro').catch((e) => this.logger.warn(`Invoice created notification failed: ${(e as Error).message}`));
 
+    await this.redis.delByPattern(`patients:timeline:*:${dto.patientId}`);
     return this.parseInvoice(invoice);
   }
 
@@ -123,12 +126,15 @@ export class BillingService {
       await this.notificationHelper.sendInvoicePaid(invoice, invoice.patient, clinic?.name || 'ClinicPro').catch((e) => this.logger.warn(`Invoice paid notification failed: ${(e as Error).message}`));
     }
 
+    await this.redis.delByPattern(`patients:timeline:*:${invoice.patientId}`);
     return this.parseInvoice(invoice);
   }
 
   async remove(id: number) {
-    await this.findOne(id);
-    return this.prisma.invoice.delete({ where: { id } });
+    const old = await this.findOne(id);
+    const result = await this.prisma.invoice.delete({ where: { id } });
+    await this.redis.delByPattern(`patients:timeline:*:${old.patientId}`);
+    return result;
   }
 
   async getSummary() {

@@ -117,7 +117,7 @@ export class PatientsService {
 
     const patientData = { ...dto } as any;
     if (patientData.dateOfBirth && String(patientData.dateOfBirth).trim() !== '') {
-      patientData.dateOfBirth = new Date(patientData.dateOfBirth);
+      patientData.dateOfBirth = new Date(`${String(patientData.dateOfBirth).split('T')[0]}T00:00:00.000Z`);
     } else {
       delete patientData.dateOfBirth;
     }
@@ -219,7 +219,9 @@ export class PatientsService {
             if (!a && !b) return false;
             if (a instanceof Date || b instanceof Date || field === 'dateOfBirth') {
               if (!a || !b) return true;
-              return new Date(a).getTime() !== new Date(b).getTime();
+              const dateA = new Date(a).toISOString().split('T')[0];
+              const dateB = new Date(b).toISOString().split('T')[0];
+              return dateA !== dateB;
             }
             return String(a).trim() !== String(b).trim();
           };
@@ -232,17 +234,20 @@ export class PatientsService {
       });
     }
     if (patientData.dateOfBirth && String(patientData.dateOfBirth).trim() !== '') {
-      patientData.dateOfBirth = new Date(patientData.dateOfBirth);
+      patientData.dateOfBirth = new Date(`${String(patientData.dateOfBirth).split('T')[0]}T00:00:00.000Z`);
     } else {
       delete patientData.dateOfBirth;
     }
-    return this.prisma.patient.update({ where: { id }, data: patientData });
+    const updated = await this.prisma.patient.update({ where: { id }, data: patientData });
+    await this.redis.delByPattern(`patients:timeline:*:${id}`);
+    return updated;
   }
 
   async remove(id: number) {
     const store = tenantStorage.getStore();
     const clinicId = store?.clinicId;
     await this.findOne(id); // Ensures the patient belongs to the clinic
+    await this.redis.delByPattern(`patients:timeline:*:${id}`);
 
     if (clinicId) {
       await this.prisma.clinicPatient.delete({

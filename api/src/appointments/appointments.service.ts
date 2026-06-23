@@ -9,6 +9,7 @@ import { AppointmentStatus } from './enums/appointment-status.enum';
 import { NotificationHelperService } from '../common/services/notification-helper.service';
 import { AppointmentQueryDto } from './dto/appointment-query.dto';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
+import { parseLocalToUtc, getLocalDayBoundsInUtc, getLocalDateStr } from '../common/helpers/timezone.helper';
 
 @Injectable()
 export class AppointmentsService {
@@ -40,9 +41,16 @@ export class AppointmentsService {
     const safeSortBy = allowedSortFields.has(sortBy) ? sortBy : 'appointmentDate';
     if (doctorId) where.doctorId = doctorId;
     if (appointmentDateFrom || appointmentDateTo) {
+      const timezone = await this.getClinicTimezone();
       where.appointmentDate = {};
-      if (appointmentDateFrom) where.appointmentDate.gte = new Date(appointmentDateFrom);
-      if (appointmentDateTo) where.appointmentDate.lte = new Date(appointmentDateTo);
+      if (appointmentDateFrom) {
+        const { startUtc } = getLocalDayBoundsInUtc(appointmentDateFrom, timezone);
+        where.appointmentDate.gte = startUtc;
+      }
+      if (appointmentDateTo) {
+        const { endUtc } = getLocalDayBoundsInUtc(appointmentDateTo, timezone);
+        where.appointmentDate.lte = endUtc;
+      }
     }
     if (search) {
       where.OR = [
@@ -76,12 +84,6 @@ export class AppointmentsService {
     return appointment;
   }
 
-  private calculateEndDate(startDate: string, durationMinutes: number): Date {
-    const end = new Date(startDate);
-    end.setMinutes(end.getMinutes() + durationMinutes);
-    return end;
-  }
-
   private async checkOverlap(
     doctorId: number,
     startDate: Date,
@@ -99,7 +101,7 @@ export class AppointmentsService {
     });
     if (conflicts) {
       throw new BadRequestException(
-        `Time slot overlaps with appointment #${conflicts.id} (${new Date(conflicts.appointmentDate).toLocaleTimeString()} - ${new Date(conflicts.appointmentEndDate).toLocaleTimeString()})`,
+        `Time slot overlaps with appointment #${conflicts.id} (${new Date(conflicts.appointmentDate).toISOString()} - ${new Date(conflicts.appointmentEndDate).toISOString()})`,
       );
     }
   }
@@ -114,53 +116,10 @@ export class AppointmentsService {
     return settings?.timezone || 'Africa/Cairo';
   }
 
-  private getLocalDateStr(date: Date, timezone: string): string {
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    const parts = formatter.formatToParts(date);
-    const year = parts.find(p => p.type === 'year')?.value;
-    const month = parts.find(p => p.type === 'month')?.value;
-    const day = parts.find(p => p.type === 'day')?.value;
-    return `${year}-${month}-${day}`;
-  }
-
-  private getLocalDayBoundsInUtc(dateStr: string, timezone: string) {
-    const startLocal = new Date(`${dateStr}T00:00:00`);
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-      hour12: false
-    });
-    const parts = formatter.formatToParts(startLocal);
-    const partValues: any = {};
-    parts.forEach(p => partValues[p.type] = p.value);
-    const tzDate = new Date(Date.UTC(
-      Number(partValues.year),
-      Number(partValues.month) - 1,
-      Number(partValues.day),
-      Number(partValues.hour),
-      Number(partValues.minute),
-      Number(partValues.second)
-    ));
-    const offsetMs = tzDate.getTime() - startLocal.getTime();
-    const startUtc = new Date(startLocal.getTime() - offsetMs);
-    const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000 - 1);
-    return { startUtc, endUtc };
-  }
-
   private async getNextQueuePosition(doctorId: number): Promise<number> {
     const timezone = await this.getClinicTimezone();
-    const todayStr = this.getLocalDateStr(new Date(), timezone);
-    const { startUtc, endUtc } = this.getLocalDayBoundsInUtc(todayStr, timezone);
+    const todayStr = getLocalDateStr(new Date(), timezone);
+    const { startUtc, endUtc } = getLocalDayBoundsInUtc(todayStr, timezone);
     const lastToday = await this.prisma.appointment.findFirst({
       where: {
         doctorId,
@@ -207,14 +166,22 @@ export class AppointmentsService {
       throw new NotFoundException(`Doctor #${dto.doctorId} not found`);
     }
 
-    const appointmentEndDate = this.calculateEndDate(dto.appointmentDate, dto.durationMinutes);
-    await this.checkOverlap(dto.doctorId, new Date(dto.appointmentDate), appointmentEndDate);
+    const timezone = await this.getClinicTimezone();
+    const startUtc = parseLocalToUtc(dto.appointmentDate, timezone);
+    const endUtc = new Date(startUtc.getTime() + dto.durationMinutes * 60000);
+    await this.checkOverlap(dto.doctorId, startUtc, endUtc);
     const appointment = await this.prisma.appointment.create({
-      data: { ...dto, appointmentEndDate, clinicId } as any,
+      data: {
+        ...dto,
+        appointmentDate: startUtc,
+        appointmentEndDate: endUtc,
+        clinicId,
+      } as any,
     });
     const full = await this.findOne(appointment.id);
     await this.notificationHelper.sendAppointmentCreated(full, full.doctor.user, full.patient).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));
-    await this.evictDoctorCache(dto.doctorId, dto.appointmentDate);
+    await this.evictDoctorCache(dto.doctorId, getLocalDateStr(startUtc, timezone));
+    await this.redis.delByPattern(`patients:timeline:*:${dto.patientId}`);
     return full;
   }
 
@@ -223,11 +190,15 @@ export class AppointmentsService {
     const data: any = { ...dto };
 
     if (dto.appointmentDate || dto.durationMinutes) {
-      const startDate = new Date(dto.appointmentDate || old.appointmentDate);
+      const timezone = await this.getClinicTimezone();
+      const startUtc = dto.appointmentDate 
+        ? parseLocalToUtc(dto.appointmentDate, timezone) 
+        : new Date(old.appointmentDate);
       const duration = dto.durationMinutes ?? old.durationMinutes ?? 30;
-      const endDate = this.calculateEndDate(startDate.toISOString(), duration);
-      data.appointmentEndDate = endDate;
-      await this.checkOverlap(old.doctorId, startDate, endDate, id);
+      const endUtc = new Date(startUtc.getTime() + duration * 60000);
+      data.appointmentDate = startUtc;
+      data.appointmentEndDate = endUtc;
+      await this.checkOverlap(old.doctorId, startUtc, endUtc, id);
     }
 
     if (dto.status && dto.status !== old.status) {
@@ -245,10 +216,12 @@ export class AppointmentsService {
       await this.notificationHelper.sendAppointmentCancelled(full, full.doctor.user, full.patient).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));
     } else if (dto.status === AppointmentStatus.IN_PROGRESS && old.status !== AppointmentStatus.IN_PROGRESS) {
       await this.notificationHelper.sendQueuePositionCalled(full.patient, full.doctor.user.name, full.queuePosition || 1).catch((e) => this.logger.warn(`Queue notification failed: ${(e as Error).message}`));
-    } else if (dto.appointmentDate && Math.abs(new Date(dto.appointmentDate).getTime() - old.appointmentDate.getTime()) > 1000) {
+    } else if (data.appointmentDate && Math.abs(data.appointmentDate.getTime() - old.appointmentDate.getTime()) > 1000) {
       await this.notificationHelper.sendAppointmentUpdated(full, full.doctor.user, full.patient, old.appointmentDate.toISOString(), dto.reason).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));
     }
-    await this.evictDoctorCache(old.doctorId, dto.appointmentDate || old.appointmentDate.toISOString().split('T')[0]);
+    const timezone = await this.getClinicTimezone();
+    await this.evictDoctorCache(old.doctorId, getLocalDateStr(full.appointmentDate, timezone));
+    await this.redis.delByPattern(`patients:timeline:*:${full.patientId}`);
     return full;
   }
 
@@ -263,12 +236,16 @@ export class AppointmentsService {
     if (dto.durationMinutes !== undefined) data.durationMinutes = dto.durationMinutes;
     if (dto.reason !== undefined) data.reason = dto.reason;
 
-    const startDate = new Date(dto.appointmentDate || old.appointmentDate);
+    const timezone = await this.getClinicTimezone();
+    const startUtc = dto.appointmentDate
+      ? parseLocalToUtc(dto.appointmentDate, timezone)
+      : new Date(old.appointmentDate);
     const duration = dto.durationMinutes || old.durationMinutes;
-    const endDate = this.calculateEndDate(startDate.toISOString(), duration);
-    data.appointmentEndDate = endDate;
+    const endUtc = new Date(startUtc.getTime() + duration * 60000);
+    data.appointmentDate = startUtc;
+    data.appointmentEndDate = endUtc;
 
-    await this.checkOverlap(old.doctorId, startDate, endDate, id);
+    await this.checkOverlap(old.doctorId, startUtc, endUtc, id);
 
     if (old.status !== dto.rescheduleStatus && dto.rescheduleStatus) {
       data.status = dto.rescheduleStatus;
@@ -285,21 +262,24 @@ export class AppointmentsService {
       old.appointmentDate.toISOString(),
       dto.reason,
     ).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));
-    await this.evictDoctorCache(old.doctorId, dto.appointmentDate || old.appointmentDate.toISOString().split('T')[0]);
+    await this.evictDoctorCache(old.doctorId, getLocalDateStr(full.appointmentDate, timezone));
+    await this.redis.delByPattern(`patients:timeline:*:${full.patientId}`);
     return full;
   }
 
   async remove(id: number) {
     const old = await this.findOne(id);
     await this.prisma.appointment.delete({ where: { id } });
-    await this.evictDoctorCache(old.doctorId, old.appointmentDate.toISOString().split('T')[0]);
+    const timezone = await this.getClinicTimezone();
+    await this.evictDoctorCache(old.doctorId, getLocalDateStr(old.appointmentDate, timezone));
+    await this.redis.delByPattern(`patients:timeline:*:${old.patientId}`);
   }
 
   async findToday() {
     const store = tenantStorage.getStore();
     const timezone = await this.getClinicTimezone();
-    const todayStr = this.getLocalDateStr(new Date(), timezone);
-    const { startUtc, endUtc } = this.getLocalDayBoundsInUtc(todayStr, timezone);
+    const todayStr = getLocalDateStr(new Date(), timezone);
+    const { startUtc, endUtc } = getLocalDayBoundsInUtc(todayStr, timezone);
     return this.prisma.appointment.findMany({
       where: {
         clinicId: store?.clinicId ?? 0,
@@ -327,8 +307,8 @@ export class AppointmentsService {
     const now = new Date();
     const tenMinAgo = new Date(now.getTime() - 10 * 60 * 1000);
     const timezone = await this.getClinicTimezone();
-    const todayStr = this.getLocalDateStr(now, timezone);
-    const { startUtc } = this.getLocalDayBoundsInUtc(todayStr, timezone);
+    const todayStr = getLocalDateStr(now, timezone);
+    const { startUtc } = getLocalDayBoundsInUtc(todayStr, timezone);
 
     const overdue = await this.prisma.appointment.findMany({
       where: {

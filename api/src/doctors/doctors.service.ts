@@ -8,6 +8,7 @@ import { CreateAvailabilityDto } from './dto/create-availability.dto';
 import { CreateTimeOffDto } from './dto/create-timeoff.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
+import { parseLocalToUtc, getLocalDayBoundsInUtc, getLocalDateStr } from '../common/helpers/timezone.helper';
 
 const CACHE_TTL_SLOTS = 60;
 const CACHE_TTL_DAYS = 120;
@@ -137,8 +138,9 @@ export class DoctorsService {
     if (requestingUser?.role === 'DOCTOR' && doctor.userId !== requestingUser.id) {
       throw new ForbiddenException('Cannot add time-off for another doctor');
     }
+    const normalizedDate = new Date(`${dto.date.split('T')[0]}T00:00:00.000Z`);
     return this.prisma.doctorTimeOff.create({
-      data: { doctorId, date: dto.date, reason: dto.reason },
+      data: { doctorId, date: normalizedDate, reason: dto.reason },
     });
   }
 
@@ -169,49 +171,6 @@ export class DoctorsService {
     return settings?.timezone || 'Africa/Cairo';
   }
 
-  private getLocalDateStr(date: Date, timezone: string): string {
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    const parts = formatter.formatToParts(date);
-    const year = parts.find(p => p.type === 'year')?.value;
-    const month = parts.find(p => p.type === 'month')?.value;
-    const day = parts.find(p => p.type === 'day')?.value;
-    return `${year}-${month}-${day}`;
-  }
-
-  private getLocalDayBoundsInUtc(dateStr: string, timezone: string) {
-    const startLocal = new Date(`${dateStr}T00:00:00`);
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-      hour12: false
-    });
-    const parts = formatter.formatToParts(startLocal);
-    const partValues: any = {};
-    parts.forEach(p => partValues[p.type] = p.value);
-    const tzDate = new Date(Date.UTC(
-      Number(partValues.year),
-      Number(partValues.month) - 1,
-      Number(partValues.day),
-      Number(partValues.hour),
-      Number(partValues.minute),
-      Number(partValues.second)
-    ));
-    const offsetMs = tzDate.getTime() - startLocal.getTime();
-    const startUtc = new Date(startLocal.getTime() - offsetMs);
-    const endUtc = new Date(startUtc.getTime() + 24 * 60 * 60 * 1000 - 1);
-    return { startUtc, endUtc };
-  }
-
   async getAvailableDays(
     doctorId: number,
     fromDate: string,
@@ -224,12 +183,12 @@ export class DoctorsService {
 
     await this.findOne(doctorId);
     const timezone = await this.getClinicTimezone();
-    const from = new Date(fromDate);
-    const to = new Date(toDate);
+    const from = new Date(`${fromDate}T00:00:00.000Z`);
+    const to = new Date(`${toDate}T00:00:00.000Z`);
     if (from > to) return [];
 
-    const { startUtc: startBound } = this.getLocalDayBoundsInUtc(fromDate, timezone);
-    const { endUtc: endBound } = this.getLocalDayBoundsInUtc(toDate, timezone);
+    const { startUtc: startBound } = getLocalDayBoundsInUtc(fromDate, timezone);
+    const { endUtc: endBound } = getLocalDayBoundsInUtc(toDate, timezone);
 
     const [timeOffs, availabilities, existingAppointments] = await Promise.all([
       this.prisma.doctorTimeOff.findMany({
@@ -253,9 +212,9 @@ export class DoctorsService {
     const availByDay = new Map(availabilities.map((a) => [a.dayOfWeek, a]));
     const days: { date: string; slots: string[] }[] = [];
 
-    for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(from); d <= to; d.setUTCDate(d.getUTCDate() + 1)) {
       const dateStr = d.toISOString().split('T')[0];
-      const dayOfWeek = d.getDay();
+      const dayOfWeek = d.getUTCDay();
 
       if (timeOffDates.has(dateStr)) continue;
       const availability = availByDay.get(dayOfWeek) as any;
@@ -268,30 +227,27 @@ export class DoctorsService {
       const slotDur = durationMinutes ?? availability.slotDuration;
       const slots: string[] = [];
 
-      const dayStart = new Date(d);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(d);
-      dayEnd.setHours(23, 59, 59, 999);
+      const { startUtc: dayStart, endUtc: dayEnd } = getLocalDayBoundsInUtc(dateStr, timezone);
 
       const dayAppointments = existingAppointments.filter((apt) => {
-        const aptDate = new Date(apt.appointmentDate);
-        return aptDate >= dayStart && aptDate <= dayEnd;
+        const aptTime = apt.appointmentDate.getTime();
+        return aptTime >= dayStart.getTime() && aptTime <= dayEnd.getTime();
       });
 
       for (let m = startMinutes; m + slotDur <= endMinutes; m += slotDur) {
-        const slotStart = new Date(d);
-        slotStart.setHours(Math.floor(m / 60), m % 60, 0, 0);
+        const hh = String(Math.floor(m / 60)).padStart(2, '0');
+        const mm = String(m % 60).padStart(2, '0');
+        const slotLocalStr = `${dateStr}T${hh}:${mm}:00`;
+        const slotStart = parseLocalToUtc(slotLocalStr, timezone);
         const slotEnd = new Date(slotStart.getTime() + slotDur * 60000);
 
         const conflict = dayAppointments.some((apt) => {
-          const aptStart = new Date(apt.appointmentDate).getTime();
-          const aptEnd = new Date(apt.appointmentEndDate).getTime();
+          const aptStart = apt.appointmentDate.getTime();
+          const aptEnd = apt.appointmentEndDate.getTime();
           return slotStart.getTime() < aptEnd && slotEnd.getTime() > aptStart;
         });
 
         if (!conflict) {
-          const hh = String(Math.floor(m / 60)).padStart(2, '0');
-          const mm = String(m % 60).padStart(2, '0');
           slots.push(`${hh}:${mm}`);
         }
       }
@@ -312,14 +268,14 @@ export class DoctorsService {
 
     await this.findOne(doctorId);
     const timezone = await this.getClinicTimezone();
-    const todayStr = this.getLocalDateStr(new Date(), timezone);
+    const todayStr = getLocalDateStr(new Date(), timezone);
     if (dateStr < todayStr) return [];
 
-    const date = new Date(dateStr);
-    const dayOfWeek = date.getDay();
+    const date = new Date(`${dateStr}T00:00:00.000Z`);
+    const dayOfWeek = date.getUTCDay();
 
     const isOff = await this.prisma.doctorTimeOff.findUnique({
-      where: { doctorId_date: { doctorId, date: new Date(dateStr) } },
+      where: { doctorId_date: { doctorId, date: new Date(`${dateStr}T00:00:00.000Z`) } },
     });
     if (isOff) return [];
 
@@ -328,7 +284,7 @@ export class DoctorsService {
     });
     if (!availability || !availability.isAvailable) return [];
 
-    const { startUtc, endUtc } = this.getLocalDayBoundsInUtc(dateStr, timezone);
+    const { startUtc, endUtc } = getLocalDayBoundsInUtc(dateStr, timezone);
 
     const existingAppointments = await this.prisma.appointment.findMany({
       where: {
@@ -350,19 +306,19 @@ export class DoctorsService {
     const slotDur = durationMinutes ?? availability.slotDuration;
 
     for (let m = startMinutes; m + slotDur <= endMinutes; m += slotDur) {
-      const slotStart = new Date(date);
-      slotStart.setHours(Math.floor(m / 60), m % 60, 0, 0);
+      const hh = String(Math.floor(m / 60)).padStart(2, '0');
+      const mm = String(m % 60).padStart(2, '0');
+      const slotLocalStr = `${dateStr}T${hh}:${mm}:00`;
+      const slotStart = parseLocalToUtc(slotLocalStr, timezone);
       const slotEnd = new Date(slotStart.getTime() + slotDur * 60000);
 
       const conflict = existingAppointments.some((apt) => {
-        const aptStart = new Date(apt.appointmentDate).getTime();
-        const aptEnd = new Date(apt.appointmentEndDate).getTime();
+        const aptStart = apt.appointmentDate.getTime();
+        const aptEnd = apt.appointmentEndDate.getTime();
         return slotStart.getTime() < aptEnd && slotEnd.getTime() > aptStart;
       });
 
       if (!conflict) {
-        const hh = String(Math.floor(m / 60)).padStart(2, '0');
-        const mm = String(m % 60).padStart(2, '0');
         slots.push(`${hh}:${mm}`);
       }
     }

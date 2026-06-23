@@ -7,6 +7,7 @@ import { SubstituteMedicineDto } from './dto/substitute-medicine.dto';
 import { NotificationHelperService } from '../common/services/notification-helper.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PaginatedResult } from '../common/interfaces/paginated-result.interface';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class PrescriptionsService {
@@ -15,6 +16,7 @@ export class PrescriptionsService {
   constructor(
     private prisma: PrismaService,
     private notificationHelper: NotificationHelperService,
+    private redis: RedisService,
   ) {}
 
   async findAll(query: PaginationDto): Promise<PaginatedResult<any>> {
@@ -227,6 +229,7 @@ export class PrescriptionsService {
 
     const full = await this.findOne(prescription.id);
     await this.notificationHelper.sendPrescriptionCreated(full, full.doctor.user, full.patient).catch((e) => this.logger.warn(`Notification failed: ${(e as Error).message}`));
+    await this.redis.delByPattern(`patients:timeline:*:${prescription.patientId}`);
     return full;
   }
 
@@ -263,6 +266,7 @@ export class PrescriptionsService {
         ));
       }
     }
+    await this.redis.delByPattern(`patients:timeline:*:${updated.patientId}`);
     return updated;
   }
 
@@ -347,6 +351,7 @@ export class PrescriptionsService {
         }
     });
 
+    await this.redis.delByPattern(`patients:timeline:*:${prescription.patientId}`);
     return { success: true, log };
   }
 
@@ -359,7 +364,9 @@ export class PrescriptionsService {
   }
 
   async remove(id: number) {
-    await this.findOne(id);
-    return this.prisma.prescription.delete({ where: { id } });
+    const old = await this.findOne(id);
+    const result = await this.prisma.prescription.delete({ where: { id } });
+    await this.redis.delByPattern(`patients:timeline:*:${old.patientId}`);
+    return result;
   }
 }

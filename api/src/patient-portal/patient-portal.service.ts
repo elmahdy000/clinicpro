@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MedicalHistoryService } from '../medical-history/medical-history.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class PatientPortalService {
   constructor(
     private prisma: PrismaService,
     private medicalHistory: MedicalHistoryService,
+    private redis: RedisService,
   ) {}
 
   private async getPortalAccess() {
@@ -619,6 +621,7 @@ export class PatientPortalService {
       },
     });
 
+    await this.redis.delByPattern(`patients:timeline:*:${patient.id}`);
     return file;
   }
 
@@ -633,9 +636,11 @@ export class PatientPortalService {
     if (file.verificationStatus !== 'PENDING_REVIEW') throw new ForbiddenException('Cannot delete verified or rejected files');
     if (file.uploadedByType !== 'PATIENT') throw new ForbiddenException('Cannot delete clinic-uploaded files');
 
-    return this.prisma.patientMedicalFile.delete({
+    const result = await this.prisma.patientMedicalFile.delete({
       where: { id: fileId },
     });
+    await this.redis.delByPattern(`patients:timeline:*:${patient.id}`);
+    return result;
   }
 
   async getNotifications(userId: number) {
