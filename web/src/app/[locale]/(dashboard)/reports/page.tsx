@@ -33,7 +33,7 @@ export default function ReportsPage() {
   const locale = useLocale();
   const isRtl = locale === 'ar';
   const { user } = useAuth();
-  const isAdmin = user?.role === 'PLATFORM_OWNER';
+  const isAdmin = user?.role === 'PLATFORM_OWNER' || user?.role === 'SUB_ADMIN';
   const { printElement } = usePrint();
 
   const [isMounted, setIsMounted] = useState(false);

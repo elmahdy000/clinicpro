@@ -43,7 +43,7 @@ export function Header() {
   const { data: clinicSettings } = useQuery({
     queryKey: ['clinic-settings', user?.clinicId],
     queryFn: () => api.get(`/clinics/${user?.clinicId}/settings`).then((r) => r.data),
-    enabled: !!user?.clinicId && user?.role !== 'PLATFORM_OWNER',
+    enabled: !!user?.clinicId && user?.role !== 'PLATFORM_OWNER' && user?.role !== 'SUB_ADMIN',
   });
 
   const branches = clinicSettings?.branches 
@@ -95,7 +95,7 @@ export function Header() {
               {title}
             </h1>
           )}
-          {user?.role !== 'PLATFORM_OWNER' && (
+          {user?.role !== 'PLATFORM_OWNER' && user?.role !== 'SUB_ADMIN' && (
             <div className="flex items-center gap-1 ms-2 px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-200 dark:border-slate-700">
               <select
                 value={activeBranchId || 'main'}
@@ -113,7 +113,7 @@ export function Header() {
 
         {/* Center zone: global patient search */}
         <div className="flex justify-center">
-          {user?.role !== 'PLATFORM_OWNER' && (
+          {user?.role !== 'PLATFORM_OWNER' && user?.role !== 'SUB_ADMIN' && (
             <form onSubmit={handleSearchSubmit} className="hidden md:block w-full max-w-sm">
               <SearchBox
                 value={searchQuery}
@@ -126,7 +126,7 @@ export function Header() {
 
         {/* Left zone: actions + notifications + user */}
         <div className="flex items-center gap-1 md:gap-2 justify-end">
-          {user?.role !== 'PLATFORM_OWNER' && (
+          {user?.role !== 'PLATFORM_OWNER' && user?.role !== 'SUB_ADMIN' && (
             <Link href={`/${locale}/appointments/new`}>
               <Button
                 variant="outline"
@@ -169,7 +169,7 @@ export function Header() {
 
       </div>
     </header>
-    {user?.role !== 'PLATFORM_OWNER' && (
+    {user?.role !== 'PLATFORM_OWNER' && user?.role !== 'SUB_ADMIN' && (
       <div className="z-10">
         {subscriptionStatus === 'PENDING' && (
           <div className="bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-900/50 px-4 py-2 flex flex-wrap items-center justify-center gap-1.5 text-blue-700 dark:text-blue-400 text-xs font-bold text-center">

@@ -51,7 +51,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { user, logout } = useAuth();
   const { collapsed, setCollapsed } = useSidebar();
 
-  const isAdmin = user?.role === 'PLATFORM_OWNER';
+  const isAdmin = user?.role === 'PLATFORM_OWNER' || user?.role === 'SUB_ADMIN';
   const userRole = user?.role || '';
   const navItems = isAdmin
     ? ADMIN_NAV
@@ -78,7 +78,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             <div>
               <span className="font-bold text-xs text-gray-900 dark:text-white tracking-tight block">ClinicPro</span>
               {isAdmin && (
-                <span className="text-[8px] text-teal-600 dark:text-teal-400 font-semibold uppercase tracking-wider block -mt-0.5">Platform Admin</span>
+                <span className="text-[8px] text-teal-600 dark:text-teal-400 font-semibold uppercase tracking-wider block -mt-0.5">
+                  {user?.role === 'SUB_ADMIN' ? (isRtl ? 'مساعد مدير المنصة' : 'Sub Admin') : (isRtl ? 'مدير المنصة' : 'Platform Owner')}
+                </span>
               )}
             </div>
           )}

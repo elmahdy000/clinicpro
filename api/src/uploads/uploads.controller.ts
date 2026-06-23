@@ -48,13 +48,13 @@ const ALLOWED_MIMETYPES = [
 export class UploadsController {
   constructor(private readonly uploadsService: UploadsService) {}
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT, UserRole.SUB_ADMIN)
   @Get()
   findAll(@Req() req: any) {
     return this.uploadsService.findAll(req.user);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT, UserRole.SUB_ADMIN)
   @Post('medical-document')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -96,7 +96,7 @@ export class UploadsController {
     );
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT, UserRole.SUB_ADMIN)
   @Get(':id/download')
   async download(@Param('id', ParseIntPipe) id: number, @Req() req: any, @Res() res: any) {
     const fileRecord = await this.uploadsService.findOne(id, req.user);
@@ -107,7 +107,7 @@ export class UploadsController {
     }
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT, UserRole.SUB_ADMIN)
   @Delete('files/:id')
   remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.uploadsService.remove(id, req.user);

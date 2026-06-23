@@ -48,6 +48,17 @@ async function main() {
     }
   });
 
+  // Create Sub-Admin (Audit/Monitoring User)
+  console.log('👤 Creating Sub-Admin...');
+  await prisma.user.create({
+    data: {
+      email: 'subadmin@clinicpro.com',
+      password: hash('subadmin123'),
+      name: 'Sub Admin Monitor',
+      role: 'SUB_ADMIN'
+    }
+  });
+
   // Resolve governorates and cities for our localized clinics
   const cairoGov = await p.governorate.findFirst({ where: { nameAr: 'القاهرة' } });
   const nasrCity = await p.city.findFirst({ where: { nameAr: 'مدينة نصر' } });

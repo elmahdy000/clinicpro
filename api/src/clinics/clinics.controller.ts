@@ -14,14 +14,14 @@ export class ClinicsController {
   constructor(private readonly clinicsService: ClinicsService) {}
 
   @Get()
-  @Roles(UserRole.PLATFORM_OWNER)
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.SUB_ADMIN)
   findAll(@Query() query: any) {
     return this.clinicsService.findAll(query);
   }
 
   // Platform Owner: list clinics pending approval
   @Get('pending-approval')
-  @Roles(UserRole.PLATFORM_OWNER)
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.SUB_ADMIN)
   getPendingApproval() {
     return this.clinicsService.getPendingApproval();
   }
@@ -42,11 +42,11 @@ export class ClinicsController {
 
   // Doctors, Admins & Staff can read their own clinic details (for settings/header)
   @Get(':id')
-  @Roles(UserRole.PLATFORM_OWNER, UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.SUB_ADMIN)
   findOne(@Param('id') id: string, @Req() req: any) {
     const numId = +id;
-    // Non-platform-owners can only access their own clinic
-    if (req.user.role !== 'PLATFORM_OWNER' && req.user.clinicId !== numId) {
+    // Non-platform-owners/sub-admins can only access their own clinic
+    if (req.user.role !== 'PLATFORM_OWNER' && req.user.role !== 'SUB_ADMIN' && req.user.clinicId !== numId) {
       throw new BadRequestException('Access denied to this clinic');
     }
     return this.clinicsService.findOne(numId);
@@ -54,9 +54,9 @@ export class ClinicsController {
 
   // Dedicated lightweight settings endpoint for clinic doctors, admins & staff
   @Get(':id/settings')
-  @Roles(UserRole.PLATFORM_OWNER, UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.SUB_ADMIN)
   getSettings(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
-    if (req.user.role !== 'PLATFORM_OWNER' && req.user.clinicId !== id) {
+    if (req.user.role !== 'PLATFORM_OWNER' && req.user.role !== 'SUB_ADMIN' && req.user.clinicId !== id) {
       throw new BadRequestException('Access denied');
     }
     return this.clinicsService.getClinicSettings(id);

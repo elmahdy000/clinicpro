@@ -57,7 +57,7 @@ export default function InvoicesPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== 'PLATFORM_OWNER')) {
+    if (!authLoading && (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'SUB_ADMIN'))) {
       router.push(`/${locale}/dashboard`);
     }
   }, [user, authLoading, router, locale]);
@@ -276,7 +276,7 @@ export default function InvoicesPage() {
   const activeClinicsCount = new Set(invoices.map(inv => inv.clinicId)).size;
   
 
-  if (authLoading || !user || user.role !== 'PLATFORM_OWNER') {
+  if (authLoading || !user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'SUB_ADMIN')) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500"></div>
@@ -308,126 +308,128 @@ export default function InvoicesPage() {
             {isRtl ? 'تحديث البيانات' : 'Sync Invoices'}
           </Button>
 
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger
-              render={
-                <Button className="bg-teal-600 hover:bg-teal-700 text-xs font-bold gap-1.5 h-9 shrink-0">
-                  <Plus className="w-4 h-4" />
-                  {isRtl ? 'إصدار فاتورة اشتراك جديدة' : 'Issue SaaS Invoice'}
-                </Button>
-              }
-            />
-            <DialogContent className="max-w-md max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-teal-700 dark:text-teal-400">
-                  <Receipt className="w-5 h-5" />
-                  {isRtl ? 'إصدار فاتورة اشتراك باقة عيادة' : 'Issue Subscription Invoice'}
-                </DialogTitle>
-                <DialogDescription className="text-xs text-gray-500">
-                  {isRtl ? 'سجل مطالبة مالية جديدة لاشتراك العيادة الحالي على خوادم المنصة.' : 'Create a new subscription billing claim for registered clinic tenants.'}
-                </DialogDescription>
-              </DialogHeader>
+          {user?.role === 'PLATFORM_OWNER' && (
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger
+                render={
+                  <Button className="bg-teal-600 hover:bg-teal-700 text-xs font-bold gap-1.5 h-9 shrink-0">
+                    <Plus className="w-4 h-4" />
+                    {isRtl ? 'إصدار فاتورة اشتراك جديدة' : 'Issue SaaS Invoice'}
+                  </Button>
+                }
+              />
+              <DialogContent className="max-w-md max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-teal-700 dark:text-teal-400">
+                    <Receipt className="w-5 h-5" />
+                    {isRtl ? 'إصدار فاتورة اشتراك باقة عيادة' : 'Issue Subscription Invoice'}
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-gray-500">
+                    {isRtl ? 'سجل مطالبة مالية جديدة لاشتراك العيادة الحالي على خوادم المنصة.' : 'Create a new subscription billing claim for registered clinic tenants.'}
+                  </DialogDescription>
+                </DialogHeader>
 
-              <form onSubmit={handleCreateInvoice} className="space-y-4 pt-3 text-xs font-semibold" dir={isRtl ? 'rtl' : 'ltr'}>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{isRtl ? 'اختر العيادة الطبية' : 'Select Subscribed Clinic'}</Label>
-                  <select 
-                    value={formClinicId} 
-                    onChange={(e) => {
-                      const cId = e.target.value;
-                      setFormClinicId(cId);
-                      const c = clinicsList.find(cli => String(cli.id) === cId);
-                      if (c) handleFormPlanCycleChange(c.subscriptionPlan || 'FREE', formCycle);
-                    }}
-                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    {clinicsList.map(c => (
-                      <option key={c.id} value={c.id} className="text-black">{isRtl ? c.name : (c.nameEn || c.name)}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                <form onSubmit={handleCreateInvoice} className="space-y-4 pt-3 text-xs font-semibold" dir={isRtl ? 'rtl' : 'ltr'}>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">{isRtl ? 'باقة الاشتراك السحابية' : 'SaaS Tier'}</Label>
+                    <Label className="text-xs">{isRtl ? 'اختر العيادة الطبية' : 'Select Subscribed Clinic'}</Label>
                     <select 
-                      value={formPlan} 
-                      onChange={(e) => handleFormPlanCycleChange(e.target.value, formCycle)}
+                      value={formClinicId} 
+                      onChange={(e) => {
+                        const cId = e.target.value;
+                        setFormClinicId(cId);
+                        const c = clinicsList.find(cli => String(cli.id) === cId);
+                        if (c) handleFormPlanCycleChange(c.subscriptionPlan || 'FREE', formCycle);
+                      }}
+                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      {clinicsList.map(c => (
+                        <option key={c.id} value={c.id} className="text-black">{isRtl ? c.name : (c.nameEn || c.name)}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{isRtl ? 'باقة الاشتراك السحابية' : 'SaaS Tier'}</Label>
+                      <select 
+                        value={formPlan} 
+                        onChange={(e) => handleFormPlanCycleChange(e.target.value, formCycle)}
+                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs focus-visible:outline-none"
+                      >
+                        <option value="FREE" className="text-black">FREE</option>
+                        <option value="BASIC" className="text-black">BASIC</option>
+                        <option value="PRO" className="text-black">PRO</option>
+                        <option value="ENTERPRISE" className="text-black">ENTERPRISE</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{isRtl ? 'دورة الدفع' : 'Billing Cycle'}</Label>
+                      <select 
+                        value={formCycle} 
+                        onChange={(e) => handleFormPlanCycleChange(formPlan, e.target.value)}
+                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs focus-visible:outline-none"
+                      >
+                        <option value="monthly" className="text-black">{isRtl ? 'شهري' : 'Monthly'}</option>
+                        <option value="yearly" className="text-black">{isRtl ? 'سنوي (-20%)' : 'Yearly (-20%)'}</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{isRtl ? 'المبلغ المستحق (ج.م)' : 'Amount Due (EGP)'}</Label>
+                      <Input 
+                        type="number" 
+                        value={formAmount} 
+                        onChange={(e) => setFormAmount(Number(e.target.value))} 
+                        className="h-9" 
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{isRtl ? 'تاريخ استحقاق الفاتورة' : 'Payment Due Date'}</Label>
+                      <Input 
+                        type="date" 
+                        value={formDueDate} 
+                        onChange={(e) => setFormDueDate(e.target.value)} 
+                        className="h-9" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">{isRtl ? 'حالة السداد الأولية' : 'Initial Payment Status'}</Label>
+                    <select 
+                      value={formStatus} 
+                      onChange={(e) => setFormStatus(e.target.value)}
                       className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs focus-visible:outline-none"
                     >
-                      <option value="FREE" className="text-black">FREE</option>
-                      <option value="BASIC" className="text-black">BASIC</option>
-                      <option value="PRO" className="text-black">PRO</option>
-                      <option value="ENTERPRISE" className="text-black">ENTERPRISE</option>
+                      <option value="PENDING" className="text-black">{isRtl ? 'بانتظار السداد (معلقة)' : 'Pending Invoice'}</option>
+                      <option value="PAID" className="text-black">{isRtl ? 'مسددة بالكامل' : 'Paid Invoice'}</option>
+                      <option value="OVERDUE" className="text-black">{isRtl ? 'متأخرة السداد' : 'Overdue Invoice'}</option>
                     </select>
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label className="text-xs">{isRtl ? 'دورة الدفع' : 'Billing Cycle'}</Label>
-                    <select 
-                      value={formCycle} 
-                      onChange={(e) => handleFormPlanCycleChange(formPlan, e.target.value)}
-                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs focus-visible:outline-none"
-                    >
-                      <option value="monthly" className="text-black">{isRtl ? 'شهري' : 'Monthly'}</option>
-                      <option value="yearly" className="text-black">{isRtl ? 'سنوي (-20%)' : 'Yearly (-20%)'}</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">{isRtl ? 'المبلغ المستحق (ج.م)' : 'Amount Due (EGP)'}</Label>
-                    <Input 
-                      type="number" 
-                      value={formAmount} 
-                      onChange={(e) => setFormAmount(Number(e.target.value))} 
-                      className="h-9" 
+                    <Label className="text-xs">{isRtl ? 'ملاحظات وسجل تسوية الدفع' : 'Billing Notes'}</Label>
+                    <textarea 
+                      value={formNotes} 
+                      onChange={(e) => setFormNotes(e.target.value)} 
+                      rows={2} 
+                      className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs shadow-sm focus-visible:outline-none"
+                      placeholder={isRtl ? 'تأكيد الحوالات البنكية أو وسيلة التحصيل الإلكتروني...' : 'e.g. Bank transfer confirmation ref...'}
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">{isRtl ? 'تاريخ استحقاق الفاتورة' : 'Payment Due Date'}</Label>
-                    <Input 
-                      type="date" 
-                      value={formDueDate} 
-                      onChange={(e) => setFormDueDate(e.target.value)} 
-                      className="h-9" 
-                    />
+                  <div className="flex justify-end gap-2 pt-3">
+                    <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)} type="button">{isRtl ? 'إلغاء' : 'Cancel'}</Button>
+                    <Button size="sm" className="bg-teal-600 hover:bg-teal-700" type="submit">{isRtl ? 'إصدار وتسجيل' : 'Register Invoice'}</Button>
                   </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{isRtl ? 'حالة السداد الأولية' : 'Initial Payment Status'}</Label>
-                  <select 
-                    value={formStatus} 
-                    onChange={(e) => setFormStatus(e.target.value)}
-                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs focus-visible:outline-none"
-                  >
-                    <option value="PENDING" className="text-black">{isRtl ? 'بانتظار السداد (معلقة)' : 'Pending Invoice'}</option>
-                    <option value="PAID" className="text-black">{isRtl ? 'مسددة بالكامل' : 'Paid Invoice'}</option>
-                    <option value="OVERDUE" className="text-black">{isRtl ? 'متأخرة السداد' : 'Overdue Invoice'}</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs">{isRtl ? 'ملاحظات وسجل تسوية الدفع' : 'Billing Notes'}</Label>
-                  <textarea 
-                    value={formNotes} 
-                    onChange={(e) => setFormNotes(e.target.value)} 
-                    rows={2} 
-                    className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs shadow-sm focus-visible:outline-none"
-                    placeholder={isRtl ? 'تأكيد الحوالات البنكية أو وسيلة التحصيل الإلكتروني...' : 'e.g. Bank transfer confirmation ref...'}
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-3">
-                  <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)} type="button">{isRtl ? 'إلغاء' : 'Cancel'}</Button>
-                  <Button size="sm" className="bg-teal-600 hover:bg-teal-700" type="submit">{isRtl ? 'إصدار وتسجيل' : 'Register Invoice'}</Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
@@ -641,13 +643,15 @@ export default function InvoicesPage() {
                         >
                           {isRtl ? 'مسح الفلاتر' : 'Clear Filters'}
                         </Button>
-                        <Button 
-                          size="sm" 
-                          className="bg-teal-600 hover:bg-teal-700 text-[10px] font-bold"
-                          onClick={() => setCreateOpen(true)}
-                        >
-                          {isRtl ? 'إصدار فاتورة الآن' : 'Create Invoice Now'}
-                        </Button>
+                        {user?.role === 'PLATFORM_OWNER' && (
+                          <Button 
+                            size="sm" 
+                            className="bg-teal-600 hover:bg-teal-700 text-[10px] font-bold"
+                            onClick={() => setCreateOpen(true)}
+                          >
+                            {isRtl ? 'إصدار فاتورة الآن' : 'Create Invoice Now'}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -734,8 +738,8 @@ export default function InvoicesPage() {
                           {isRtl ? 'تفاصيل الفاتورة' : 'Invoice Details'}
                         </Button>
 
-                        {/* Quick pay toggle */}
-                        {inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
+                         {/* Quick pay toggle */}
+                        {user?.role === 'PLATFORM_OWNER' && inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
                           <Button 
                             variant="ghost" 
                             size="xs" 
@@ -758,15 +762,17 @@ export default function InvoicesPage() {
                         </Button>
 
                         {/* Delete invoice (Safe Action) */}
-                        <Button 
-                          variant="ghost" 
-                          size="xs" 
-                          onClick={() => handleDeleteInvoice(inv.id, inv.rawId)}
-                          className="text-rose-450 hover:text-rose-650 h-7 w-7 p-0 shrink-0"
-                          title={isRtl ? 'حذف من السجلات' : 'Remove from Console'}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        {user?.role === 'PLATFORM_OWNER' && (
+                          <Button 
+                            variant="ghost" 
+                            size="xs" 
+                            onClick={() => handleDeleteInvoice(inv.id, inv.rawId)}
+                            className="text-rose-450 hover:text-rose-650 h-7 w-7 p-0 shrink-0"
+                            title={isRtl ? 'حذف من السجلات' : 'Remove from Console'}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

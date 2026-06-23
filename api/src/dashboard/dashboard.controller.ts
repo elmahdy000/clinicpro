@@ -16,31 +16,31 @@ export class DashboardController {
     private readonly prisma: PrismaService,
   ) {}
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.SUB_ADMIN)
   @Get('stats')
   getStats() {
     return this.dashboardService.getStats();
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST, UserRole.NURSE, UserRole.PLATFORM_OWNER)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST, UserRole.NURSE, UserRole.PLATFORM_OWNER, UserRole.SUB_ADMIN)
   @Get('recent-activity')
   getRecentActivity(@Query('limit') limit?: string) {
     return this.dashboardService.getRecentActivity(limit ? parseInt(limit, 10) : 20);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.SUB_ADMIN)
   @Get('recent-prescriptions')
   getRecentPrescriptions() {
     return this.dashboardService.getRecentPrescriptions(5);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.SUB_ADMIN)
   @Get('recent-invoices')
   getRecentInvoices() {
     return this.dashboardService.getRecentInvoices(5);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.PLATFORM_OWNER)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.PLATFORM_OWNER, UserRole.SUB_ADMIN)
   @Get('pharma-insights')
   async getPharmaInsights(
     @Query('governorateId') governorateId?: string,
@@ -80,13 +80,13 @@ export class DashboardController {
     };
   }
 
-  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER)
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.SUB_ADMIN)
   @Get('top-medicines')
   async getTopMedicines(@Query('period') period?: string) {
     return this.dashboardService.getTopMedicines(period || 'month');
   }
 
-  @Roles(UserRole.PLATFORM_OWNER)
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.SUB_ADMIN)
   @Get('subscription-invoices')
   getSubscriptionInvoices() {
     return this.dashboardService.getSubscriptionInvoices();

@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { 
   FileText, Upload, FolderOpen, Search, 
   Activity, CheckCircle2, AlertCircle, Clock, Trash2, Download, Eye,
-  Building2, FileBadge
+  Building2, FileBadge, Image as ImageIcon, X
 } from 'lucide-react';
 import { formatDate, cn, extractErrorMessage } from '@/lib/utils';
 
@@ -41,6 +41,10 @@ export default function PatientFilesPage() {
     notes: '',
     file: null as File | null,
   });
+
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<any>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const fileCategories = [
     { value: 'ALL', label: isRtl ? 'كل الأنواع' : 'All Types' },
@@ -160,6 +164,52 @@ export default function PatientFilesPage() {
     if (uploadForm.notes) formData.append('notes', uploadForm.notes);
     
     uploadMutation.mutate(formData);
+  };
+
+  const handleDownload = async (id: number, fileName: string) => {
+    try {
+      const res = await api.get(`/upload/${id}/download`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error(isRtl ? 'فشل تنزيل الملف' : 'Download failed');
+    }
+  };
+
+  const handlePreview = async (file: any) => {
+    try {
+      const res = await api.get(`/upload/${file.id}/download`, { responseType: 'blob' });
+      const mime = res.headers['content-type'] || file.fileType;
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
+      setPreviewUrl(url);
+      setPreviewFile(file);
+      setPreviewOpen(true);
+    } catch {
+      toast.error(isRtl ? 'عذراً، تعذرت معاينة الملف' : 'Could not preview file');
+    }
+  };
+  
+  const closePreview = () => {
+    setPreviewOpen(false);
+    if (previewUrl) window.URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setPreviewFile(null);
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'PRESCRIPTION': return <FileText className="w-5 h-5 text-purple-500" />;
+      case 'LAB_REPORT': return <Activity className="w-5 h-5 text-blue-500" />;
+      case 'RADIOLOGY': return <FolderOpen className="w-5 h-5 text-orange-500" />;
+      case 'MEDICAL_REPORT': return <FileBadge className="w-5 h-5 text-teal-500" />;
+      default: return <FileText className="w-5 h-5 text-slate-500" />;
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -387,11 +437,11 @@ export default function PatientFilesPage() {
                     )}
                     {(file.verificationStatus === 'VERIFIED' || file.verificationStatus === 'PENDING_REVIEW') && (
                       <>
-                        <Button variant="outline" size="sm" className="h-8 text-xs flex-1 sm:flex-none rounded-lg">
+                        <Button variant="outline" size="sm" className="h-8 text-xs flex-1 sm:flex-none rounded-lg" onClick={() => handlePreview(file)}>
                           <Eye className="w-3.5 h-3.5 ml-1 mr-1" />
                           {isRtl ? 'عرض' : 'View'}
                         </Button>
-                        <Button variant="default" size="sm" className="h-8 text-xs bg-teal-600 hover:bg-teal-700 flex-1 sm:flex-none rounded-lg">
+                        <Button variant="default" size="sm" className="h-8 text-xs bg-teal-600 hover:bg-teal-700 flex-1 sm:flex-none rounded-lg" onClick={() => handleDownload(file.id, file.fileName || file.title)}>
                           <Download className="w-3.5 h-3.5 ml-1 mr-1" />
                           {isRtl ? 'تحميل' : 'Download'}
                         </Button>
@@ -516,6 +566,72 @@ export default function PatientFilesPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Advanced Fullscreen Preview Modal System */}
+      <Dialog open={previewOpen} onOpenChange={(open) => !open && closePreview()}>
+        <DialogContent className="sm:max-w-4xl lg:max-w-5xl w-full h-[88vh] flex flex-col p-0 overflow-hidden bg-slate-900 text-white rounded-2xl border-slate-800/80 shadow-2xl">
+          <DialogHeader className="px-5 py-4 border-b border-slate-800 bg-slate-950 shrink-0 flex items-center justify-between flex-row relative">
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-slate-100">
+              <span className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-cyan-400">
+                {previewFile && getCategoryIcon(previewFile.category)}
+              </span>
+              {previewFile?.title || previewFile?.fileName || (isRtl ? 'معاينة المستند الطبي' : 'Medical Document Preview')}
+            </DialogTitle>
+            
+            {previewFile && (
+              <div className="flex items-center gap-2 pl-12 rtl:pl-12 rtl:pr-0">
+                <Button size="sm" className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg gap-1.5 h-8.5 text-xs font-semibold" onClick={() => handleDownload(previewFile.id, previewFile.fileName || previewFile.title)}>
+                  <Download className="w-3.5 h-3.5" /> {isRtl ? 'تحميل المستند' : 'Download Document'}
+                </Button>
+              </div>
+            )}
+          </DialogHeader>
+          
+          <div className="flex-1 flex items-center justify-center p-4 overflow-auto bg-slate-950 relative">
+            {/* Background Medical Mesh Grid for Premium Aesthetic */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+
+            {!previewUrl ? (
+              <div className="flex flex-col items-center text-slate-500">
+                <div className="relative w-10 h-10 mb-4">
+                  <div className="absolute inset-0 rounded-full border-4 border-slate-800" />
+                  <div className="absolute inset-0 rounded-full border-4 border-t-cyan-500 animate-spin" />
+                </div>
+                <p className="text-xs">{isRtl ? 'جاري تحميل ومعالجة المعاينة...' : 'Loading preview...'}</p>
+              </div>
+            ) : previewFile?.fileType?.startsWith('image/') ? (
+              <img
+                src={previewUrl}
+                alt={previewFile.fileName || previewFile.title}
+                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl transition-all duration-300 hover:scale-[1.01]"
+              />
+            ) : previewFile?.fileType?.includes('pdf') ? (
+              <iframe
+                src={previewUrl}
+                className="w-full h-full rounded-xl border border-slate-800 shadow-2xl bg-white"
+                title={previewFile.fileName || previewFile.title}
+              />
+            ) : (
+              /* Unsupported Browser Preview Formats */
+              <div className="flex flex-col items-center text-center max-w-md bg-slate-900/80 p-8 rounded-2xl border border-slate-800 shadow-2xl backdrop-blur-md">
+                <div className="w-16 h-16 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-slate-500 mb-4">
+                  <FileText className="w-8 h-8 text-cyan-400" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-100 mb-2">{isRtl ? 'لا يمكن معاينة هذا الملف مباشرة' : 'Cannot preview this file directly'}</h3>
+                <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+                  {isRtl 
+                    ? `صيغة الملف (${previewFile?.fileName?.split('.').pop()?.toUpperCase()}) غير مدعومة للمعاينة التفاعلية داخل المتصفح. يرجى تنزيل الملف لعرضه على جهازك.`
+                    : `File format (${previewFile?.fileName?.split('.').pop()?.toUpperCase()}) is not supported for interactive browser preview. Please download the file to view it on your device.`}
+                </p>
+                <Button onClick={() => handleDownload(previewFile.id, previewFile.fileName || previewFile.title)} className="bg-cyan-600 hover:bg-cyan-700 w-full gap-2 rounded-xl h-10 font-bold">
+                  <Download className="w-4 h-4" />
+                  {isRtl ? 'تنزيل الملف وعرضه محلياً' : 'Download file to view locally'}
+                </Button>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

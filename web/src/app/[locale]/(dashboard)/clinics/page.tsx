@@ -193,12 +193,12 @@ export default function ClinicsPage() {
   const [lastActivityFilter, setLastActivityFilter] = useState('ALL');
 
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== 'PLATFORM_OWNER')) {
+    if (!authLoading && (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'SUB_ADMIN'))) {
       router.push(`/${locale}/dashboard`);
     }
   }, [user, authLoading, router, locale]);
 
-  if (authLoading || !user || user.role !== 'PLATFORM_OWNER') {
+  if (authLoading || !user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'SUB_ADMIN')) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500"></div>
@@ -506,134 +506,136 @@ export default function ClinicsPage() {
           </Button>
 
           {/* ADD CLINIC MODAL */}
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger
-              render={
-                <Button className="bg-teal-600 hover:bg-teal-700 gap-1.5 h-9 shadow-xs font-bold text-xs">
-                  <Plus className="w-4 h-4" />
-                  {isRtl ? 'تسجيل عيادة جديدة' : 'Register New Clinic'}
-                </Button>
-              }
-            />
-            <DialogContent className="max-w-xl">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-teal-700 dark:text-teal-400">
-                  <Building2 className="w-5 h-5" />
-                  {isRtl ? 'تسجيل عيادة جديدة على المنصة' : 'Register New Clinic on Platform'}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 text-xs font-semibold" dir={isRtl ? 'rtl' : 'ltr'}>
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label className="text-xs font-semibold">{isRtl ? 'اسم العيادة (بالكامل)' : 'Clinic Name'}</Label>
-                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={isRtl ? 'مثال: عيادة النور التخصصية' : 'e.g. Al Noor Specialized Clinic'} className="h-9" />
-                </div>
-                
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">{isRtl ? 'رقم الهاتف' : 'Phone Number'}</Label>
-                  <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="01xxxxxxxxx" className="h-9" />
-                </div>
-                {/* Relational Egypt Geolocation Dropdowns for Consistent Seeding & Relational Integrity */}
-                <div className="md:col-span-2">
-                  <LocationFields
-                    governorateId={selectedNewGov}
-                    cityId={selectedNewCity}
-                    onGovernorateChange={(govId) => setSelectedNewGov(govId || '')}
-                    onCityChange={(cityId) => setSelectedNewCity(cityId || '')}
-                    showLabels={true}
-                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
-                  />
-                </div>
+          {user?.role === 'PLATFORM_OWNER' && (
+            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+              <DialogTrigger
+                render={
+                  <Button className="bg-teal-600 hover:bg-teal-700 gap-1.5 h-9 shadow-xs font-bold text-xs">
+                    <Plus className="w-4 h-4" />
+                    {isRtl ? 'تسجيل عيادة جديدة' : 'Register New Clinic'}
+                  </Button>
+                }
+              />
+              <DialogContent className="max-w-xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-teal-700 dark:text-teal-400">
+                    <Building2 className="w-5 h-5" />
+                    {isRtl ? 'تسجيل عيادة جديدة على المنصة' : 'Register New Clinic on Platform'}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 text-xs font-semibold" dir={isRtl ? 'rtl' : 'ltr'}>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label className="text-xs font-semibold">{isRtl ? 'اسم العيادة (بالكامل)' : 'Clinic Name'}</Label>
+                    <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={isRtl ? 'مثال: عيادة النور التخصصية' : 'e.g. Al Noor Specialized Clinic'} className="h-9" />
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">{isRtl ? 'رقم الهاتف' : 'Phone Number'}</Label>
+                    <Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} placeholder="01xxxxxxxxx" className="h-9" />
+                  </div>
+                  {/* Relational Egypt Geolocation Dropdowns for Consistent Seeding & Relational Integrity */}
+                  <div className="md:col-span-2">
+                    <LocationFields
+                      governorateId={selectedNewGov}
+                      cityId={selectedNewCity}
+                      onGovernorateChange={(govId) => setSelectedNewGov(govId || '')}
+                      onCityChange={(cityId) => setSelectedNewCity(cityId || '')}
+                      showLabels={true}
+                      className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                    />
+                  </div>
 
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label className="text-xs font-semibold">{isRtl ? 'العنوان التفصيلي (الشارع، المبنى)' : 'Detailed Address (Street, Building)'}</Label>
-                  <Input
-                    value={newStreetAddress}
-                    onChange={(e) => setNewStreetAddress(e.target.value)}
-                    placeholder={isRtl ? 'مثال: شارع الجلاء، برج الأطباء' : 'e.g. Al-Galaa St, Doctors Tower'}
-                    className="h-9"
-                  />
-                </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label className="text-xs font-semibold">{isRtl ? 'العنوان التفصيلي (الشارع، المبنى)' : 'Detailed Address (Street, Building)'}</Label>
+                    <Input
+                      value={newStreetAddress}
+                      onChange={(e) => setNewStreetAddress(e.target.value)}
+                      placeholder={isRtl ? 'مثال: شارع الجلاء، برج الأطباء' : 'e.g. Al-Galaa St, Doctors Tower'}
+                      className="h-9"
+                    />
+                  </div>
 
-                <div className="border-t border-gray-100 dark:border-gray-800 md:col-span-2 my-1" />
-                
-                <div className="space-y-1.5 md:col-span-2">
-                  <span className="text-xs font-bold text-teal-600 dark:text-teal-400 block mb-1">{isRtl ? 'بيانات طبيب الإدارة / مالك العيادة' : 'Clinic Manager / Doctor Owner Credentials'}</span>
-                </div>
+                  <div className="border-t border-gray-100 dark:border-gray-800 md:col-span-2 my-1" />
+                  
+                  <div className="space-y-1.5 md:col-span-2">
+                    <span className="text-xs font-bold text-teal-600 dark:text-teal-400 block mb-1">{isRtl ? 'بيانات طبيب الإدارة / مالك العيادة' : 'Clinic Manager / Doctor Owner Credentials'}</span>
+                  </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">{isRtl ? 'اسم الطبيب المالك' : 'Owner Doctor Name'}</Label>
-                  <Input value={newOwnerName} onChange={(e) => setNewOwnerName(e.target.value)} placeholder={isRtl ? 'د. محمد علي' : 'Dr. Mohamed Ali'} className="h-9" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">{isRtl ? 'التخصص الطبي' : 'Specialization'}</Label>
-                  <Input value={newSpecialization} onChange={(e) => setNewSpecialization(e.target.value)} placeholder={isRtl ? 'مثال: طب الأطفال' : 'e.g. Pediatrics'} className="h-9" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">{isRtl ? 'البريد الإلكتروني لتسجيل الدخول' : 'Login Email'}</Label>
-                  <Input type="email" value={newOwnerEmail} onChange={(e) => setNewOwnerEmail(e.target.value)} placeholder="doctor@clinic.com" className="h-9" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">{isRtl ? 'كلمة المرور' : 'Password'}</Label>
-                  <Input type="password" value={newOwnerPassword} onChange={(e) => setNewOwnerPassword(e.target.value)} placeholder={isRtl ? 'افترضي: 123456' : 'Default: 123456'} className="h-9" />
-                </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">{isRtl ? 'اسم الطبيب المالك' : 'Owner Doctor Name'}</Label>
+                    <Input value={newOwnerName} onChange={(e) => setNewOwnerName(e.target.value)} placeholder={isRtl ? 'د. محمد علي' : 'Dr. Mohamed Ali'} className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">{isRtl ? 'التخصص الطبي' : 'Specialization'}</Label>
+                    <Input value={newSpecialization} onChange={(e) => setNewSpecialization(e.target.value)} placeholder={isRtl ? 'مثال: طب الأطفال' : 'e.g. Pediatrics'} className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">{isRtl ? 'البريد الإلكتروني لتسجيل الدخول' : 'Login Email'}</Label>
+                    <Input type="email" value={newOwnerEmail} onChange={(e) => setNewOwnerEmail(e.target.value)} placeholder="doctor@clinic.com" className="h-9" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">{isRtl ? 'كلمة المرور' : 'Password'}</Label>
+                    <Input type="password" value={newOwnerPassword} onChange={(e) => setNewOwnerPassword(e.target.value)} placeholder={isRtl ? 'افترضي: 123456' : 'Default: 123456'} className="h-9" />
+                  </div>
 
-                <div className="border-t border-gray-100 dark:border-gray-800 md:col-span-2 my-1" />
+                  <div className="border-t border-gray-100 dark:border-gray-800 md:col-span-2 my-1" />
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">{isRtl ? 'باقة الاشتراك' : 'Subscription Plan'}</Label>
-                  <select value={newPlan} onChange={(e) => setNewPlan(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                    <option value="FREE">{isRtl ? 'مجانية (FREE)' : 'FREE'}</option>
-                    <option value="BASIC">{isRtl ? 'أساسية (BASIC)' : 'BASIC'}</option>
-                    <option value="PRO">{isRtl ? 'احترافية (PRO)' : 'PRO'}</option>
-                    <option value="ENTERPRISE">{isRtl ? 'مؤسسات (ENTERPRISE)' : 'ENTERPRISE'}</option>
-                  </select>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">{isRtl ? 'باقة الاشتراك' : 'Subscription Plan'}</Label>
+                    <select value={newPlan} onChange={(e) => setNewPlan(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                      <option value="FREE">{isRtl ? 'مجانية (FREE)' : 'FREE'}</option>
+                      <option value="BASIC">{isRtl ? 'أساسية (BASIC)' : 'BASIC'}</option>
+                      <option value="PRO">{isRtl ? 'احترافية (PRO)' : 'PRO'}</option>
+                      <option value="ENTERPRISE">{isRtl ? 'مؤسسات (ENTERPRISE)' : 'ENTERPRISE'}</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">{isRtl ? 'حالة الحساب' : 'Account Status'}</Label>
+                    <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                      <option value="ACTIVE">{isRtl ? 'نشط (ACTIVE)' : 'ACTIVE'}</option>
+                      <option value="TRIAL">{isRtl ? 'فترة تجريبية (TRIAL)' : 'TRIAL'}</option>
+                      <option value="SUSPENDED">{isRtl ? 'معطل (SUSPENDED)' : 'SUSPENDED'}</option>
+                      <option value="PENDING">{isRtl ? 'قيد الموافقة (PENDING)' : 'PENDING'}</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold">{isRtl ? 'حالة الحساب' : 'Account Status'}</Label>
-                  <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                    <option value="ACTIVE">{isRtl ? 'نشط (ACTIVE)' : 'ACTIVE'}</option>
-                    <option value="TRIAL">{isRtl ? 'فترة تجريبية (TRIAL)' : 'TRIAL'}</option>
-                    <option value="SUSPENDED">{isRtl ? 'معطل (SUSPENDED)' : 'SUSPENDED'}</option>
-                    <option value="PENDING">{isRtl ? 'قيد الموافقة (PENDING)' : 'PENDING'}</option>
-                  </select>
+                <div className="flex justify-end gap-2 mt-6">
+                  <Button variant="outline" size="sm" onClick={() => setAddOpen(false)}>{isRtl ? 'إلغاء' : 'Cancel'}</Button>
+                  <Button size="sm" className="bg-teal-600 hover:bg-teal-700" disabled={createMutation.isPending} onClick={() => {
+                    if (!newName || !newOwnerName || !newOwnerEmail) {
+                      toast.error(isRtl ? 'يرجى إدخال اسم العيادة واسم المالك والبريد الإلكتروني' : 'Please fill clinic name, owner name and login email');
+                      return;
+                    }
+
+                    // Standardize address format for perfect parsing: streetAddress، city، محافظة governorate
+                    const govObj = dbGovernorates?.find((g: GovObject) => g.id === selectedNewGov);
+                    const govName = govObj ? (isRtl ? govObj.nameAr : govObj.nameEn || govObj.nameAr) : '';
+                    const cityObj = dbCities?.find((c: CityObject) => c.id === selectedNewCity);
+                    const cityName = cityObj ? (isRtl ? cityObj.nameAr : cityObj.nameEn || cityObj.nameAr) : '';
+                    const finalAddress = selectedNewGov
+                      ? `${newStreetAddress || ''}، ${cityName}، محافظة ${govName}`
+                      : newAddress;
+
+                    createMutation.mutate({
+                      name: newName,
+                      phone: newPhone || undefined,
+                      address: finalAddress || undefined,
+                      governorateId: selectedNewGov || undefined,
+                      cityId: selectedNewCity || undefined,
+                      ownerName: newOwnerName,
+                      email: newOwnerEmail,
+                      password: newOwnerPassword || '123456',
+                      specialization: newSpecialization || undefined,
+                      subscriptionPlan: newPlan,
+                      subscriptionStatus: newStatus,
+                    });
+                  }}>
+                    {createMutation.isPending ? (isRtl ? 'جاري الحفظ...' : 'Saving...') : (isRtl ? 'حفظ وتسجيل' : 'Save & Register')}
+                  </Button>
                 </div>
-              </div>
-              <div className="flex justify-end gap-2 mt-6">
-                <Button variant="outline" size="sm" onClick={() => setAddOpen(false)}>{isRtl ? 'إلغاء' : 'Cancel'}</Button>
-                <Button size="sm" className="bg-teal-600 hover:bg-teal-700" disabled={createMutation.isPending} onClick={() => {
-                  if (!newName || !newOwnerName || !newOwnerEmail) {
-                    toast.error(isRtl ? 'يرجى إدخال اسم العيادة واسم المالك والبريد الإلكتروني' : 'Please fill clinic name, owner name and login email');
-                    return;
-                  }
-
-                  // Standardize address format for perfect parsing: streetAddress، city، محافظة governorate
-                  const govObj = dbGovernorates?.find((g: GovObject) => g.id === selectedNewGov);
-                  const govName = govObj ? (isRtl ? govObj.nameAr : govObj.nameEn || govObj.nameAr) : '';
-                  const cityObj = dbCities?.find((c: CityObject) => c.id === selectedNewCity);
-                  const cityName = cityObj ? (isRtl ? cityObj.nameAr : cityObj.nameEn || cityObj.nameAr) : '';
-                  const finalAddress = selectedNewGov
-                    ? `${newStreetAddress || ''}، ${cityName}، محافظة ${govName}`
-                    : newAddress;
-
-                  createMutation.mutate({
-                    name: newName,
-                    phone: newPhone || undefined,
-                    address: finalAddress || undefined,
-                    governorateId: selectedNewGov || undefined,
-                    cityId: selectedNewCity || undefined,
-                    ownerName: newOwnerName,
-                    email: newOwnerEmail,
-                    password: newOwnerPassword || '123456',
-                    specialization: newSpecialization || undefined,
-                    subscriptionPlan: newPlan,
-                    subscriptionStatus: newStatus,
-                  });
-                }}>
-                  {createMutation.isPending ? (isRtl ? 'جاري الحفظ...' : 'Saving...') : (isRtl ? 'حفظ وتسجيل' : 'Save & Register')}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 
@@ -1189,55 +1191,59 @@ export default function ClinicsPage() {
                                     </DropdownMenuItem>
                                   </Link>
 
-                                  <DropdownMenuSeparator className="my-1" />
+                                   {user?.role === 'PLATFORM_OWNER' && (
+                                    <>
+                                      <DropdownMenuSeparator className="my-1" />
 
-                                  {c.subscriptionStatus === 'PENDING' ? (
-                                    <DropdownMenuItem
-                                      onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)}
-                                      className="cursor-pointer font-bold gap-2 text-emerald-600 dark:text-emerald-400 focus:bg-emerald-50 dark:focus:bg-emerald-950/20"
-                                    >
-                                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                                      {isRtl ? 'تفعيل وترخيص العيادة' : 'Approve & Activate Clinic'}
-                                    </DropdownMenuItem>
-                                  ) : (
-                                    <DropdownMenuItem
-                                      onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)}
-                                      className={`cursor-pointer font-bold gap-2 ${isSuspended ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
-                                    >
-                                      {isSuspended ? (
-                                        <>
-                                          <Power className="w-3.5 h-3.5 shrink-0" />
-                                          {isRtl ? 'تفعيل ترخيص العيادة' : 'Activate License'}
-                                        </>
+                                      {c.subscriptionStatus === 'PENDING' ? (
+                                        <DropdownMenuItem
+                                          onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)}
+                                          className="cursor-pointer font-bold gap-2 text-emerald-600 dark:text-emerald-400 focus:bg-emerald-50 dark:focus:bg-emerald-950/20"
+                                        >
+                                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                          {isRtl ? 'تفعيل وترخيص العيادة' : 'Approve & Activate Clinic'}
+                                        </DropdownMenuItem>
                                       ) : (
-                                        <>
-                                          <PowerOff className="w-3.5 h-3.5 shrink-0" />
-                                          {isRtl ? 'إيقاف / تعطيل العيادة' : 'Suspend License'}
-                                        </>
+                                        <DropdownMenuItem
+                                          onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)}
+                                          className={`cursor-pointer font-bold gap-2 ${isSuspended ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
+                                        >
+                                          {isSuspended ? (
+                                            <>
+                                              <Power className="w-3.5 h-3.5 shrink-0" />
+                                              {isRtl ? 'تفعيل ترخيص العيادة' : 'Activate License'}
+                                            </>
+                                          ) : (
+                                            <>
+                                              <PowerOff className="w-3.5 h-3.5 shrink-0" />
+                                              {isRtl ? 'إيقاف / تعطيل العيادة' : 'Suspend License'}
+                                            </>
+                                          )}
+                                        </DropdownMenuItem>
                                       )}
-                                    </DropdownMenuItem>
-                                  )}
 
-                                  <DropdownMenuSeparator className="my-1" />
-                                  <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                                    {isRtl ? 'تعديل باقة الاشتراك' : 'Modify SaaS Plan'}
-                                  </div>
-                                  
-                                  {['FREE', 'BASIC', 'PRO', 'ENTERPRISE'].map((plan) => {
-                                    const isActive = c.subscriptionPlan === plan;
-                                    return (
-                                      <DropdownMenuItem
-                                        key={plan}
-                                        onClick={() => handleChangePlan(c.id, c.subscriptionPlan, plan)}
-                                        className={`cursor-pointer text-[10px] font-bold rounded-md py-1 px-2.5 transition-colors ${isActive ? 'bg-slate-100 dark:bg-slate-800 text-teal-600 dark:text-teal-400 font-extrabold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900'}`}
-                                      >
-                                        <div className="flex items-center justify-between w-full">
-                                          <span>{isRtl ? PLAN_MAP_AR[plan] : plan}</span>
-                                          {isActive && <span className="text-[10px]">✓</span>}
-                                        </div>
-                                      </DropdownMenuItem>
-                                    );
-                                  })}
+                                      <DropdownMenuSeparator className="my-1" />
+                                      <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                        {isRtl ? 'تعديل باقة الاشتراك' : 'Modify SaaS Plan'}
+                                      </div>
+                                      
+                                      {['FREE', 'BASIC', 'PRO', 'ENTERPRISE'].map((plan) => {
+                                        const isActive = c.subscriptionPlan === plan;
+                                        return (
+                                          <DropdownMenuItem
+                                            key={plan}
+                                            onClick={() => handleChangePlan(c.id, c.subscriptionPlan, plan)}
+                                            className={`cursor-pointer text-[10px] font-bold rounded-md py-1 px-2.5 transition-colors ${isActive ? 'bg-slate-100 dark:bg-slate-800 text-teal-600 dark:text-teal-400 font-extrabold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900'}`}
+                                          >
+                                            <div className="flex items-center justify-between w-full">
+                                              <span>{isRtl ? PLAN_MAP_AR[plan] : plan}</span>
+                                              {isActive && <span className="text-[10px]">✓</span>}
+                                            </div>
+                                          </DropdownMenuItem>
+                                        );
+                                      })}
+                                    </>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -1383,50 +1389,54 @@ export default function ClinicsPage() {
                             }
                           />
                           <DropdownMenuContent align="end" className="text-xs font-bold w-52 p-1.5" dir={isRtl ? 'rtl' : 'ltr'}>
-                            {c.subscriptionStatus === 'PENDING' ? (
-                              <DropdownMenuItem
-                                onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)}
-                                className="cursor-pointer font-bold gap-2 text-emerald-600 dark:text-emerald-400 focus:bg-emerald-50 dark:focus:bg-emerald-950/20"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                                {isRtl ? 'تفعيل وترخيص العيادة' : 'Approve & Activate Clinic'}
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)} className={`cursor-pointer font-bold gap-2 ${isSuspended ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                                {isSuspended ? (
-                                  <>
-                                    <Power className="w-3.5 h-3.5 shrink-0" />
-                                    {isRtl ? 'تفعيل ترخيص العيادة' : 'Activate License'}
-                                  </>
+                            {user?.role === 'PLATFORM_OWNER' && (
+                              <>
+                                {c.subscriptionStatus === 'PENDING' ? (
+                                  <DropdownMenuItem
+                                    onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)}
+                                    className="cursor-pointer font-bold gap-2 text-emerald-600 dark:text-emerald-400 focus:bg-emerald-50 dark:focus:bg-emerald-950/20"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                                    {isRtl ? 'تفعيل وترخيص العيادة' : 'Approve & Activate Clinic'}
+                                  </DropdownMenuItem>
                                 ) : (
-                                  <>
-                                    <PowerOff className="w-3.5 h-3.5 shrink-0" />
-                                    {isRtl ? 'إيقاف / تعطيل العيادة' : 'Suspend License'}
-                                  </>
+                                  <DropdownMenuItem onClick={() => handleToggleStatus(c.id, c.subscriptionStatus)} className={`cursor-pointer font-bold gap-2 ${isSuspended ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                    {isSuspended ? (
+                                      <>
+                                        <Power className="w-3.5 h-3.5 shrink-0" />
+                                        {isRtl ? 'تفعيل ترخيص العيادة' : 'Activate License'}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <PowerOff className="w-3.5 h-3.5 shrink-0" />
+                                        {isRtl ? 'إيقاف / تعطيل العيادة' : 'Suspend License'}
+                                      </>
+                                    )}
+                                  </DropdownMenuItem>
                                 )}
-                              </DropdownMenuItem>
+
+                                <DropdownMenuSeparator className="my-1" />
+                                <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                  {isRtl ? 'تعديل باقة الاشتراك' : 'Modify SaaS Plan'}
+                                </div>
+
+                                {['FREE', 'BASIC', 'PRO', 'ENTERPRISE'].map((plan) => {
+                                  const isActive = c.subscriptionPlan === plan;
+                                  return (
+                                    <DropdownMenuItem
+                                      key={plan}
+                                      onClick={() => handleChangePlan(c.id, c.subscriptionPlan, plan)}
+                                      className={`cursor-pointer text-[10px] font-bold rounded-md py-1 px-2.5 transition-colors ${isActive ? 'bg-slate-100 dark:bg-slate-800 text-teal-600 dark:text-teal-400 font-extrabold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900'}`}
+                                    >
+                                      <div className="flex items-center justify-between w-full">
+                                        <span>{isRtl ? PLAN_MAP_AR[plan] : plan}</span>
+                                        {isActive && <span className="text-[10px]">✓</span>}
+                                      </div>
+                                    </DropdownMenuItem>
+                                  );
+                                })}
+                              </>
                             )}
-
-                            <DropdownMenuSeparator className="my-1" />
-                            <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                              {isRtl ? 'تعديل باقة الاشتراك' : 'Modify SaaS Plan'}
-                            </div>
-
-                            {['FREE', 'BASIC', 'PRO', 'ENTERPRISE'].map((plan) => {
-                              const isActive = c.subscriptionPlan === plan;
-                              return (
-                                <DropdownMenuItem
-                                  key={plan}
-                                  onClick={() => handleChangePlan(c.id, c.subscriptionPlan, plan)}
-                                  className={`cursor-pointer text-[10px] font-bold rounded-md py-1 px-2.5 transition-colors ${isActive ? 'bg-slate-100 dark:bg-slate-800 text-teal-600 dark:text-teal-400 font-extrabold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900'}`}
-                                >
-                                  <div className="flex items-center justify-between w-full">
-                                    <span>{isRtl ? PLAN_MAP_AR[plan] : plan}</span>
-                                    {isActive && <span className="text-[10px]">✓</span>}
-                                  </div>
-                                </DropdownMenuItem>
-                              );
-                            })}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>

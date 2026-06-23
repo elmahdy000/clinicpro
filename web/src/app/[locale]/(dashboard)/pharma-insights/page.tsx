@@ -148,7 +148,7 @@ export default function PharmaInsightsPage() {
       }
     }).then((r) => r.data),
     refetchInterval: 120_000,
-    enabled: !!user && user.role === 'PLATFORM_OWNER',
+    enabled: !!user && (user.role === 'PLATFORM_OWNER' || user.role === 'SUB_ADMIN'),
   });
 
   const medicationOptions = [...new Set(
@@ -169,12 +169,12 @@ export default function PharmaInsightsPage() {
   };
 
   useEffect(() => {
-    if (!authLoading && (!user || user.role !== 'PLATFORM_OWNER')) {
+    if (!authLoading && (!user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'SUB_ADMIN'))) {
       router.push(`/${locale}/dashboard`);
     }
   }, [user, authLoading, router, locale]);
 
-  if (authLoading || !user || user.role !== 'PLATFORM_OWNER') {
+  if (authLoading || !user || (user.role !== 'PLATFORM_OWNER' && user.role !== 'SUB_ADMIN')) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-teal-500"></div>

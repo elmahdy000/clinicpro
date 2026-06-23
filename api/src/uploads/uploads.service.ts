@@ -24,8 +24,9 @@ export class UploadsService {
     }
 
     const store = tenantStorage.getStore();
+    const isGlobalAdmin = user.role === 'PLATFORM_OWNER' || user.role === 'SUB_ADMIN';
     return this.prisma.fileUpload.findMany({
-      where: { clinicId: store?.clinicId ?? 0 },
+      where: isGlobalAdmin ? {} : { clinicId: store?.clinicId ?? 0 },
       orderBy: { uploadedAt: 'desc' },
       include: { patient: { select: { id: true, firstName: true, lastName: true } } },
     });
@@ -46,8 +47,9 @@ export class UploadsService {
     }
 
     const store = tenantStorage.getStore();
+    const isGlobalAdmin = user.role === 'PLATFORM_OWNER' || user.role === 'SUB_ADMIN';
     const record = await this.prisma.fileUpload.findFirst({
-      where: { id, clinicId: store?.clinicId ?? 0 },
+      where: isGlobalAdmin ? { id } : { id, clinicId: store?.clinicId ?? 0 },
     });
     if (!record) throw new NotFoundException(`File #${id} not found`);
     return record;

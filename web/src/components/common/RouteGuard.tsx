@@ -9,7 +9,7 @@ import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Clock, LogOut, RefreshCw, AlertTriangle } from 'lucide-react';
 
-const DASHBOARD_ALLOWED_ROLES = ['PLATFORM_OWNER', 'CLINIC_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST'];
+const DASHBOARD_ALLOWED_ROLES = ['PLATFORM_OWNER', 'SUB_ADMIN', 'CLINIC_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST'];
 
 export function RouteGuard({ children }: { children: ReactNode }) {
   const { user, isLoading, logout } = useAuth();
@@ -19,7 +19,7 @@ export function RouteGuard({ children }: { children: ReactNode }) {
   const { data: clinicSettings, isLoading: isClinicLoading, refetch } = useQuery({
     queryKey: ['clinic-settings', user?.clinicId],
     queryFn: () => api.get(`/clinics/${user?.clinicId}/settings`).then((r) => r.data),
-    enabled: !!user?.clinicId && user?.role !== 'PLATFORM_OWNER',
+    enabled: !!user?.clinicId && user?.role !== 'PLATFORM_OWNER' && user?.role !== 'SUB_ADMIN',
   });
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export function RouteGuard({ children }: { children: ReactNode }) {
     }
   }, [user, isLoading, router, locale]);
 
-  if (isLoading || (isClinicLoading && !!user?.clinicId && user?.role !== 'PLATFORM_OWNER')) {
+  if (isLoading || (isClinicLoading && !!user?.clinicId && user?.role !== 'PLATFORM_OWNER' && user?.role !== 'SUB_ADMIN')) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full" />
