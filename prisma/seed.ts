@@ -17,6 +17,7 @@ async function main() {
   // Clean all dynamic tables to prevent unique constraint conflicts on repeat runs
   console.log('🧹 Cleaning old database records...');
   const p = prisma as any;
+  await p.doctorMedicine.deleteMany();
   await p.prescriptionItem.deleteMany();
   await prisma.prescription.deleteMany();
   await prisma.medicalRecord.deleteMany();
