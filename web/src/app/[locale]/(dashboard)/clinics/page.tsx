@@ -680,9 +680,9 @@ export default function ClinicsPage() {
             <Card key={idx} className={`border border-gray-200/60 dark:border-gray-800/60 shadow-xs ${stat.gradient} ${stat.bg}`}>
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="space-y-1">
-                  <span className="text-xs text-gray-400 font-semibold block">{stat.title}</span>
-                  <span className="text-2xl font-semibold font-mono text-gray-900 dark:text-white block">{isLoading ? <Skeleton className="h-7 w-16" /> : stat.value}</span>
-                  <span className="text-[10px] text-gray-500 block font-bold">{stat.sub}</span>
+                  <div className="text-xs text-gray-400 font-semibold">{stat.title}</div>
+                  <div className="text-2xl font-semibold font-mono text-gray-900 dark:text-white">{isLoading ? <Skeleton className="h-7 w-16" /> : stat.value}</div>
+                  <div className="text-[10px] text-gray-500 font-bold">{stat.sub}</div>
                 </div>
                 <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-gray-800/60 flex items-center justify-center shadow-xs">
                   <Icon className="w-5 h-5 text-gray-600 dark:text-gray-400" />

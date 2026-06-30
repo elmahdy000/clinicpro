@@ -1,6 +1,8 @@
 import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './auth/auth.module';
@@ -32,6 +34,20 @@ import { MyMedicinesModule } from './my-medicines/my-medicines.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    // Global rate limiter: 100 requests / 60 seconds per IP (general)
+    // Auth endpoints override this with stricter limits (see AuthController)
+    ThrottlerModule.forRoot([
+      {
+        name: 'global',
+        ttl: 60_000,   // 60 seconds window
+        limit: 100,    // 100 requests per window (general API)
+      },
+      {
+        name: 'auth',
+        ttl: 60_000,   // 60 seconds window
+        limit: 10,     // 10 auth attempts per minute (brute-force protection)
+      },
+    ]),
     PrismaModule,
     RedisModule,
     AuthModule,
@@ -58,6 +74,13 @@ import { MyMedicinesModule } from './my-medicines/my-medicines.module';
     MyMedicinesModule,
   ],
   controllers: [AppController],
+  providers: [
+    // Apply ThrottlerGuard globally to all routes
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {

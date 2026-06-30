@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe, UseGuards, Query, Req } from '@nestjs/common';
 import { PrescriptionsService } from './prescriptions.service';
 import { CreatePrescriptionDto } from './dto/create-prescription.dto';
 import { UpdatePrescriptionDto } from './dto/update-prescription.dto';
@@ -13,9 +13,11 @@ import { UserRole } from '../users/user-role.enum';
 export class PrescriptionsController {
   constructor(private readonly prescriptionsService: PrescriptionsService) {}
 
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get()
-  findAll(@Query() query: PaginationDto) {
-    return this.prescriptionsService.findAll(query);
+  findAll(@Query() query: PaginationDto, @Query('mine') mine: string, @Req() req: any) {
+    const doctorUserId = mine === '1' || mine === 'true' ? req.user?.id : undefined;
+    return this.prescriptionsService.findAll(query, doctorUserId);
   }
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR)
@@ -24,6 +26,7 @@ export class PrescriptionsController {
     return this.prescriptionsService.create(dto);
   }
 
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.prescriptionsService.findOne(id);
@@ -45,6 +48,7 @@ export class PrescriptionsController {
     return this.prescriptionsService.substituteMedicine(id, lineId, dto);
   }
 
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get(':id/substitution-logs')
   getSubstitutionLogs(@Param('id', ParseIntPipe) id: number) {
     return this.prescriptionsService.getSubstitutionLogs(id);

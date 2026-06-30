@@ -1,36 +1,43 @@
 'use client';
 import { useRouter, useParams } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function ClinicPendingApprovalPage() {
   const router = useRouter();
   const params = useParams();
-  const locale = params?.locale as string || 'ar';
+  const locale = (params?.locale as string) || 'ar';
+  const isRtl = locale === 'ar';
 
-  // Read data from sessionStorage (set during failed login)
-  let clinicName = '';
-  let isRejected = false;
-  let rejectionNote = '';
-  if (typeof window !== 'undefined') {
+  // Use state to avoid hydration mismatch — sessionStorage only accessible client-side
+  const [clinicName, setClinicName] = useState('');
+  const [isRejected, setIsRejected] = useState(false);
+  const [rejectionNote, setRejectionNote] = useState('');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
     try {
       const raw = sessionStorage.getItem('clinicApprovalError');
       if (raw) {
         const parsed = JSON.parse(raw);
-        clinicName = parsed.clinicName || '';
-        isRejected = parsed.code === 'CLINIC_REJECTED';
-        rejectionNote = parsed.approvalNote || '';
+        setClinicName(parsed.clinicName || '');
+        setIsRejected(parsed.code === 'CLINIC_REJECTED');
+        setRejectionNote(parsed.approvalNote || '');
       }
     } catch {}
-  }
+    setMounted(true);
+  }, []);
 
   const handleBack = () => {
-    if (typeof window !== 'undefined') sessionStorage.removeItem('clinicApprovalError');
+    sessionStorage.removeItem('clinicApprovalError');
     router.push(`/${locale}/login`);
   };
 
+  // Don't render content until mounted (avoids SSR/CSR mismatch)
+  if (!mounted) return null;
+
   return (
     <div
-      dir="rtl"
+      dir={isRtl ? 'rtl' : 'ltr'}
       style={{
         minHeight: '100vh',
         background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',

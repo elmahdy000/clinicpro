@@ -73,19 +73,26 @@ export class MedicalRecordsService {
     });
 
     if (dto.appointmentId) {
-      const oldApt = await this.prisma.appointment.findUnique({ where: { id: dto.appointmentId }, select: { status: true } });
-      await this.prisma.appointment.update({
-        where: { id: dto.appointmentId },
-        data: { status: 'COMPLETED' },
-      }).catch((e) => this.logger.error(`Failed to update appointment status: ${e.message}`));
-      if (oldApt && oldApt.status !== 'COMPLETED') {
-        await this.prisma.appointmentStatusChange.create({
-          data: {
-            appointmentId: dto.appointmentId,
-            fromStatus: oldApt.status,
-            toStatus: 'COMPLETED',
-          },
-        });
+      // Scope the lookup to the current clinic so a caller cannot complete an appointment
+      // belonging to another clinic by passing a foreign appointmentId.
+      const oldApt = await this.prisma.appointment.findFirst({
+        where: { id: dto.appointmentId, clinicId: store?.clinicId ?? 0 },
+        select: { status: true },
+      });
+      if (oldApt) {
+        await this.prisma.appointment.update({
+          where: { id: dto.appointmentId },
+          data: { status: 'COMPLETED' },
+        }).catch((e) => this.logger.error(`Failed to update appointment status: ${e.message}`));
+        if (oldApt.status !== 'COMPLETED') {
+          await this.prisma.appointmentStatusChange.create({
+            data: {
+              appointmentId: dto.appointmentId,
+              fromStatus: oldApt.status,
+              toStatus: 'COMPLETED',
+            },
+          });
+        }
       }
     }
 
@@ -96,16 +103,25 @@ export class MedicalRecordsService {
   }
 
   async update(id: number, dto: UpdateMedicalRecordDto) {
-    await this.findOne(id);
-    const updated = await this.prisma.medicalRecord.update({
+    await this.findOne(id); // enforces clinic scope
+    // Whitelist updatable fields — never spread the raw DTO (blocks reassigning
+    // patientId/doctorId/clinicId on an existing record).
+    const data: any = {};
+    if (dto.chiefComplaint !== undefined) data.chiefComplaint = dto.chiefComplaint;
+    if (dto.diagnosis !== undefined) data.diagnosis = dto.diagnosis;
+    if (dto.treatmentPlan !== undefined) data.treatmentPlan = dto.treatmentPlan;
+    if (dto.notes !== undefined) data.notes = dto.notes;
+    if ((dto as any).branchId !== undefined) data.branchId = (dto as any).branchId;
+    if ((dto as any).branchName !== undefined) data.branchName = (dto as any).branchName;
+    if (dto.vitalSigns !== undefined) data.vitalSigns = dto.vitalSigns ? JSON.stringify(dto.vitalSigns) : undefined;
+    await this.prisma.medicalRecord.update({
       where: { id },
-      data: {
-        ...dto,
-        vitalSigns: dto.vitalSigns ? JSON.stringify(dto.vitalSigns) : undefined,
-      },
+      data,
     });
-    await this.redis.delByPattern(`patients:timeline:*:${updated.patientId}`);
-    return updated;
+    // Return the full enriched record (with relations) consistent with create()
+    const full = await this.findOne(id);
+    await this.redis.delByPattern(`patients:timeline:*:${full.patientId}`);
+    return full;
   }
 
   async remove(id: number) {

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe, Query, UseGuards, Req } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -13,31 +13,32 @@ import { UserRole } from './user-role.enum';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Roles(UserRole.CLINIC_ADMIN, UserRole.DOCTOR)
+  // Only CLINIC_ADMIN can create/manage staff — doctors should not manage other users
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.CLINIC_ADMIN)
   @Post()
-  create(@Body() dto: CreateUserDto) {
-    return this.usersService.create(dto);
+  create(@Body() dto: CreateUserDto, @Req() req: any) {
+    return this.usersService.create(dto, req.user);
   }
 
-  @Roles(UserRole.CLINIC_ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.CLINIC_ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get()
   findAll(@Query() query: PaginationDto) {
     return this.usersService.findAll(query);
   }
 
-  @Roles(UserRole.CLINIC_ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.CLINIC_ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.findOne(id);
   }
 
-  @Roles(UserRole.CLINIC_ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.CLINIC_ADMIN)
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
-    return this.usersService.update(id, dto);
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto, @Req() req: any) {
+    return this.usersService.update(id, dto, req.user);
   }
 
-  @Roles(UserRole.CLINIC_ADMIN, UserRole.DOCTOR)
+  @Roles(UserRole.PLATFORM_OWNER, UserRole.CLINIC_ADMIN)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);

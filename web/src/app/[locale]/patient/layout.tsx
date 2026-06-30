@@ -45,8 +45,13 @@ export default function PatientLayout({ children }: { children: ReactNode }) {
   const isRtl = locale === 'ar';
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push(`/${locale}/login`);
+    if (!isLoading) {
+      if (!user) {
+        router.push(`/${locale}/login`);
+      } else if (user.role !== 'PATIENT') {
+        // Non-patient staff should not access the patient portal
+        router.push(`/${locale}/dashboard`);
+      }
     }
   }, [user, isLoading, locale, router]);
 
@@ -66,7 +71,7 @@ export default function PatientLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!user) return null;
+  if (!user || user.role !== 'PATIENT') return null;
 
   const basePath = `/${locale}`;
   const navItems = NAV_ITEMS.filter((item) => {

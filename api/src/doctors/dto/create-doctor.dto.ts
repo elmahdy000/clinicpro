@@ -4,9 +4,6 @@ export class CreateDoctorDto {
   @IsNumber()
   userId: number;
 
-  @IsNumber()
-  departmentId: number;
-
   @IsNotEmpty()
   @IsString()
   specialization: string;

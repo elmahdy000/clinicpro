@@ -16,6 +16,7 @@ import { UserRole } from '../users/user-role.enum';
 export class DoctorsController {
   constructor(private readonly doctorsService: DoctorsService) {}
 
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PATIENT)
   @Get()
   findAll(@Query() query: PaginationDto) {
     return this.doctorsService.findAll(query);
@@ -27,6 +28,39 @@ export class DoctorsController {
     return this.doctorsService.create(dto);
   }
 
+  // --- Doctor self-service (must precede ':id' routes) ---
+
+  @Roles(UserRole.DOCTOR)
+  @Get('me')
+  getMe(@Req() req: any) {
+    return this.doctorsService.getMyProfile(req.user.id);
+  }
+
+  @Roles(UserRole.DOCTOR)
+  @Get('me/appointments')
+  getMyAppointments(@Req() req: any) {
+    return this.doctorsService.getMyAppointments(req.user.id);
+  }
+
+  @Roles(UserRole.DOCTOR)
+  @Get('me/patients')
+  getMyPatients(@Req() req: any) {
+    return this.doctorsService.getMyPatients(req.user.id);
+  }
+
+  @Roles(UserRole.DOCTOR)
+  @Get('me/schedule')
+  getMySchedule(@Req() req: any) {
+    return this.doctorsService.getMySchedule(req.user.id);
+  }
+
+  @Roles(UserRole.DOCTOR)
+  @Get('me/dashboard')
+  getMyDashboard(@Req() req: any) {
+    return this.doctorsService.getMyDashboard(req.user.id);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PATIENT)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.doctorsService.findOne(id);
@@ -44,11 +78,13 @@ export class DoctorsController {
     return this.doctorsService.remove(id);
   }
 
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get(':id/appointments')
   getAppointments(@Param('id', ParseIntPipe) id: number) {
     return this.doctorsService.getAppointments(id);
   }
 
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PATIENT)
   @Get(':id/availability')
   getAvailability(@Param('id', ParseIntPipe) id: number) {
     return this.doctorsService.getAvailability(id);
@@ -74,6 +110,7 @@ export class DoctorsController {
     return this.doctorsService.removeAvailability(id, dayOfWeek, req.user);
   }
 
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST)
   @Get(':id/time-off')
   getTimeOff(@Param('id', ParseIntPipe) id: number) {
     return this.doctorsService.getTimeOff(id);
@@ -95,6 +132,7 @@ export class DoctorsController {
     return this.doctorsService.removeTimeOff(timeOffId, req.user);
   }
 
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST, UserRole.PATIENT)
   @Get(':id/available-slots')
   getAvailableSlots(
     @Param('id', ParseIntPipe) id: number,
@@ -103,6 +141,7 @@ export class DoctorsController {
     return this.doctorsService.getAvailableSlots(id, query.date, query.durationMinutes);
   }
 
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST, UserRole.PATIENT)
   @Get(':id/available-days')
   getAvailableDays(
     @Param('id', ParseIntPipe) id: number,

@@ -191,7 +191,7 @@ export default function InventoryPage() {
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${s.cls}`}><Icon className="w-5 h-5" /></div>
                 <div>
                   <p className="text-xs text-gray-400">{s.label}</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">{isLoading ? <Skeleton className="h-6 w-12" /> : s.value}</p>
+                  <div className="text-xl font-bold text-gray-900 dark:text-white">{isLoading ? <Skeleton className="h-6 w-12" /> : s.value}</div>
                 </div>
               </CardContent>
             </Card>

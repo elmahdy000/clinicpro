@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, Logger, ForbiddenException } from '@nest
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantStorage } from '../prisma/tenant-context';
 import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class UploadsService {
@@ -103,10 +104,16 @@ export class UploadsService {
   async remove(id: number, user: { id: number; role: string; clinicId: number | null }) {
     const record = await this.findOne(id, user);
 
-    try {
-      await fs.promises.unlink(record.url);
-    } catch (e) {
-      this.logger.warn(`Failed to delete file from disk: ${record.url} - ${(e as Error).message}`);
+    // Only ever unlink a file inside the uploads directory, addressed by basename — never
+    // trust the stored path verbatim (it could be absolute or contain `../`).
+    const uploadsRoot = path.resolve('./uploads');
+    const resolved = path.resolve(uploadsRoot, path.basename(record.url));
+    if (path.dirname(resolved) === uploadsRoot) {
+      try {
+        await fs.promises.unlink(resolved);
+      } catch (e) {
+        this.logger.warn(`Failed to delete file from disk: ${resolved} - ${(e as Error).message}`);
+      }
     }
 
     return this.prisma.fileUpload.delete({ where: { id } });

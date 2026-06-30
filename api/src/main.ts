@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { config } from 'dotenv';
 import compression from 'compression';
 import { join } from 'path';
@@ -14,6 +15,9 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.enableShutdownHooks();
+
+  // Global exception filter — consistent error shape, no stack trace leaks
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
   // Ensure uploads directory exists
   const uploadsDir = join(process.cwd(), 'uploads');
@@ -32,7 +36,7 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: false,
+      forbidNonWhitelisted: true,
       transform: true,
     }),
   );

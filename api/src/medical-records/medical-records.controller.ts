@@ -12,6 +12,7 @@ import { UserRole } from '../users/user-role.enum';
 export class MedicalRecordsController {
   constructor(private readonly medicalRecordsService: MedicalRecordsService) {}
 
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get()
   findAll(@Query() query: PaginationDto) {
     return this.medicalRecordsService.findAll(query);
@@ -23,6 +24,7 @@ export class MedicalRecordsController {
     return this.medicalRecordsService.create(dto);
   }
 
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.medicalRecordsService.findOne(id);

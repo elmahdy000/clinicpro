@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, MinLength, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, MinLength, IsOptional, IsString, Matches } from 'class-validator';
 
 export class RegisterClinicDto {
   @IsNotEmpty()
@@ -19,6 +19,9 @@ export class RegisterClinicDto {
 
   @IsOptional()
   @IsString()
+  @Matches(/^[\d٠-٩\s+\-().]{7,20}$/, {
+    message: 'clinicPhone must be a valid phone number',
+  })
   clinicPhone?: string;
 
   @IsOptional()

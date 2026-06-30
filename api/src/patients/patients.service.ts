@@ -18,7 +18,7 @@ export class PatientsService {
     private medicalHistory: MedicalHistoryService,
   ) {}
 
-  async findAll(query: PaginationDto): Promise<PaginatedResult<any>> {
+  async findAll(query: PaginationDto, doctorUserId?: number): Promise<PaginatedResult<any>> {
     const { page = 1, limit = 10, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
     const store = tenantStorage.getStore();
     const clinicId = store?.clinicId;
@@ -27,7 +27,16 @@ export class PatientsService {
     if (clinicId) {
       where.clinics = { some: { clinicId } };
     }
-    
+
+    if (doctorUserId) {
+      const doctor = await this.prisma.doctor.findFirst({
+        where: { userId: doctorUserId, clinicId: clinicId ?? 0 },
+        select: { id: true },
+      });
+      // Only patients this doctor has appointments with; -1 yields no rows if no profile.
+      where.appointments = { some: { doctorId: doctor?.id ?? -1 } };
+    }
+
     if (search) {
       where.OR = [
         { firstName: { contains: search } },
@@ -282,13 +291,26 @@ export class PatientsService {
 
   async getAppointments(patientId: number) {
     const store = tenantStorage.getStore();
+    const clinicId = store?.clinicId;
     const patient = await this.prisma.patient.findFirst({
-      where: { id: patientId, clinics: store?.clinicId ? { some: { clinicId: store.clinicId } } : undefined },
+      where: { id: patientId, clinics: clinicId ? { some: { clinicId } } : undefined },
     });
     if (!patient) throw new NotFoundException(`Patient #${patientId} not found`);
     return this.prisma.appointment.findMany({
-      where: { patientId },
+      where: {
+        patientId,
+        // Scope appointments to the current clinic to prevent cross-clinic data leak
+        ...(clinicId ? { clinicId } : {}),
+      },
       include: { doctor: { include: { user: true } } },
+    });
+  }
+
+  /** Find the patient record linked to a specific user account (used for patient self-access checks) */
+  async findOneByUserId(userId: number) {
+    return this.prisma.patient.findFirst({
+      where: { userId },
+      select: { id: true },
     });
   }
 

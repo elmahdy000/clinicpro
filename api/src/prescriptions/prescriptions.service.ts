@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantStorage } from '../prisma/tenant-context';
 import { CreatePrescriptionDto } from './dto/create-prescription.dto';
@@ -19,10 +20,18 @@ export class PrescriptionsService {
     private redis: RedisService,
   ) {}
 
-  async findAll(query: PaginationDto): Promise<PaginatedResult<any>> {
+  async findAll(query: PaginationDto, doctorUserId?: number): Promise<PaginatedResult<any>> {
     const { page = 1, limit = 10, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
     const store = tenantStorage.getStore();
     const where: any = { clinicId: store?.clinicId ?? 0 };
+    if (doctorUserId) {
+      const doctor = await this.prisma.doctor.findFirst({
+        where: { userId: doctorUserId, clinicId: store?.clinicId ?? 0 },
+        select: { id: true },
+      });
+      // If the user has no doctor profile, return no rows rather than all rows.
+      where.doctorId = doctor?.id ?? -1;
+    }
     if (search) {
       const isNumeric = !isNaN(Number(search)) && search.trim() !== '';
       where.OR = [
@@ -118,9 +127,47 @@ export class PrescriptionsService {
     return med?.id || null;
   }
 
-  private async decrementStock(medicationId: number, clinicId: number, quantity: number = 1) {
+  private parseQuantityFromItem(item: any): number {
+    // Try to extract a numeric quantity from the item. Fall back to 1.
+    // Example: item.quantity = 30, or item.dosage = "2 tablets"
+    if (item && item.quantity != null && !isNaN(Number(item.quantity))) {
+      return Math.max(1, Math.floor(Number(item.quantity)));
+    }
+    return 1;
+  }
+
+  /**
+   * Whitelist the fields a caller is allowed to write on a prescription.
+   * Never spread the raw DTO: that would let a caller inject clinicId,
+   * or (on update) reassign the prescription to another patient/doctor.
+   */
+  private buildWritableData(dto: any, opts: { isCreate: boolean }): any {
+    const data: any = {};
+    if (dto.medications !== undefined) {
+      data.medications =
+        typeof dto.medications === 'string' ? dto.medications : JSON.stringify(dto.medications);
+    }
+    if (dto.instructions !== undefined) data.instructions = dto.instructions;
+    if (dto.prescribedDate !== undefined) data.prescribedDate = dto.prescribedDate;
+    if (dto.branchId !== undefined) data.branchId = dto.branchId;
+    if (dto.branchName !== undefined) data.branchName = dto.branchName;
+    if (dto.medicalRecordId !== undefined) data.medicalRecordId = dto.medicalRecordId;
+    // patientId / doctorId may only be set at creation time, never reassigned on update.
+    if (opts.isCreate) {
+      if (dto.patientId !== undefined) data.patientId = dto.patientId;
+      if (dto.doctorId !== undefined) data.doctorId = dto.doctorId;
+    }
+    return data;
+  }
+
+  private async decrementStock(
+    tx: Prisma.TransactionClient,
+    medicationId: number,
+    clinicId: number,
+    quantity: number = 1,
+  ) {
     try {
-      const stock = await this.prisma.medicationStock.findFirst({
+      const stock = await tx.medicationStock.findFirst({
         where: {
           medicationId,
           clinicId,
@@ -133,11 +180,11 @@ export class PrescriptionsService {
         orderBy: { expiryDate: 'asc' },
       });
       if (stock) {
-        await this.prisma.medicationStock.update({
+        await tx.medicationStock.update({
           where: { id: stock.id },
           data: { quantityOnHand: stock.quantityOnHand - quantity },
         });
-        await this.prisma.stockMovement.create({
+        await tx.stockMovement.create({
           data: {
             medicationStockId: stock.id,
             type: 'OUT',
@@ -153,17 +200,46 @@ export class PrescriptionsService {
     }
   }
 
+  private async incrementStock(
+    tx: Prisma.TransactionClient,
+    medicationId: number,
+    clinicId: number,
+    quantity: number = 1,
+  ) {
+    try {
+      const stock = await tx.medicationStock.findFirst({
+        where: { medicationId, clinicId },
+        orderBy: { expiryDate: 'asc' },
+      });
+      if (stock) {
+        await tx.medicationStock.update({
+          where: { id: stock.id },
+          data: { quantityOnHand: stock.quantityOnHand + quantity },
+        });
+        await tx.stockMovement.create({
+          data: {
+            medicationStockId: stock.id,
+            type: 'IN',
+            quantity,
+            referenceType: 'prescription_reversal',
+            notes: `Auto-credited ${quantity} unit(s) on prescription update/delete`,
+            performedBy: 0,
+          },
+        });
+      }
+    } catch (e) {
+      this.logger.warn(`Failed to increment stock for medication #${medicationId}: ${(e as Error).message}`);
+    }
+  }
+
   async create(dto: CreatePrescriptionDto) {
     const store = tenantStorage.getStore();
     const clinicId = store?.clinicId ?? 0;
-    const data: any = { ...dto };
-    const items = data.medications || [];
-    if (data.medications && typeof data.medications !== 'string') {
-      data.medications = JSON.stringify(data.medications);
-    }
-    delete data.substitutions;
+    // Whitelist writable fields; clinicId comes from the tenant context, never the DTO.
+    const data = this.buildWritableData(dto, { isCreate: true });
+    const items = Array.isArray(dto.medications) ? dto.medications : [];
     const prescription = await this.prisma.prescription.create({ data: { ...data, clinicId } });
-    
+
     const itemsToCreate = [];
     if (Array.isArray(items)) {
       for (const item of items) {
@@ -176,23 +252,32 @@ export class PrescriptionsService {
             frequency: item.frequency || '',
             duration: item.duration || '',
             instructions: item.instructions || null,
+            quantity: this.parseQuantityFromItem(item),
           });
         }
       }
     }
-      
+
     if (itemsToCreate.length > 0) {
-      const createdItems = await Promise.all(itemsToCreate.map((item: any) =>
-        this.prisma.prescriptionItem.create({ data: item })
-      ));
-      for (let i = 0; i < createdItems.length; i++) {
-        const medId = itemsToCreate[i].medicationId;
-        await this.decrementStock(medId, clinicId);
-        await this.prisma.doctorMedicine.updateMany({
-          where: { clinicId, medicineId: medId },
-          data: { usageCount: { increment: 1 } },
-        });
-      }
+      await this.prisma.$transaction(async (tx) => {
+        for (const item of itemsToCreate) {
+          await tx.prescriptionItem.create({
+            data: {
+              prescriptionId: item.prescriptionId,
+              medicationId: item.medicationId,
+              dosage: item.dosage,
+              frequency: item.frequency,
+              duration: item.duration,
+              instructions: item.instructions,
+            },
+          });
+          await this.decrementStock(tx, item.medicationId, clinicId, item.quantity);
+          await tx.doctorMedicine.updateMany({
+            where: { clinicId, medicineId: item.medicationId },
+            data: { usageCount: { increment: 1 } },
+          });
+        }
+      });
     }
 
     if (dto.substitutions && Array.isArray(dto.substitutions) && dto.substitutions.length > 0) {
@@ -236,38 +321,74 @@ export class PrescriptionsService {
   async update(id: number, dto: UpdatePrescriptionDto) {
     const store = tenantStorage.getStore();
     const clinicId = store?.clinicId ?? 0;
-    await this.findOne(id);
-    const data: any = { ...dto };
-    const items = data.medications || [];
-    if (data.medications && typeof data.medications !== 'string') {
-      data.medications = JSON.stringify(data.medications);
+    const existing = await this.findOne(id); // also enforces clinic scope
+    // Whitelist writable fields; patientId/doctorId/clinicId can never be reassigned here.
+    const data = this.buildWritableData(dto, { isCreate: false });
+    const replaceItems = dto.medications !== undefined;
+    const newItems = Array.isArray(dto.medications) ? dto.medications : [];
+
+    // Build a medicationId -> original quantity map from the prescription's stored
+    // medications JSON, so we credit back the SAME amount that was decremented.
+    const oldQtyByMed = new Map<number, number>();
+    const storedMeds = (existing as any).medications;
+    if (Array.isArray(storedMeds)) {
+      for (const m of storedMeds) {
+        const medId = m?.medicationId;
+        if (typeof medId === 'number') {
+          oldQtyByMed.set(medId, this.parseQuantityFromItem(m));
+        }
+      }
     }
-    const updated = await this.prisma.prescription.update({ where: { id }, data });
-    
-    if (Array.isArray(items)) {
-      await this.prisma.prescriptionItem.deleteMany({ where: { prescriptionId: id } });
-      const itemsToCreate = [];
-      for (const item of items) {
+
+    // Resolve the new item medication ids up-front (may create medication rows) so the
+    // transaction itself only touches stock + prescription rows and stays short.
+    const resolvedNewItems: { medicationId: number; dosage: string; frequency: string; duration: string; instructions: string | null; quantity: number }[] = [];
+    if (replaceItems) {
+      for (const item of newItems) {
         const medId = await this.resolveMedicationId(item, clinicId);
         if (medId) {
-          itemsToCreate.push({
-            prescriptionId: id,
+          resolvedNewItems.push({
             medicationId: medId,
             dosage: item.dosage || '',
             frequency: item.frequency || '',
             duration: item.duration || '',
             instructions: item.instructions || null,
+            quantity: this.parseQuantityFromItem(item),
           });
         }
       }
-      if (itemsToCreate.length > 0) {
-        await Promise.all(itemsToCreate.map((item: any) => 
-          this.prisma.prescriptionItem.create({ data: item })
-        ));
-      }
     }
-    await this.redis.delByPattern(`patients:timeline:*:${updated.patientId}`);
-    return updated;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.prescription.update({ where: { id }, data });
+
+      if (replaceItems) {
+        const oldItems = await tx.prescriptionItem.findMany({ where: { prescriptionId: id } });
+        // Credit back the original quantity for each replaced item.
+        for (const oldItem of oldItems) {
+          const qty = oldQtyByMed.get(oldItem.medicationId) ?? 1;
+          await this.incrementStock(tx, oldItem.medicationId, clinicId, qty);
+        }
+        await tx.prescriptionItem.deleteMany({ where: { prescriptionId: id } });
+
+        for (const item of resolvedNewItems) {
+          await tx.prescriptionItem.create({
+            data: {
+              prescriptionId: id,
+              medicationId: item.medicationId,
+              dosage: item.dosage,
+              frequency: item.frequency,
+              duration: item.duration,
+              instructions: item.instructions,
+            },
+          });
+          await this.decrementStock(tx, item.medicationId, clinicId, item.quantity);
+        }
+      }
+    });
+
+    await this.redis.delByPattern(`patients:timeline:*:${existing.patientId}`);
+    return this.findOne(id);
   }
 
   async substituteMedicine(prescriptionId: number, lineId: number, dto: SubstituteMedicineDto) {

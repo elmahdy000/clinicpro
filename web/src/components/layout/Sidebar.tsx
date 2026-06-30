@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Users, CalendarRange, Stethoscope, Pill, FileText,
   ClipboardList, BarChart3, Settings, UserCircle, LogOut, ChevronRight, X,
-  Building2, ScrollText, CreditCard, Receipt, TrendingUp, UserCog, Package
+  Building2, ScrollText, CreditCard, Receipt, TrendingUp, UserCog, Package,
+  LineChart
 } from 'lucide-react';
 import { useAuth } from '@/stores/auth';
 import { useSidebar } from '@/stores/sidebar';
@@ -60,7 +61,10 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   const isActive = (href: string) => {
     const seg = href.split('/')[1];
-    return pathname.includes(`/${seg}`);
+    // pathname is `/{locale}/{seg}/...` — match the route segment exactly (not a substring)
+    // so e.g. `/prescriptions` doesn't also highlight while on `/visits`.
+    const pathSeg = pathname.split('/')[2] || '';
+    return pathSeg === seg;
   };
 
   const label = (item: { label: { ar: string; en: string } }) =>

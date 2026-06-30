@@ -12,11 +12,10 @@ import {
   Res,
   BadRequestException,
   NotFoundException,
-  MaxFileSizeValidator,
-  ParseFilePipe,
   Body,
 } from '@nestjs/common';
 import * as fs from 'fs';
+import * as path from 'path';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -26,22 +25,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard, Roles } from '../auth/guards/roles.guard';
 import { UserRole } from '../users/user-role.enum';
 import { UploadFileDto } from './dto/upload-file.dto';
-
-const ALLOWED_MIMETYPES = [
-  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'text/plain',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/dicom',
-  'application/x-dicom',
-  'application/x-zip-compressed',
-  'application/zip',
-  'text/csv',
-  'application/octet-stream',
-];
+import { allowedFileFilter, validateUploadedFile, MAX_FILE_SIZE_BYTES } from './file-validation';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('upload')
@@ -61,50 +45,39 @@ export class UploadsController {
       storage: diskStorage({
         destination: './uploads',
         filename: (_req, file, cb) => {
-          const uniqueName = uuidv4() + extname(file.originalname);
-          cb(null, uniqueName);
+          // Use UUID + original extension — never trust the original filename for storage
+          const safeExt = extname(file.originalname).toLowerCase();
+          cb(null, `${uuidv4()}${safeExt}`);
         },
       }),
-      limits: { fileSize: 10 * 1024 * 1024 },
-      fileFilter: (_req, file, cb) => {
-        if (ALLOWED_MIMETYPES.includes(file.mimetype)) {
-          cb(null, true);
-        } else {
-          cb(new BadRequestException(`File type ${file.mimetype} not allowed. Allowed: images, PDF, DOC, XLS, TXT`), false);
-        }
-      },
+      limits: { fileSize: MAX_FILE_SIZE_BYTES },
+      fileFilter: allowedFileFilter,
     }),
   )
   uploadMedicalDocument(
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }),
-        ],
-      }),
-    )
-    file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File,
     @Req() req: any,
     @Body() dto: UploadFileDto,
   ) {
-    return this.uploadsService.upload(
-      file,
-      req.user,
-      dto.patientId,
-      dto.notes,
-      dto.category,
-    );
+    // Second-layer validation after multer (catches edge cases)
+    validateUploadedFile(file);
+    return this.uploadsService.upload(file, req.user, dto.patientId, dto.notes, dto.category);
   }
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT, UserRole.SUB_ADMIN)
   @Get(':id/download')
   async download(@Param('id', ParseIntPipe) id: number, @Req() req: any, @Res() res: any) {
     const fileRecord = await this.uploadsService.findOne(id, req.user);
-    if (fs.existsSync(fileRecord.url)) {
-      res.download(fileRecord.url, fileRecord.fileName);
-    } else {
+
+    // Containment: always read by basename from inside the uploads directory. Stripping the
+    // directory component neutralises legacy/imported records holding absolute or `../` paths
+    // that would otherwise turn this endpoint into an arbitrary-file-read primitive.
+    const uploadsRoot = path.resolve('./uploads');
+    const resolved = path.resolve(uploadsRoot, path.basename(fileRecord.url));
+    if (path.dirname(resolved) !== uploadsRoot || !fs.existsSync(resolved)) {
       throw new NotFoundException('File not found on disk');
     }
+    res.download(resolved, fileRecord.fileName);
   }
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PLATFORM_OWNER, UserRole.PATIENT, UserRole.SUB_ADMIN)

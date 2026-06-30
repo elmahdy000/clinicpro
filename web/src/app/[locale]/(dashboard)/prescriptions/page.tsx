@@ -3,7 +3,9 @@
 import { useLocale } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useMemo } from 'react';
+import { useAuth } from '@/stores/auth';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
@@ -29,12 +31,16 @@ import { formatDate, cn } from '@/lib/utils';
 export default function PrescriptionsPage() {
   const locale = useLocale();
   const isRtl = locale === 'ar';
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const isDoctor = user?.role === 'DOCTOR';
   const [search, setSearch] = useState('');
+  const [mineOnly, setMineOnly] = useState(searchParams.get('mine') === '1');
   const debouncedSearch = useDebounce(search, 300);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['prescriptions', debouncedSearch],
-    queryFn: () => api.get('/prescriptions', { params: { search: debouncedSearch, limit: 20 } }).then((r) => r.data),
+    queryKey: ['prescriptions', debouncedSearch, mineOnly],
+    queryFn: () => api.get('/prescriptions', { params: { search: debouncedSearch, limit: 20, ...(mineOnly ? { mine: 1 } : {}) } }).then((r) => r.data),
   });
 
   const prescriptions = data?.data || [];
@@ -165,6 +171,17 @@ export default function PrescriptionsPage() {
         {search && (
           <Button variant="ghost" size="sm" onClick={() => setSearch('')} className="h-9 text-xs text-slate-400 hover:text-slate-600 rounded-lg">
             {isRtl ? 'إلغاء البحث' : 'Clear search'}
+          </Button>
+        )}
+        {isDoctor && (
+          <Button
+            variant={mineOnly ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setMineOnly((v) => !v)}
+            className={cn('h-9 text-xs rounded-lg gap-1.5', mineOnly ? 'bg-cyan-600 hover:bg-cyan-700 text-white' : 'text-slate-500')}
+          >
+            <Stethoscope className="w-3.5 h-3.5" />
+            {mineOnly ? (isRtl ? 'روشتاتي' : 'My prescriptions') : (isRtl ? 'الكل' : 'All')}
           </Button>
         )}
       </div>

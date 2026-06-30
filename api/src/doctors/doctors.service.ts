@@ -24,7 +24,7 @@ export class DoctorsService {
     const { page = 1, limit = 10, search, sortBy = 'id', sortOrder = 'desc' } = query;
     const store = tenantStorage.getStore();
     const where: any = { clinicId: store?.clinicId ?? 0 };
-    const allowedSortFields = new Set(['id', 'specialization', 'consultationFee', 'status', 'userId', 'departmentId']);
+    const allowedSortFields = new Set(['id', 'specialization', 'consultationFee', 'status', 'userId']);
     const safeSortBy = allowedSortFields.has(sortBy) ? sortBy : 'id';
     if (search) {
       where.OR = [
@@ -59,6 +59,131 @@ export class DoctorsService {
   async findByUserId(userId: number) {
     const store = tenantStorage.getStore();
     return this.prisma.doctor.findFirst({ where: { userId, clinicId: store?.clinicId ?? 0 } });
+  }
+
+  /** Resolve the Doctor row for the logged-in user, or throw if they have no doctor profile. */
+  private async resolveSelf(userId: number) {
+    const doctor = await this.findByUserId(userId);
+    if (!doctor) throw new NotFoundException('No doctor profile found for the current user');
+    return doctor;
+  }
+
+  async getMyProfile(userId: number) {
+    const doctor = await this.resolveSelf(userId);
+    return this.findOne(doctor.id);
+  }
+
+  async getMyAppointments(userId: number) {
+    const doctor = await this.resolveSelf(userId);
+    return this.prisma.appointment.findMany({
+      where: { doctorId: doctor.id, clinicId: doctor.clinicId },
+      include: { patient: true },
+      orderBy: { appointmentDate: 'desc' },
+    });
+  }
+
+  async getMyPatients(userId: number) {
+    const doctor = await this.resolveSelf(userId);
+    // Patient has no clinicId column (linked via ClinicPatient); scope via the
+    // doctor's own appointments, which are already clinic-bound.
+    const patients = await this.prisma.patient.findMany({
+      where: { appointments: { some: { doctorId: doctor.id, clinicId: doctor.clinicId } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return patients;
+  }
+
+  async getMySchedule(userId: number) {
+    const doctor = await this.resolveSelf(userId);
+    const timezone = await this.getClinicTimezone();
+    const todayStr = getLocalDateStr(new Date(), timezone);
+    const { startUtc, endUtc } = getLocalDayBoundsInUtc(todayStr, timezone);
+    return this.prisma.appointment.findMany({
+      where: {
+        doctorId: doctor.id,
+        clinicId: doctor.clinicId,
+        appointmentDate: { gte: startUtc, lt: endUtc },
+        status: { notIn: ['CANCELLED'] },
+      },
+      include: { patient: true },
+      orderBy: [{ queuePosition: 'asc' }, { appointmentDate: 'asc' }],
+    });
+  }
+
+  async getMyDashboard(userId: number) {
+    const doctor = await this.resolveSelf(userId);
+    const timezone = await this.getClinicTimezone();
+    const now = new Date();
+    const todayStr = getLocalDateStr(now, timezone);
+    const { startUtc: startOfToday, endUtc: endOfToday } = getLocalDayBoundsInUtc(todayStr, timezone);
+    const monthStartStr = `${todayStr.slice(0, 8)}01`;
+    const { startUtc: startOfMonth } = getLocalDayBoundsInUtc(monthStartStr, timezone);
+
+    const [
+      todayAppointmentsByStatus,
+      upcomingCount,
+      patientsSeen,
+      prescriptionsThisMonth,
+      visitsThisMonth,
+      revenueThisMonthAgg,
+      nextInQueue,
+    ] = await Promise.all([
+      this.prisma.appointment.groupBy({
+        by: ['status'],
+        where: { doctorId: doctor.id, clinicId: doctor.clinicId, appointmentDate: { gte: startOfToday, lte: endOfToday } },
+        _count: { id: true },
+      }),
+      this.prisma.appointment.count({
+        where: {
+          doctorId: doctor.id,
+          clinicId: doctor.clinicId,
+          appointmentDate: { gt: now },
+          status: { in: ['PENDING', 'CONFIRMED'] },
+        },
+      }),
+      this.prisma.patient.count({
+        where: { appointments: { some: { doctorId: doctor.id, clinicId: doctor.clinicId } } },
+      }),
+      this.prisma.prescription.count({
+        where: { doctorId: doctor.id, clinicId: doctor.clinicId, createdAt: { gte: startOfMonth } },
+      }),
+      this.prisma.medicalRecord.count({
+        where: { doctorId: doctor.id, clinicId: doctor.clinicId, createdAt: { gte: startOfMonth } },
+      }),
+      this.prisma.invoice.aggregate({
+        _sum: { total: true },
+        where: { doctorId: doctor.id, clinicId: doctor.clinicId, status: 'PAID', createdAt: { gte: startOfMonth } },
+      }),
+      this.prisma.appointment.findFirst({
+        where: {
+          doctorId: doctor.id,
+          clinicId: doctor.clinicId,
+          appointmentDate: { gte: startOfToday, lte: endOfToday },
+          status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
+          queuePosition: { not: null },
+        },
+        include: { patient: true },
+        orderBy: { queuePosition: 'asc' },
+      }),
+    ]);
+
+    const toStatusMap = (rows: { status: string; _count: { id: number } }[]) =>
+      rows.reduce((acc: Record<string, number>, curr) => { acc[curr.status] = curr._count.id; return acc; }, {});
+
+    const todayMap = toStatusMap(todayAppointmentsByStatus as any);
+    const todayTotal = Object.values(todayMap).reduce((a, b) => a + b, 0);
+
+    return {
+      doctorId: doctor.id,
+      todayAppointments: { total: todayTotal, byStatus: todayMap },
+      upcomingAppointments: upcomingCount,
+      patientsSeen,
+      prescriptionsThisMonth,
+      visitsThisMonth,
+      revenueThisMonth: revenueThisMonthAgg._sum.total ?? 0,
+      nextInQueue,
+      generatedAt: now.toISOString(),
+    };
   }
 
   async create(dto: CreateDoctorDto) {

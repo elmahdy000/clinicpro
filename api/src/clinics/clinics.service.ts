@@ -379,7 +379,10 @@ export class ClinicsService {
       });
 
       if (data.email) {
-        const hashedPassword = await bcrypt.hash(data.password || '123456', 10);
+        if (!data.password) {
+          throw new Error('A password is required when creating a clinic with an admin user');
+        }
+        const hashedPassword = await bcrypt.hash(data.password, 10);
         const user = await tx.user.create({
           data: {
             email: data.email,

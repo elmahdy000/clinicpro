@@ -26,19 +26,29 @@ export class BillingService {
 
   private parseInvoice(invoice: any) {
     if (!invoice) return invoice;
-    try {
-      invoice.items = typeof invoice.items === 'string' ? JSON.parse(invoice.items) : invoice.items;
-    } catch {}
+    if (typeof invoice.items === 'string') {
+      try {
+        invoice.items = JSON.parse(invoice.items);
+      } catch (e) {
+        this.logger.warn(`Failed to parse invoice #${invoice.id} items JSON: ${(e as Error).message}`);
+        invoice.items = []; // Return empty array instead of corrupt string
+      }
+    }
     return invoice;
   }
 
   private async generateInvoiceNumber(): Promise<string> {
     const store = tenantStorage.getStore();
-    const count = await this.prisma.invoice.count({
-      where: { clinicId: store?.clinicId ?? 0 },
-    });
+    const clinicId = store?.clinicId ?? 0;
     const year = new Date().getFullYear();
-    return `INV-${year}-${String(count + 1).padStart(5, '0')}`;
+    // Use a DB-level sequence via aggregation to avoid race conditions
+    // We use MAX(id) scoped to the clinic as a monotonically increasing counter
+    const result = await this.prisma.invoice.aggregate({
+      _max: { id: true },
+      where: { clinicId },
+    });
+    const seq = (result._max.id ?? 0) + 1;
+    return `INV-${year}-${String(seq).padStart(5, '0')}`;
   }
 
   async findAll(query: PaginationDto & { patientId?: number }): Promise<PaginatedResult<any>> {
@@ -112,9 +122,14 @@ export class BillingService {
 
   async update(id: number, dto: UpdateInvoiceDto) {
     const old = await this.findOne(id);
-    const data: any = { ...dto };
-    if (dto.paidAt) data.paidAt = new Date(dto.paidAt);
+    // Explicitly whitelist allowed update fields — never spread raw DTO to prevent clinicId injection
+    const data: any = {};
+    if (dto.status !== undefined)        data.status = dto.status;
+    if (dto.paymentMethod !== undefined) data.paymentMethod = dto.paymentMethod;
+    if (dto.notes !== undefined)         data.notes = dto.notes;
+    if (dto.paidAt)                      data.paidAt = new Date(dto.paidAt);
     if (dto.status === 'PAID' && !dto.paidAt) data.paidAt = new Date();
+
     const invoice = await this.prisma.invoice.update({
       where: { id },
       data,

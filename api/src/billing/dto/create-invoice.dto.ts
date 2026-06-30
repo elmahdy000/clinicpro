@@ -1,12 +1,13 @@
-import { IsNumber, IsOptional, IsString, IsArray, ValidateNested, Min, IsDateString, MaxLength } from 'class-validator';
+import { IsNumber, IsOptional, IsString, IsArray, ValidateNested, Min, Max, IsDateString, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class InvoiceItemDto {
   @IsString()
   description: string;
 
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
+  @Max(1_000_000)
   price: number;
 }
 

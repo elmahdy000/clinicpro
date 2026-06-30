@@ -116,6 +116,15 @@ async function main() {
     data: { clinicId: clinic1.id, userId: doc1User.id, specialization: 'Cardiologist', consultationFee: 600, status: 'active' }
   });
 
+  // ── Clinic 1 support staff: Nurse + Receptionist (cover remaining roles)
+  console.log('👤 Seeding Nurse & Receptionist in Clinic 1...');
+  await prisma.user.create({
+    data: { clinicId: clinic1.id, email: 'nurse@clinicpro.com', password: hash('nurse123'), name: 'ممرضة هبة', role: 'NURSE' }
+  });
+  await prisma.user.create({
+    data: { clinicId: clinic1.id, email: 'reception@clinicpro.com', password: hash('reception123'), name: 'موظف الاستقبال', role: 'RECEPTIONIST' }
+  });
+
   // ── SEED ACTIVE PATIENT IN CLINIC 1 FOR DOCTOR CONSULTATION SIMULATION
   console.log('👤 Seeding active patient Ahmed Ali in Clinic 1...');
   const patient1User = await prisma.user.create({
@@ -169,10 +178,14 @@ async function main() {
   console.log('======================================================');
   console.log('  Login Credentials:');
   console.log('  --------------------------------------------------');
-  console.log('  - Platform Owner:  owner@clinicpro.com  / owner123');
+  console.log('  - Platform Owner:  owner@clinicpro.com      / owner123');
+  console.log('  - Sub Admin:       subadmin@clinicpro.com   / subadmin123');
   console.log('  --------------------------------------------------');
-  console.log('  - Clinic 1 (PRO):   doctor@clinicpro.com / doctor123 (Doctor)');
-  console.log('  - Clinic 2 (PRO):   sarah_admin@clinicpro.com / admin123 (Admin)');
+  console.log('  - Clinic Admin:    sarah_admin@clinicpro.com / admin123');
+  console.log('  - Doctor:          doctor@clinicpro.com      / doctor123');
+  console.log('  - Nurse:           nurse@clinicpro.com       / nurse123');
+  console.log('  - Receptionist:    reception@clinicpro.com   / reception123');
+  console.log('  - Patient:         01211111111 (phone)       / patient123');
   console.log('======================================================\n');
 }
 

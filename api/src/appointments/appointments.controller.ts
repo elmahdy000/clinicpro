@@ -38,6 +38,18 @@ export class AppointmentsController {
   }
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST, UserRole.NURSE)
+  @Get('queue')
+  getQueue(@Query('doctorId') doctorId?: string) {
+    return this.appointmentsService.getQueue(doctorId ? parseInt(doctorId, 10) : undefined);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST, UserRole.NURSE)
+  @Put(':id/call')
+  callPatient(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.appointmentsService.callPatient(id, req.user?.id);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.RECEPTIONIST, UserRole.NURSE)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.appointmentsService.findOne(id);

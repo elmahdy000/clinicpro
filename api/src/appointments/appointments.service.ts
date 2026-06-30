@@ -302,20 +302,51 @@ export class AppointmentsService {
     });
   }
 
+  async getQueue(doctorId?: number) {
+    const store = tenantStorage.getStore();
+    const timezone = await this.getClinicTimezone();
+    const todayStr = getLocalDateStr(new Date(), timezone);
+    const { startUtc, endUtc } = getLocalDayBoundsInUtc(todayStr, timezone);
+    const where: any = {
+      clinicId: store?.clinicId ?? 0,
+      appointmentDate: { gte: startUtc, lt: endUtc },
+      status: { in: [AppointmentStatus.CONFIRMED, AppointmentStatus.IN_PROGRESS] },
+      queuePosition: { not: null },
+    };
+    if (doctorId) where.doctorId = doctorId;
+    return this.prisma.appointment.findMany({
+      where,
+      include: { patient: true, doctor: { include: { user: { select: { id: true, name: true } } } } },
+      orderBy: [{ queuePosition: 'asc' }, { appointmentDate: 'asc' }],
+    });
+  }
+
+  /** Mark an appointment as IN_PROGRESS (calling the patient in) and notify them. */
+  async callPatient(id: number, userId?: number) {
+    const appointment = await this.findOne(id);
+    if (appointment.status === AppointmentStatus.IN_PROGRESS) return appointment;
+    return this.update(id, { status: AppointmentStatus.IN_PROGRESS } as UpdateAppointmentDto, userId);
+  }
+
   async markNoShows() {
     const store = tenantStorage.getStore();
     const now = new Date();
+    // Grace period: only mark as missed if the appointment ended more than 10 minutes ago
     const tenMinAgo = new Date(now.getTime() - 10 * 60 * 1000);
     const timezone = await this.getClinicTimezone();
     const todayStr = getLocalDateStr(now, timezone);
     const { startUtc } = getLocalDayBoundsInUtc(todayStr, timezone);
 
+    // Find appointments that:
+    // 1. Started today
+    // 2. Are still PENDING or CONFIRMED (not yet seen or started)
+    // 3. Whose END time is at least 10 minutes in the past (fully elapsed + grace period)
     const overdue = await this.prisma.appointment.findMany({
       where: {
         clinicId: store?.clinicId ?? 0,
-        appointmentDate: { gte: startUtc, lt: tenMinAgo },
+        appointmentDate: { gte: startUtc },
+        appointmentEndDate: { lte: tenMinAgo },
         status: { in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED] },
-        appointmentEndDate: { lt: tenMinAgo },
       },
     });
 

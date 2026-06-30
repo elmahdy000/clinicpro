@@ -27,14 +27,13 @@ export default function LoginPage() {
 
   // Toggle state between Login, Register, and Patient Login
   const [activeTab, setActiveTab] = useState<'login' | 'register' | 'patient'>('login');
-  const [patientPhone, setPatientPhone] = useState('');
-  const [patientPassword, setPatientPassword] = useState('');
-
-  // Shared form states
+  // Remove unused patient state vars — patient form manages its own state
+  // Load dynamic locations from DB
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
+  const [regPasswordConfirm, setRegPasswordConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -66,12 +65,25 @@ export default function LoginPage() {
   // Handle standard Login Submission
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     try {
       await login(email, password);
       toast.success(isRtl ? 'تم تسجيل الدخول بنجاح!' : 'Logged in successfully!');
-    } catch {
-      toast.error(t('invalidCredentials'));
+    } catch (error: any) {
+      const status = error?.response?.status;
+      const msg = error?.response?.data?.message || '';
+      if (status === 401) {
+        // Check if it's a clinic approval issue (handled in auth store — redirects to clinic-pending)
+        // Otherwise show credential error
+        if (!msg.includes('CLINIC_')) {
+          toast.error(isRtl ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email or password');
+        }
+      } else if (status === 0 || !status) {
+        toast.error(isRtl ? 'لا يوجد اتصال بالخادم. تحقق من الإنترنت.' : 'Cannot reach server. Check your connection.');
+      } else {
+        toast.error(isRtl ? 'حدث خطأ، الرجاء المحاولة مرة أخرى.' : 'Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -91,13 +103,22 @@ export default function LoginPage() {
       return;
     }
 
+    if (regPassword !== regPasswordConfirm) {
+      toast.error(isRtl ? 'كلمة المرور وتأكيدها غير متطابقتين.' : 'Passwords do not match.');
+      return;
+    }
+
+    if (loading) return; // prevent double submit
     setLoading(true);
 
     const govObj = dbGovernorates?.find((g: { id: string; nameAr: string; nameEn?: string }) => g.id === selectedGov);
     const govName = govObj ? (isRtl ? govObj.nameAr : govObj.nameEn || govObj.nameAr) : '';
     const cityObj = dbCities?.find((c: { id: string; nameAr: string; nameEn?: string }) => c.id === selectedCity);
     const cityName = cityObj ? (isRtl ? cityObj.nameAr : cityObj.nameEn || cityObj.nameAr) : '';
-    const fullAddress = `${streetAddress || ''}، ${cityName}، محافظة ${govName}`;
+
+    // Build address cleanly — omit empty parts
+    const addressParts = [streetAddress?.trim(), cityName, govName ? `محافظة ${govName}` : ''].filter(Boolean);
+    const fullAddress = addressParts.join('، ');
 
     const payload = {
       name: doctorName,
@@ -120,8 +141,11 @@ export default function LoginPage() {
       await login(regEmail, regPassword);
     } catch (error: unknown) {
       const errMsg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || '';
-      if (errMsg.includes('already in use')) {
-        toast.error(isRtl ? 'هذا البريد الإلكتروني مسجل بالفعل لمستخدم آخر.' : 'This email is already registered.');
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (errMsg.includes('already in use') || errMsg.includes('مسجل')) {
+        toast.error(isRtl ? 'هذا البريد الإلكتروني مسجل بالفعل.' : 'This email is already registered.');
+      } else if (status === 0 || !status) {
+        toast.error(isRtl ? 'لا يوجد اتصال بالخادم.' : 'Cannot reach server.');
       } else {
         toast.error(isRtl ? 'حدث خطأ أثناء تسجيل العيادة.' : 'Failed to register clinic.');
       }
@@ -306,6 +330,29 @@ export default function LoginPage() {
                   />
                 </div>
 
+                {/* Password Confirmation */}
+                <div className="space-y-1.5 col-span-2">
+                  <Label htmlFor="regPasswordConfirm">{isRtl ? 'تأكيد كلمة المرور *' : 'Confirm Password *'}</Label>
+                  <Input
+                    id="regPasswordConfirm"
+                    type="password"
+                    required
+                    value={regPasswordConfirm}
+                    onChange={(e) => setRegPasswordConfirm(e.target.value)}
+                    placeholder="••••••••"
+                    className={`h-10 text-xs font-mono ${isRtl ? 'text-right' : 'text-left'} ${
+                      regPasswordConfirm && regPassword !== regPasswordConfirm
+                        ? 'border-red-400 focus:border-red-400'
+                        : ''
+                    }`}
+                  />
+                  {regPasswordConfirm && regPassword !== regPasswordConfirm && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {isRtl ? 'كلمتا المرور غير متطابقتين' : 'Passwords do not match'}
+                    </p>
+                  )}
+                </div>
+
                 {/* Clinic Name */}
                 <div className="space-y-1.5 col-span-2">
                   <Label htmlFor="regClinicName" className="flex items-center gap-1.5">
@@ -463,10 +510,17 @@ function PatientPortalForm({
 
   const handlePatientLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!phone.trim()) {
+      toast.error(isRtl ? 'الرجاء إدخال رقم الهاتف' : 'Please enter your phone number');
+      return;
+    }
     setLoading(true);
     try {
       const { data } = await axiosApi.post('/auth/patient-login', { identifier: phone, password });
       localStorage.setItem('access_token', data.access_token);
+      if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
+      // Trigger auth store update by dispatching storage event
+      window.dispatchEvent(new Event('storage'));
       window.location.href = `/${locale}/patient`;
     } catch (error: unknown) {
       const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || '';
@@ -489,6 +543,10 @@ function PatientPortalForm({
       toast.error(isRtl ? 'الرجاء ملء جميع الحقول' : 'Please fill all fields');
       return;
     }
+    if (!/^[\d٠-٩\s+\-().]{7,20}$/.test(phone.trim())) {
+      toast.error(isRtl ? 'رقم الهاتف غير صحيح' : 'Invalid phone number');
+      return;
+    }
     if (password.length < 6) {
       toast.error(isRtl ? 'كلمة المرور يجب أن تكون ٦ أحرف على الأقل' : 'Password must be at least 6 characters');
       return;
@@ -497,6 +555,8 @@ function PatientPortalForm({
     try {
       const { data } = await axiosApi.post('/auth/patient-register', { phone, password, fullName: name });
       localStorage.setItem('access_token', data.access_token);
+      if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
+      window.dispatchEvent(new Event('storage'));
       window.location.href = `/${locale}/patient`;
     } catch (error: unknown) {
       const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || '';

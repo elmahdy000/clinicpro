@@ -3,32 +3,33 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../prisma/prisma.service';
 
-interface JwtPayload {
+interface RefreshPayload {
   sub: number;
   email: string;
   role: string;
   clinicId: number | null;
+  type: 'refresh';
 }
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
+export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
   constructor(private prisma: PrismaService) {
-    const secret = process.env.JWT_SECRET;
+    // Must match the dedicated secret used to sign refresh tokens — never fall back to JWT_SECRET.
+    const secret = process.env.JWT_REFRESH_SECRET;
     if (!secret) {
-      throw new Error('JWT_SECRET environment variable is not set. Application cannot start.');
+      throw new Error('JWT_REFRESH_SECRET environment variable is not set.');
     }
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromBodyField('refresh_token'),
       ignoreExpiration: false,
       secretOrKey: secret,
     });
   }
 
-  async validate(payload: JwtPayload) {
-    if (!payload || payload.sub === undefined || payload.sub === null || isNaN(Number(payload.sub))) {
-      throw new UnauthorizedException('Invalid token payload: missing sub claim');
+  async validate(payload: RefreshPayload) {
+    if (payload.type !== 'refresh') {
+      throw new UnauthorizedException('Not a refresh token');
     }
-
     const user = await this.prisma.user.findUnique({
       where: { id: Number(payload.sub) },
       select: { id: true, email: true, name: true, role: true, clinicId: true },

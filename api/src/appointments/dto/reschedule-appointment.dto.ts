@@ -1,4 +1,5 @@
-import { IsDateString, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import { AppointmentStatus } from '../enums/appointment-status.enum';
 
 export class RescheduleAppointmentDto {
   @IsDateString()
@@ -15,6 +16,8 @@ export class RescheduleAppointmentDto {
   reason?: string;
 
   @IsOptional()
-  @IsString()
-  rescheduleStatus?: string;
+  @IsEnum(AppointmentStatus, {
+    message: `rescheduleStatus must be one of: ${Object.values(AppointmentStatus).join(', ')}`,
+  })
+  rescheduleStatus?: AppointmentStatus;
 }

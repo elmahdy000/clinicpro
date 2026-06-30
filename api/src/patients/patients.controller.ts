@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe, UseGuards, Query, Req, ForbiddenException } from '@nestjs/common';
 import { PatientsService } from './patients.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
@@ -14,8 +14,9 @@ export class PatientsController {
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST)
   @Get()
-  findAll(@Query() query: PaginationDto) {
-    return this.patientsService.findAll(query);
+  findAll(@Query() query: PaginationDto, @Query('mine') mine: string, @Req() req: any) {
+    const doctorUserId = mine === '1' || mine === 'true' ? req.user?.id : undefined;
+    return this.patientsService.findAll(query, doctorUserId);
   }
 
   @Roles(UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DOCTOR, UserRole.NURSE)
@@ -30,9 +31,18 @@ export class PatientsController {
     return this.patientsService.globalSearch(query);
   }
 
+  // Staff can access any patient in their clinic; a PATIENT can only access their own record
   @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PATIENT)
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  async findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    const user = req.user;
+    if (user.role === UserRole.PATIENT) {
+      // A patient can only fetch their own linked patient record
+      const patientRecord = await this.patientsService.findOneByUserId(user.id);
+      if (!patientRecord || patientRecord.id !== id) {
+        throw new ForbiddenException('You can only access your own patient record');
+      }
+    }
     return this.patientsService.findOne(id);
   }
 
@@ -74,7 +84,14 @@ export class PatientsController {
 
   @Roles(UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE, UserRole.RECEPTIONIST, UserRole.PATIENT)
   @Get(':id/medical-history/summary')
-  getMedicalHistorySummary(@Param('id', ParseIntPipe) id: number) {
+  async getMedicalHistorySummary(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    const user = req.user;
+    if (user.role === UserRole.PATIENT) {
+      const patientRecord = await this.patientsService.findOneByUserId(user.id);
+      if (!patientRecord || patientRecord.id !== id) {
+        throw new ForbiddenException('You can only access your own medical summary');
+      }
+    }
     return this.patientsService.getUnifiedMedicalSummary(id);
   }
 

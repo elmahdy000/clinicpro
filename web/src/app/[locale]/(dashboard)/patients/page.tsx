@@ -3,6 +3,7 @@
 import { useTranslations, useLocale } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useAuth } from '@/stores/auth';
 import { useDebounce } from '@/hooks/useDebounce';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -33,12 +34,15 @@ export default function PatientsPage() {
   const locale = useLocale();
   const isRtl = locale === 'ar';
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const isDoctor = user?.role === 'DOCTOR';
   const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [mineOnly, setMineOnly] = useState(searchParams.get('mine') === '1');
   const debouncedSearch = useDebounce(search, 300);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['patients', debouncedSearch],
-    queryFn: () => api.get('/patients', { params: { search: debouncedSearch, limit: 20 } }).then((r) => r.data),
+    queryKey: ['patients', debouncedSearch, mineOnly],
+    queryFn: () => api.get('/patients', { params: { search: debouncedSearch, limit: 20, ...(mineOnly ? { mine: 1 } : {}) } }).then((r) => r.data),
   });
 
   const patients = data?.data || [];
@@ -61,6 +65,16 @@ export default function PatientsPage() {
                 />
               </div>
               <GlobalPatientSearch />
+              {isDoctor && (
+                <Button
+                  variant={mineOnly ? 'default' : 'outline'}
+                  onClick={() => setMineOnly((v) => !v)}
+                  className={`h-10 shrink-0 rounded-lg gap-1.5 ${mineOnly ? 'bg-teal-600 hover:bg-teal-700 text-white' : ''}`}
+                >
+                  <Stethoscope className="w-4 h-4" />
+                  {mineOnly ? (isRtl ? 'مرضاي' : 'My patients') : (isRtl ? 'كل المرضى' : 'All patients')}
+                </Button>
+              )}
               <Link href={`/${locale}/patients/new`} className="shrink-0">
                 <Button className="h-10 w-full sm:w-auto bg-teal-600 hover:bg-teal-700 rounded-lg gap-1.5">
                   <Plus className="w-4 h-4" />

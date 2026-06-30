@@ -11,8 +11,13 @@ export class TenantMiddleware implements NestMiddleware {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       try {
-        const payload = jwt.verify(token, process.env.JWT_SECRET || 'supersecretjwtkey') as any;
-        if (payload && payload.clinicId) {
+        const secret = process.env.JWT_SECRET;
+        if (!secret) throw new Error('JWT_SECRET not set');
+        const payload = jwt.verify(token, secret) as any;
+        // Only access tokens may set tenant context. A refresh token carries clinicId too,
+        // but it is signed with a different secret so jwt.verify above would already reject it;
+        // this guard is belt-and-suspenders in case the secrets are ever the same.
+        if (payload && payload.type !== 'refresh' && payload.clinicId) {
           clinicId = payload.clinicId;
         }
       } catch (e) {}

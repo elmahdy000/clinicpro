@@ -45,11 +45,15 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     const socketInstance = io(socketUrl, {
       transports: ['websocket'],
-      autoConnect: true,
+      autoConnect: false,
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
     });
+
+    const connectTimeout = setTimeout(() => {
+      socketInstance.connect();
+    }, 0);
 
     socketInstance.on('connect', () => {
       setIsConnected(true);
@@ -108,6 +112,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     socketRef.current = socketInstance;
 
     return () => {
+      clearTimeout(connectTimeout);
       socketInstance.disconnect();
     };
   }, [user, queryClient]);
