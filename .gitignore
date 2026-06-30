@@ -27,8 +27,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # ── Uploads (user files, not source code) ────────────────────────────────────
-uploads/
-!uploads/.gitkeep
+/uploads/
+!/uploads/.gitkeep
 
 # ── Cache & temp files ────────────────────────────────────────────────────────
 .graphify_temp/
